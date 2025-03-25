@@ -1,32 +1,45 @@
-import { Router, Request, Response } from "express";
-import { register, login } from "../controllers/authController";
+import { Router, Response } from "express";
+import { AuthRequest } from "../middleware/authMiddleware"; // Import AuthRequest
+import { UserRole } from "../models/User"; // Ensure UserRole is correctly imported
+import { register, login, updateUser, deleteUser } from "../controllers/authController";
+import { protect } from "../middleware/authMiddleware";
 
 const router = Router();
 
 // Register route
-router.post("/register", async (req: Request, res: Response): Promise<void> => {
-  try {
-    await register(req, res); // Calling the controller function
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      res.status(500).json({ msg: "Internal server error", error: error.message });
-    } else {
-      res.status(500).json({ msg: "Unknown error occurred" });
-    }
-  }
+router.post("/register", async (req: AuthRequest, res: Response) => {
+  await register(req, res); // Call the register function directly
 });
 
 // Login route
-router.post("/login", async (req: Request, res: Response): Promise<void> => {
-  try {
-    await login(req, res); // Calling the controller function
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      res.status(500).json({ msg: "Internal server error", error: error.message });
-    } else {
-      res.status(500).json({ msg: "Unknown error occurred" });
+router.post("/login", async (req: AuthRequest, res: Response) => {
+  await login(req, res); // Call the login function directly
+});
+
+// Update user route
+router.put(
+  "/update/:userId",
+  protect([UserRole.ADMIN, UserRole.RESTAURANT_OWNER, UserRole.USER, UserRole.DELIVERY_MAN]),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      await updateUser(req, res); // Call the updateUser function directly
+    } catch (error) {
+      res.status(500).json({ message: "Error during update" });
     }
   }
-});
+);
+
+// Delete user route
+router.delete(
+  "/delete/:userId",
+  protect([UserRole.ADMIN, UserRole.RESTAURANT_OWNER, UserRole.USER, UserRole.DELIVERY_MAN]),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      await deleteUser(req, res); // Call the deleteUser function directly
+    } catch (error) {
+      res.status(500).json({ message: "Error during delete" });
+    }
+  }
+);
 
 export default router;
