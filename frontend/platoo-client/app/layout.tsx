@@ -4,13 +4,14 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from "@/components/theme-provider"
+import { useEffect, useState } from "react"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "Platoo - Food Ordering System",
   description: "Order your favorite food from local restaurants",
-    generator: 'v0.dev'
+  generator: "v0.dev"
 }
 
 export default function RootLayout({

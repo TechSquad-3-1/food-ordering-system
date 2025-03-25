@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -10,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2 } from "lucide-react"
+import { Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -40,12 +38,12 @@ export default function LoginPage() {
 
       // Store the token in localStorage
       localStorage.setItem("token", data.token)
-
+      
       toast({
         title: "Login successful",
         description: "You have been logged in successfully.",
       })
-
+      
       // Redirect to dashboard or home page
       router.push("/dashboard")
     } catch (error) {
@@ -60,41 +58,57 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-orange-50 to-orange-100 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center text-orange-600">Login to Platoo</CardTitle>
-          <CardDescription className="text-center">Enter your credentials to access your account</CardDescription>
+    <div 
+      className="flex min-h-screen items-center justify-center p-4 bg-cover bg-center bg-fixed"
+      style={{ 
+        backgroundImage: "url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070&auto=format&fit=crop')",
+      }}
+    >
+      <div className="absolute inset-0 bg-black/50" />
+      
+      <Card className="w-full max-w-md relative bg-white/20 backdrop-blur-md border-white/30 shadow-xl">
+        <div className="absolute inset-0 bg-gradient-to-r from-orange-600/10 to-red-600/10 rounded-lg" />
+        <CardHeader className="space-y-1 relative">
+          <CardTitle className="text-3xl font-bold text-center text-white">Login to Platoo</CardTitle>
+          <CardDescription className="text-center text-white/80">
+            Enter your credentials to access your account
+          </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your.email@example.com"
+              <Label htmlFor="email" className="text-white">Email</Label>
+              <Input 
+                id="email" 
+                type="email" 
+                placeholder="your.email@example.com" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
+                required 
+                className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <Link href="/forgot-password" className="text-sm text-orange-600 hover:underline">
+                <Label htmlFor="password" className="text-white">Password</Label>
+                <Link href="/forgot-password" className="text-sm text-orange-300 hover:text-orange-200 hover:underline">
                   Forgot password?
                 </Link>
               </div>
-              <Input
-                id="password"
-                type="password"
+              <Input 
+                id="password" 
+                type="password" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required
+                required 
+                className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
             </div>
-            <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              className="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium"
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -106,10 +120,10 @@ export default function LoginPage() {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-          <div className="text-center text-sm">
+        <CardFooter className="flex flex-col space-y-4 relative">
+          <div className="text-center text-sm text-white">
             Don&apos;t have an account?{" "}
-            <Link href="/register" className="text-orange-600 hover:underline">
+            <Link href="/register" className="text-orange-300 hover:text-orange-200 hover:underline font-medium">
               Register
             </Link>
           </div>
@@ -118,4 +132,3 @@ export default function LoginPage() {
     </div>
   )
 }
-

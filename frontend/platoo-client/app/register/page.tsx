@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2 } from "lucide-react"
+import { Loader2 } from 'lucide-react'
 
 // Define user roles to match your backend
 export enum UserRole {
@@ -99,18 +99,26 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-orange-50 to-orange-100 p-4">
-      <Card className="w-full max-w-lg">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center text-orange-600">Create an account</CardTitle>
-          <CardDescription className="text-center">
+    <div 
+      className="flex min-h-screen items-center justify-center p-4 bg-cover bg-center bg-fixed"
+      style={{ 
+        backgroundImage: "url('https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=2074&auto=format&fit=crop')",
+      }}
+    >
+      <div className="fixed inset-0 bg-black/60" />
+      
+      <Card className="w-full max-w-lg relative bg-white/20 backdrop-blur-md border-white/30 shadow-xl">
+        <div className="absolute inset-0 bg-gradient-to-r from-orange-600/10 to-red-600/10 rounded-lg" />
+        <CardHeader className="space-y-1 relative">
+          <CardTitle className="text-3xl font-bold text-center text-white">Create an account</CardTitle>
+          <CardDescription className="text-center text-white/80">
             Enter your information to create your Platoo account
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="name" className="text-white">Full Name</Label>
               <Input
                 id="name"
                 name="name"
@@ -118,11 +126,12 @@ export default function RegisterPage() {
                 value={formData.name}
                 onChange={handleChange}
                 required
+                className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-white">Email</Label>
               <Input
                 id="email"
                 name="email"
@@ -131,12 +140,13 @@ export default function RegisterPage() {
                 value={formData.email}
                 onChange={handleChange}
                 required
+                className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-white">Password</Label>
                 <Input
                   id="password"
                   name="password"
@@ -144,10 +154,11 @@ export default function RegisterPage() {
                   value={formData.password}
                   onChange={handleChange}
                   required
+                  className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Label htmlFor="confirmPassword" className="text-white">Confirm Password</Label>
                 <Input
                   id="confirmPassword"
                   name="confirmPassword"
@@ -155,28 +166,33 @@ export default function RegisterPage() {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required
+                  className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Account Type</Label>
-              <RadioGroup value={formData.role} onValueChange={handleRoleChange} className="flex flex-wrap gap-4">
+              <Label className="text-white">Account Type</Label>
+              <RadioGroup 
+                value={formData.role} 
+                onValueChange={handleRoleChange}
+                className="flex flex-wrap gap-4"
+              >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value={UserRole.USER} id="user" />
-                  <Label htmlFor="user" className="cursor-pointer">
+                  <RadioGroupItem value={UserRole.USER} id="user" className="border-white text-white" />
+                  <Label htmlFor="user" className="cursor-pointer text-white">
                     Customer
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value={UserRole.RESTAURANT_OWNER} id="restaurant" />
-                  <Label htmlFor="restaurant" className="cursor-pointer">
+                  <RadioGroupItem value={UserRole.RESTAURANT_OWNER} id="restaurant" className="border-white text-white" />
+                  <Label htmlFor="restaurant" className="cursor-pointer text-white">
                     Restaurant Owner
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value={UserRole.DELIVERY_MAN} id="delivery" />
-                  <Label htmlFor="delivery" className="cursor-pointer">
+                  <RadioGroupItem value={UserRole.DELIVERY_MAN} id="delivery" className="border-white text-white" />
+                  <Label htmlFor="delivery" className="cursor-pointer text-white">
                     Delivery Person
                   </Label>
                 </div>
@@ -184,7 +200,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="phone" className="text-white">Phone Number</Label>
               <Input
                 id="phone"
                 name="phone"
@@ -192,11 +208,12 @@ export default function RegisterPage() {
                 value={formData.phone}
                 onChange={handleChange}
                 required
+                className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
+              <Label htmlFor="address" className="text-white">Address</Label>
               <Input
                 id="address"
                 name="address"
@@ -204,12 +221,13 @@ export default function RegisterPage() {
                 value={formData.address}
                 onChange={handleChange}
                 required
+                className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
             </div>
 
             {formData.role === UserRole.RESTAURANT_OWNER && (
               <div className="space-y-2">
-                <Label htmlFor="restaurantName">Restaurant Name</Label>
+                <Label htmlFor="restaurantName" className="text-white">Restaurant Name</Label>
                 <Input
                   id="restaurantName"
                   name="restaurantName"
@@ -217,13 +235,14 @@ export default function RegisterPage() {
                   value={formData.restaurantName}
                   onChange={handleChange}
                   required
+                  className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
                 />
               </div>
             )}
 
             {formData.role === UserRole.DELIVERY_MAN && (
               <div className="space-y-2">
-                <Label htmlFor="vehicleNumber">Vehicle Number</Label>
+                <Label htmlFor="vehicleNumber" className="text-white">Vehicle Number</Label>
                 <Input
                   id="vehicleNumber"
                   name="vehicleNumber"
@@ -231,11 +250,16 @@ export default function RegisterPage() {
                   value={formData.vehicleNumber}
                   onChange={handleChange}
                   required
+                  className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
                 />
               </div>
             )}
 
-            <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              className="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium"
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -247,10 +271,10 @@ export default function RegisterPage() {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-          <div className="text-center text-sm">
+        <CardFooter className="flex flex-col space-y-4 relative">
+          <div className="text-center text-sm text-white">
             Already have an account?{" "}
-            <Link href="/login" className="text-orange-600 hover:underline">
+            <Link href="/login" className="text-orange-300 hover:text-orange-200 hover:underline font-medium">
               Login
             </Link>
           </div>
