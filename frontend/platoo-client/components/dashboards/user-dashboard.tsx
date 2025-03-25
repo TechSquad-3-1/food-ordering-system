@@ -6,7 +6,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ShoppingCart, Search, MapPin, ChevronDown, X } from "lucide-react"
+import { ShoppingCart, Search, MapPin, ChevronDown, X, Info, Clock, ThumbsUp, Phone } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
@@ -15,7 +15,7 @@ interface UserDashboardProps {
 }
 
 export default function UserDashboard({ userId }: UserDashboardProps) {
-  const [address, setAddress] = useState("Washington")
+  const [address, setAddress] = useState("Sri Lanka")
   const [searchQuery, setSearchQuery] = useState("")
   const [cartCount, setCartCount] = useState(2)
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(true)
@@ -122,20 +122,21 @@ export default function UserDashboard({ userId }: UserDashboardProps) {
       {/* Main Content */}
       <main className="flex-1">
         {/* Hero Section */}
-        <div className="relative bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1585109649139-366815a0d713?q=80&w=2070&auto=format&fit=crop')" }}>
+        <div className="relative bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "url('/backgroundHome.jpg')" }}>
           <div className="absolute inset-0 bg-black/50"></div>
-          <div className="container mx-auto px-6 pt-24 pb-16 relative z-1 flex flex-col lg:flex-row items-center justify-between">
-            <div className="w-full lg:w-1/2 text-center lg:text-left">
-              <div className="flex items-center justify-center lg:justify-start mb-6 text-white">
+          <div className="container mx-auto px-6 pt-24 pb-16 relative z-10 flex flex-col lg:flex-row items-center justify-center text-center">
+            {/* Left Side - Content */}
+            <div className="text-white">
+              <div className="flex items-center justify-center mb-6 text-lg">
                 <MapPin className="h-5 w-5 text-red-500 mr-2" />
-                <span className="text-lg">{address}</span>
+                <span>{address}</span>
               </div>
 
-              <h1 className="text-4xl md:text-5xl font-bold text-white mb-8 leading-tight">
+              <h1 className="text-4xl md:text-5xl font-bold mb-8 leading-tight">
                 Discover restaurants that deliver near you.
               </h1>
 
-              <form onSubmit={handleSearch} className="relative max-w-md mx-auto lg:mx-0">
+              <form onSubmit={handleSearch} className="relative max-w-md mx-auto mb-8">
                 <Input
                   type="text"
                   placeholder="Enter your delivery address"
@@ -150,17 +151,39 @@ export default function UserDashboard({ userId }: UserDashboardProps) {
                   <Search className="h-5 w-5 text-white" />
                 </Button>
               </form>
+
+              {/* Call to Action */}
+              <div className="flex justify-center gap-6 mb-6">
+                <Button className="bg-red-500 hover:bg-red-600 text-white py-2 px-6 rounded-full flex items-center">
+                  <ShoppingCart className="h-5 w-5 mr-2" />
+                  Order Now
+                </Button>
+                <Button className="bg-transparent border-2 border-white text-white py-2 px-6 rounded-full flex items-center">
+                  <Info className="h-5 w-5 mr-2" />
+                  Learn More
+                </Button>
+              </div>
+
+              {/* Icons */}
+              <div className="flex justify-center gap-6 text-white">
+                <div className="flex items-center space-x-2">
+                  <Clock className="h-6 w-6 text-red-500" />
+                  <span className="text-sm">Fast Delivery</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <ThumbsUp className="h-6 w-6 text-red-500" />
+                  <span className="text-sm">Highly Rated</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Phone className="h-6 w-6 text-red-500" />
+                  <span className="text-sm">24/7 Support</span>
+                </div>
+              </div>
             </div>
 
-            <div className="hidden lg:block lg:w-1/2 mt-8 lg:mt-0">
-              <img
-                src="https://images.unsplash.com/photo-1585109649139-366815a0d713?q=80&w=2070&auto=format&fit=crop"
-                alt="Delicious french fries"
-                className="w-full h-auto object-cover rounded-lg shadow-lg"
-              />
-            </div>
           </div>
         </div>
+
 
 
         {/* Food Categories */}
