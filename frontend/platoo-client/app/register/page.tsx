@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -14,11 +12,11 @@ import { useToast } from "@/components/ui/use-toast"
 import { Loader2 } from "lucide-react"
 
 // Define user roles to match your backend
-enum UserRole {
-  USER = "USER",
-  ADMIN = "ADMIN",
-  RESTAURANT_OWNER = "RESTAURANT_OWNER",
-  DELIVERY_MAN = "DELIVERY_MAN",
+export enum UserRole {
+  ADMIN = "admin",
+  RESTAURANT_OWNER = "restaurant_owner",
+  USER = "user",
+  DELIVERY_MAN = "delivery_man",
 }
 
 export default function RegisterPage() {
@@ -49,8 +47,9 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Basic validation
+    // Basic validation: Ensure passwords match
     if (formData.password !== formData.confirmPassword) {
+      console.log("Password mismatch: ", formData.password, formData.confirmPassword); // Debugging log
       toast({
         title: "Passwords don't match",
         description: "Please make sure your passwords match.",
@@ -65,7 +64,9 @@ export default function RegisterPage() {
       // Remove confirmPassword as it's not needed in the API
       const { confirmPassword, ...dataToSend } = formData
 
-      const response = await fetch("/api/auth/register", {
+      console.log("Sending data to backend:", dataToSend) // Log data for debugging
+
+      const response = await fetch("http://localhost:4000/api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -258,4 +259,3 @@ export default function RegisterPage() {
     </div>
   )
 }
-

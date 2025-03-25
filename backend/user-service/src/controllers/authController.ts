@@ -12,7 +12,6 @@ const generateToken = (id: string, role: string): string => {
 // Register user
 export const register = async (req: Request, res: Response): Promise<void> => {
   const { name, email, password, role, phone, address, restaurantName, vehicleNumber } = req.body;
-
   const hashedPassword = await bcrypt.hash(password, 10);
 
   const user = new User({
@@ -27,9 +26,11 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   });
 
   try {
+    console.log("Registering user with data:", req.body); // Log the request data
     await user.save();
     res.status(201).json({ msg: "User registered" });
   } catch (error: unknown) {
+    console.error("Registration error:", error); // Log error
     if (error instanceof Error) {
       res.status(500).json({ msg: "Error registering user", error: error.message });
     } else {
