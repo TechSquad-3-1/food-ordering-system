@@ -10,10 +10,12 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@types/express": "^5.0.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "joi": "^17.13.3",
+    "mongoose": "^8.13.0",
     "pg": "^8.14.1",
     "sequelize": "^6.37.6",
     "sequelize-cli": "^6.6.2"
