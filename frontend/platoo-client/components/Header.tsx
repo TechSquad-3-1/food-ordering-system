@@ -10,11 +10,18 @@ const Header = ({ cartCount }: { cartCount: number }) => {
   const router = useRouter()
 
   const handleSignOut = () => {
-    // Clear authentication token or user session here
-    // For example, you could delete a cookie or clear localStorage
-    localStorage.removeItem("authToken") // Example for clearing token
-    // Redirect to the login page
-    router.push("/login")
+    localStorage.removeItem("token"); // Remove token from localStorage
+    localStorage.removeItem("user");  // Remove user data from localStorage
+    router.push("/login"); // Redirect to login page
+  }
+
+  const handleProfileRedirect = () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/login"); // Redirect to login if no token
+    } else {
+      router.push("/profile"); // If logged in, redirect to profile
+    }
   }
 
   return (
@@ -58,9 +65,9 @@ const Header = ({ cartCount }: { cartCount: number }) => {
               <DropdownMenuContent className="w-48 mt-2 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                 <DropdownMenuLabel>Account Options</DropdownMenuLabel>
                 <DropdownMenuItem>
-                  <Link href="/profile" className="block text-sm text-gray-700 hover:bg-gray-100 px-4 py-2 rounded">
+                  <button onClick={handleProfileRedirect} className="block text-sm text-gray-700 hover:bg-gray-100 px-4 py-2 rounded">
                     Profile
-                  </Link>
+                  </button>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <Link href="/order-history" className="block text-sm text-gray-700 hover:bg-gray-100 px-4 py-2 rounded">

@@ -1,25 +1,25 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useToast } from "@/components/ui/use-toast"
-import { Loader2 } from 'lucide-react'
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/use-toast";
+import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const { toast } = useToast()
-  const router = useRouter()
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+    e.preventDefault();
+    setIsLoading(true);
 
     try {
       const response = await fetch("http://localhost:4000/api/auth/login", {
@@ -28,44 +28,60 @@ export default function LoginPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email, password }),
-      })
+      });
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.msg || "Login failed")
+        throw new Error(data.msg || "Login failed");
       }
 
-      // Store the token in localStorage
-      localStorage.setItem("token", data.token)
-      
+      // Decode the token to get the user ID and role
+      const token = data.token;
+      const decodedToken = decodeToken(token);
+
+      // Store the token and user data in localStorage
+      localStorage.setItem("token", token);
+      localStorage.setItem("userId", decodedToken.id);
+      localStorage.setItem("role", decodedToken.role);
+
       toast({
         title: "Login successful",
         description: "You have been logged in successfully.",
-      })
-      
+      });
+
       // Redirect to dashboard or home page
-      router.push("/dashboard")
+      router.push("/dashboard");
     } catch (error) {
       toast({
         title: "Login failed",
         description: error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
+
+  const decodeToken = (token: string) => {
+    try {
+      const decoded = JSON.parse(atob(token.split(".")[1]));
+      return decoded;
+    } catch (error) {
+      console.error("Error decoding token", error);
+      return null;
+    }
+  };
 
   return (
-    <div 
+    <div
       className="flex min-h-screen items-center justify-center p-4 bg-cover bg-center bg-fixed"
-      style={{ 
+      style={{
         backgroundImage: "url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070&auto=format&fit=crop')",
       }}
     >
       <div className="absolute inset-0 bg-black/50" />
-      
+
       <Card className="w-full max-w-md relative bg-white/20 backdrop-blur-md border-white/30 shadow-xl">
         <div className="absolute inset-0 bg-gradient-to-r from-orange-600/10 to-red-600/10 rounded-lg" />
         <CardHeader className="space-y-1 relative">
@@ -77,35 +93,42 @@ export default function LoginPage() {
         <CardContent className="relative">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-white">Email</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder="your.email@example.com" 
+              <Label htmlFor="email" className="text-white">
+                Email
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="your.email@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required 
+                required
                 className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-white">Password</Label>
-                <Link href="/forgot-password" className="text-sm text-orange-300 hover:text-orange-200 hover:underline">
+                <Label htmlFor="password" className="text-white">
+                  Password
+                </Label>
+                <Link
+                  href="/forgot-password"
+                  className="text-sm text-orange-300 hover:text-orange-200 hover:underline"
+                >
                   Forgot password?
                 </Link>
               </div>
-              <Input 
-                id="password" 
-                type="password" 
+              <Input
+                id="password"
+                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required 
+                required
                 className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
             </div>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium"
               disabled={isLoading}
             >
@@ -130,5 +153,5 @@ export default function LoginPage() {
         </CardFooter>
       </Card>
     </div>
-  )
+  );
 }
