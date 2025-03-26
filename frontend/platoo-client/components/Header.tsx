@@ -4,8 +4,19 @@ import { ChevronDown, ShoppingCart, User } from "lucide-react"
 import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 const Header = ({ cartCount }: { cartCount: number }) => {
+  const router = useRouter()
+
+  const handleSignOut = () => {
+    // Clear authentication token or user session here
+    // For example, you could delete a cookie or clear localStorage
+    localStorage.removeItem("authToken") // Example for clearing token
+    // Redirect to the login page
+    router.push("/login")
+  }
+
   return (
     <header className="sticky top-0 z-10 bg-white border-b">
       <div className="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
@@ -82,8 +93,10 @@ const Header = ({ cartCount }: { cartCount: number }) => {
             </Link>
           </div>
 
-          {/* New Button (e.g., Sign Out) */}
-          <Button className="bg-gray-500 hover:bg-gray-600 rounded-md">Sign Out</Button>
+          {/* Sign Out Button */}
+          <Button className="bg-gray-500 hover:bg-gray-600 rounded-md" onClick={handleSignOut}>
+            Sign Out
+          </Button>
         </div>
       </div>
     </header>

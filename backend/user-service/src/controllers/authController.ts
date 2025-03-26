@@ -146,4 +146,60 @@ export const deleteUser = async (req: AuthRequest, res: Response): Promise<void>
     }
   };
   
-  
+// Get all users (Admin only)
+export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const users = await User.find(); // Fetch all users from the database
+    res.status(200).json(users); // Return the list of users
+  } catch (error: unknown) {
+    console.error("Error fetching users:", error);
+    if (error instanceof Error) {
+      res.status(500).json({ msg: "Error fetching users", error: error.message });
+    } else {
+      res.status(500).json({ msg: "Unknown error occurred" });
+    }
+  }
+};
+
+// Get user by ID (Admins can get any, others can only get their own)
+export const getUserById = async (req: AuthRequest, res: Response): Promise<void> => {
+  const userId = req.params.userId; // Get userId from the route parameter
+  const currentUser = req.user; // This comes from the middleware (protect)
+
+  if (!currentUser) {
+    res.status(401).json({ msg: "Unauthorized: No user found" });
+    return;
+  }
+
+  // Admins can view any profile
+  // Non-admins (users, delivery men) can only view their own profile
+  if (currentUser.role !== UserRole.ADMIN && currentUser.id !== userId) {
+    res.status(403).json({ msg: "Forbidden: You can only view your own profile" });
+    return;
+  }
+
+  try {
+    // Check if the userId is valid
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      res.status(400).json({ msg: "Invalid userId format" });
+      return;
+    }
+
+    // Find the user by ObjectId
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ msg: "User not found" });
+      return;
+    }
+
+    // Return the user data
+    res.status(200).json(user);
+  } catch (error: unknown) {
+    console.error("Error fetching user:", error);
+    if (error instanceof Error) {
+      res.status(500).json({ msg: "Error fetching user", error: error.message });
+    } else {
+      res.status(500).json({ msg: "Unknown error occurred" });
+    }
+  }
+};
