@@ -1,6 +1,7 @@
 // models/User.ts
 import { Schema, model, Document } from "mongoose";
 
+// Enum for user roles
 export enum UserRole {
   ADMIN = "admin",
   RESTAURANT_OWNER = "restaurant_owner",
@@ -8,6 +9,7 @@ export enum UserRole {
   DELIVERY_MAN = "delivery_man",
 }
 
+// Interface for user document
 interface IUser extends Document {
   name: string;
   email: string;
@@ -20,6 +22,7 @@ interface IUser extends Document {
   createdAt: Date;
 }
 
+// Define the user schema
 const userSchema = new Schema<IUser>({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
@@ -32,4 +35,5 @@ const userSchema = new Schema<IUser>({
   createdAt: { type: Date, default: Date.now },
 });
 
+// Export the user model
 export default model<IUser>("User", userSchema);
