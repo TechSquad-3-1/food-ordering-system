@@ -3,7 +3,8 @@ import {
   createMenu, 
   getMenusByRestaurant, 
   updateMenu, 
-  deleteMenu 
+  deleteMenu, 
+  getAllMenus
 } from '../services/menu.service';
 
 // Create a new menu
@@ -66,6 +67,20 @@ export const deleteMenuHandler = async (req: Request, res: Response): Promise<vo
     }
 
     res.status(200).json({ message: 'Menu deleted successfully' });
+  } catch (error) {
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'An unknown error occurred' });
+    }
+  }
+};
+
+// Get all menus from all restaurants
+export const getAllMenusHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const menus = await getAllMenus();
+    res.status(200).json(menus);
   } catch (error) {
     if (error instanceof Error) {
       res.status(500).json({ error: error.message });

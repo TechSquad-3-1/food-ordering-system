@@ -242,7 +242,7 @@ export default function RestaurantDashboard({ userId }: RestaurantDashboardProps
 
   const navItems = [
     { title: "Dashboard", href: "/dashboard", icon: "layout-dashboard" },
-    { title: "Orders", href: "/dashboard/orders", icon: "shopping-bag" },
+    { title: "Orders", href: "/dashboard/restaurant/orders", icon: "shopping-bag" },
     { title: "Menu", href: "/dashboard/menu", icon: "utensils" },
     { title: "Customers", href: "/dashboard/customers", icon: "users" },
     { title: "Analytics", href: "/dashboard/analytics", icon: "bar-chart-2" },

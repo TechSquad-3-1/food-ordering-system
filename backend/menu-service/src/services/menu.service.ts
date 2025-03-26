@@ -20,3 +20,13 @@ export const updateMenu = async (menuId: string, updatedData: Partial<IMenu>) =>
   export const deleteMenu = async (menuId: string) => {
     return await MenuModel.findByIdAndDelete(menuId);
   };
+  
+// Fetch all menus from all restaurants
+export const getAllMenus = async (): Promise<IMenu[]> => {
+  try {
+    const menus = await MenuModel.find().populate('restaurant_id', 'name'); // Optionally populate restaurant details
+    return menus;
+  } catch (error) {
+    throw error;
+  }
+};
