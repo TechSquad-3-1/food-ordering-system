@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Order, { IOrderItem } from '../models/order';
 
 export class OrderService {
+  // Create a new order
   static async createOrder(user_id: string, items: IOrderItem[]) {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -32,16 +33,48 @@ export class OrderService {
       session.endSession();
 
       return order;
-    } catch (error) {
-      // If something goes wrong, rollback the transaction and throw error
-      await session.abortTransaction();
-      session.endSession();
-
+    } catch (error: unknown) {
       if (error instanceof Error) {
-        throw new Error(`Order creation failed: ${error.message}`);
+        console.error(`Error: ${error.message}`);
+        throw error;
       } else {
-        throw new Error('Unknown error occurred while creating the order');
+        console.error("Unknown error occurred");
+        throw new Error("Unknown error occurred");
       }
     }
+  }
+
+  // Get all orders
+  static async getAllOrders() {
+    return await Order.find(); // Retrieve all orders
+  }
+
+  // Get an order by its ID
+  static async getOrderById(orderId: string) {
+    return await Order.findById(orderId); // Retrieve the order by _id
+  }
+
+  // Update an order
+  static async updateOrder(orderId: string, user_id: string, items: IOrderItem[], status: string) {
+    const order = await Order.findById(orderId);
+
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    // Update the order's fields
+    order.user_id = user_id;
+    order.items = items;
+    order.status = status;
+    order.total_amount = items.reduce((acc: number, item) => acc + item.price * item.quantity, 0);
+
+    await order.save();
+    return order; // Return updated order
+  }
+
+  // Delete an order
+  static async deleteOrder(orderId: string) {
+    const order = await Order.findByIdAndDelete(orderId);
+    return order; // Return the deleted order
   }
 }
