@@ -26,7 +26,8 @@ const Header = ({ cartCount }: { cartCount: number }) => {
   }
 
   const getLinkClassName = (path: string) => {
-    return currentPath === path
+    // Check if current path starts with the given base path
+    return currentPath?.startsWith(path)
       ? "text-sm font-medium border-b-2 border-red-500 pb-1 px-4"
       : "text-sm font-medium text-gray-600 hover:text-gray-900 px-4"
   }
