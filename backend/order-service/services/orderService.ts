@@ -8,50 +8,45 @@ export class OrderService {
     session.startTransaction();
 
     try {
-      // Calculate total amount based on the provided items' prices and quantities
       const totalAmount = items.reduce((acc: number, item) => {
-        return acc + item.price * item.quantity; // Multiply price by quantity
+        return acc + item.price * item.quantity;
       }, 0);
 
-      // Check if we have any valid items to process, and if not, throw an error
       if (totalAmount === 0) {
         throw new Error("No valid menu items found for the order.");
       }
 
-      // Create the order document
       const order = new Order({
         user_id,
         total_amount: totalAmount,
         items: items,
+        status: 'pending' // Set the status to 'pending' initially
       });
 
-      // Save the order in the database
       await order.save({ session });
 
-      // Commit the transaction
       await session.commitTransaction();
       session.endSession();
 
       return order;
     } catch (error: unknown) {
+      await session.abortTransaction();
+      session.endSession();
       if (error instanceof Error) {
-        console.error(`Error: ${error.message}`);
         throw error;
-      } else {
-        console.error("Unknown error occurred");
-        throw new Error("Unknown error occurred");
       }
+      throw new Error("Unknown error occurred");
     }
   }
 
   // Get all orders
   static async getAllOrders() {
-    return await Order.find(); // Retrieve all orders
+    return await Order.find();
   }
 
   // Get an order by its ID
   static async getOrderById(orderId: string) {
-    return await Order.findById(orderId); // Retrieve the order by _id
+    return await Order.findById(orderId);
   }
 
   // Update an order
@@ -62,19 +57,42 @@ export class OrderService {
       throw new Error('Order not found');
     }
 
-    // Update the order's fields
+    
+
     order.user_id = user_id;
     order.items = items;
     order.status = status;
     order.total_amount = items.reduce((acc: number, item) => acc + item.price * item.quantity, 0);
 
     await order.save();
-    return order; // Return updated order
+    return order;
   }
 
   // Delete an order
   static async deleteOrder(orderId: string) {
-    const order = await Order.findByIdAndDelete(orderId);
-    return order; // Return the deleted order
+    const order = await Order.findById(orderId);
+
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    if (order.status !== 'pending' && order.status !== 'delivered') {
+      throw new Error('Order cannot be deleted unless its status is "pending" or "delivered"');
+    }
+
+    // Use deleteOne instead of remove
+    await order.deleteOne();  // Or use order.delete()
+
+    return order;
+  }
+
+  // Get orders by user_id
+  static async getOrdersByUserId(userId: string) {
+    try {
+      const orders = await Order.find({ user_id: userId }); // Find orders by user_id
+      return orders;
+    } catch (error) {
+      throw new Error('Error fetching orders by user ID');
+    }
   }
 }

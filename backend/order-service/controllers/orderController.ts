@@ -57,24 +57,17 @@ export const getOrderById = async (req: Request, res: Response): Promise<Respons
   }
 };
 
-// Update order
+// Update Order Handler
 export const updateOrder = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const orderId = req.params.orderId;
-    const { user_id, items, status } = req.body;
-
-    if (!user_id || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: 'Invalid request body, user_id and items are required' });
-    }
-
-    const order = await OrderService.updateOrder(orderId, user_id, items, status);
-
-    if (!order) {
-      return res.status(404).json({ message: 'Order not found' });
-    }
-
-    return res.status(200).json(order);
-  } catch (error) {
+    const updatedOrder = await OrderService.updateOrder(
+      req.params.orderId, 
+      req.body.user_id, 
+      req.body.items, 
+      req.body.status
+    );
+    return res.status(200).json(updatedOrder);
+  } catch (error: unknown) {
     if (error instanceof Error) {
       return res.status(500).json({ message: 'Error updating order', error: error.message });
     } else {
@@ -83,20 +76,33 @@ export const updateOrder = async (req: Request, res: Response): Promise<Response
   }
 };
 
-// Delete order
+// Delete Order Handler
 export const deleteOrder = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const orderId = req.params.orderId;
-    const deletedOrder = await OrderService.deleteOrder(orderId);
-
-    if (!deletedOrder) {
-      return res.status(404).json({ message: 'Order not found' });
-    }
-
+    const deletedOrder = await OrderService.deleteOrder(req.params.orderId);
     return res.status(200).json({ message: 'Order deleted successfully' });
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof Error) {
       return res.status(500).json({ message: 'Error deleting order', error: error.message });
+    } else {
+      return res.status(500).json({ message: 'Unknown error' });
+    }
+  }
+};
+
+
+// Get orders by user_id handler
+export const getOrdersByUserId = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const userId = req.params.userId;  // Retrieve user_id from URL params
+    const orders = await OrderService.getOrdersByUserId(userId);
+    if (orders.length === 0) {
+      return res.status(404).json({ message: 'No orders found for this user' });
+    }
+    return res.status(200).json(orders);  // Return orders for the user
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      return res.status(500).json({ message: 'Error fetching orders', error: error.message });
     } else {
       return res.status(500).json({ message: 'Unknown error' });
     }

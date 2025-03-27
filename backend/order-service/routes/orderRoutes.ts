@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { createOrder, getAllOrders, getOrderById, updateOrder, deleteOrder } from '../controllers/orderController';
+import { createOrder, getAllOrders, getOrderById, updateOrder, deleteOrder, getOrdersByUserId } from '../controllers/orderController';
 
 const router = express.Router();
 
@@ -68,4 +68,18 @@ router.delete('/orders/:orderId', async (req: Request, res: Response) => {
   }
 });
 
+
+// Get orders by user_id
+router.get('/orders/user/:userId', async (req: Request, res: Response) => {
+    try {
+      await getOrdersByUserId(req, res);  // Call the async handler function
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ message: 'Error fetching orders by user ID', error: error.message });
+      } else {
+        res.status(500).json({ message: 'Unknown error occurred' });
+      }
+    }
+  });
+  
 export default router;
