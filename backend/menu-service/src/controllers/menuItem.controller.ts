@@ -3,7 +3,8 @@ import {
   createMenuItem, 
   getMenuItemsByMenu, 
   updateMenuItem,    // Add this import for updating a menu item
-  deleteMenuItem     // Add this import for deleting a menu item
+  deleteMenuItem,     // Add this import for deleting a menu item
+  getAllMenuItems
 } from '../services/menuItem.service';
 
 export const createMenuItemHandler = async (req: Request, res: Response): Promise<void> => {
@@ -64,6 +65,20 @@ export const deleteMenuItemHandler = async (req: Request, res: Response): Promis
     }
 
     res.status(200).json({ message: 'Menu item deleted successfully' });
+  } catch (error) {
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'An unknown error occurred' });
+    }
+  }
+};
+
+// New Handler: Get All Menu Items
+export const getAllMenuItemsHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const menuItems = await getAllMenuItems(); // Call the service function
+    res.status(200).json(menuItems);
   } catch (error) {
     if (error instanceof Error) {
       res.status(500).json({ error: error.message });

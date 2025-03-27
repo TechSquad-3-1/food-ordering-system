@@ -20,3 +20,8 @@ export const updateMenuItem = async (menuItemId: string, updatedData: Partial<IM
   export const deleteMenuItem = async (menuItemId: string) => {
     return await MenuItemModel.findByIdAndDelete(menuItemId);
   };
+
+  // New Function: Get All Menu Items
+export const getAllMenuItems = async () => {
+  return await MenuItemModel.find({ is_available: true }); // Fetch all available menu items
+};

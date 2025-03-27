@@ -8,7 +8,7 @@ interface MenuItem {
   price: number;
   name: string;
   description: string;
-  // Include other fields as per your schema
+  is_available: boolean;
 }
 
 export class OrderService {
@@ -17,22 +17,58 @@ export class OrderService {
     session.startTransaction();
 
     try {
-      // Fetch menu items from the MenuService (ensure the menu service is accessible)
-      const menuItemsResponse = await axios.post<MenuItem[]>('http://menu-service/api/menu-items/batch', {
-        menu_item_ids: items.map(item => item.menu_item_id),
-      });
+      // Ensure MENU_SERVICE_URL is correct
+      const menuServiceUrl = process.env.MENU_SERVICE_URL || 'http://localhost:3001'; // Menu Service URL
 
-      // Get the menu items from the response
-      const menuItems = menuItemsResponse.data;
+      // Create an array to store the fetched menu items
+      const menuItems: MenuItem[] = [];
 
-      // Calculate total amount for the order
-      const totalAmount = menuItems.reduce((acc: number, item: MenuItem) => {
-        const orderedItem = items.find(i => i.menu_item_id.toString() === item._id.toString());
-        if (!orderedItem) {
-          return acc; // In case we couldn't find a corresponding item
+      // Fetch each menu item from the MenuService individually
+      for (const item of items) {
+        try {
+          // Fetch the menu item from the MenuService using its menu_item_id
+          const menuItemResponse = await axios.get<MenuItem>(`${menuServiceUrl}/api/menu-items/${item.menu_item_id}`);
+          
+          // Check if menuItemResponse.data is valid
+          if (!menuItemResponse.data) {
+            console.error(`Menu item not found for id: ${item.menu_item_id}`);
+            continue; // Skip this item if it's not found
+          }
+
+          // Log the fetched menu item for debugging
+          console.log(`Fetched menu item: `, menuItemResponse.data);
+
+          // Push the fetched menu item to the menuItems array
+          menuItems.push(menuItemResponse.data);
+        } catch (err) {
+          console.error(`Error fetching menu item with id: ${item.menu_item_id}`, err);
         }
-        return acc + item.price * orderedItem.quantity;
+      }
+
+      // Now calculate the total amount
+      const totalAmount = menuItems.reduce((acc: number, menuItem: MenuItem) => {
+        // Ensure menu_item_id and _id are valid before comparing
+        const orderedItem = items.find(i => {
+          if (i.menu_item_id && menuItem._id) {
+            console.log(`Comparing ${i.menu_item_id} with ${menuItem._id}`);
+            return i.menu_item_id.toString() === menuItem._id.toString();
+          }
+          return false; // Skip if either is undefined or null
+        });
+
+        if (!orderedItem) {
+          console.error(`No ordered item found for menu item with id: ${menuItem._id}`);
+          return acc; // If orderedItem is not found, skip it
+        }
+
+        // Add price * quantity to the total amount
+        return acc + menuItem.price * orderedItem.quantity;
       }, 0);
+
+      // Check if we have any valid items to process, and if not, throw an error
+      if (totalAmount === 0) {
+        throw new Error("No valid menu items found for the order.");
+      }
 
       // Create the order document
       const order = new Order({
@@ -41,7 +77,7 @@ export class OrderService {
         items: items,
       });
 
-      // Save the order in the database with a session for transaction management
+      // Save the order in the database
       await order.save({ session });
 
       // Commit the transaction
@@ -50,14 +86,15 @@ export class OrderService {
 
       return order;
     } catch (error) {
-      // If something goes wrong, rollback the transaction and throw the error
+      // If something goes wrong, rollback the transaction and throw error
       await session.abortTransaction();
       session.endSession();
 
-      // It's a good practice to throw an Error with a message that can be caught elsewhere
       if (error instanceof Error) {
+        console.error(`Error creating order: ${error.message}`);
         throw new Error(`Order creation failed: ${error.message}`);
       } else {
+        console.error("Unknown error occurred while creating the order");
         throw new Error('Unknown error occurred while creating the order');
       }
     }
