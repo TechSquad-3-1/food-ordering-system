@@ -1,18 +1,72 @@
 import { Request, Response } from 'express';
-import { searchRestaurants } from '../services/search.service';
+import axios from 'axios';
 
-export const handleSearch = async (req: Request, res: Response) => {
+// Base URL of the Menu Service
+const MENU_SERVICE_URL = 'http://localhost:3001';
+
+// Handle Restaurant Search
+export const handleRestaurantSearch = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { query, location, category, cuisine } = req.query;
+    const { query, location, cuisine } = req.query;
 
-    const results = await searchRestaurants(
-      query as string,
-      location as string,
-      category as string,
-      cuisine as string
-    );
+    // Validate query parameters
+    if (!query && !location && !cuisine) {
+      res.status(400).json({ message: 'At least one search parameter is required' });
+    }
 
-    res.status(200).json(results);
+    // Fetch restaurants
+    const response = await axios.get(`${MENU_SERVICE_URL}/api/restaurants`, {
+      params: { query, location, cuisine },
+    });
+
+    // Send the response
+    res.status(200).json(response.data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
+
+// Handle Category Search
+export const handleCategorySearch = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { query } = req.query;
+
+    // Validate query parameter
+    if (!query) {
+      res.status(400).json({ message: 'Query parameter is required' });
+    }
+
+    // Fetch categories
+    const response = await axios.get(`${MENU_SERVICE_URL}/api/category`, {
+      params: { query },
+    });
+
+    // Send the response
+    res.status(200).json(response.data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
+
+// Handle Menu Item Search
+export const handleMenuItemSearch = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { query } = req.query;
+
+    // Validate query parameter
+    if (!query) {
+       res.status(400).json({ message: 'Query parameter is required' });
+    }
+
+    // Fetch menu items
+    const response = await axios.get(`${MENU_SERVICE_URL}/api/menu-items`, {
+      params: { query },
+    });
+
+    // Send the response
+    res.status(200).json(response.data);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Internal Server Error' });
