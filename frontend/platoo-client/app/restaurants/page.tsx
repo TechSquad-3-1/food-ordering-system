@@ -256,7 +256,7 @@ export default function RestaurantsPage() {
       <main className="max-w-[1400px] mx-auto px-6 py-8">
         {/* Hero Section */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h1 className="text-3xl font-bold mb-4">Restaurants in Washington</h1>
+          <h1 className="text-3xl font-bold mb-4">Restaurants in Sri Lanka</h1>
 
           <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-grow">
