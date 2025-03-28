@@ -17,6 +17,24 @@ app.use(express.json());
 app.use('/api', orderRoutes);
 
 const PORT = process.env.PORT || 3020;
-app.listen(PORT, () => {
+
+const server = app.listen(PORT, () => {
   console.log(`Order service running on port ${PORT}`);
+});
+
+// Gracefully handle shutdown to release the port
+process.on('SIGINT', () => {
+  console.log("Gracefully shutting down...");
+  server.close(() => {
+    console.log("Closed server, freeing up port.");
+    process.exit(0);
+  });
+});
+
+process.on('SIGTERM', () => {
+  console.log("SIGTERM received, shutting down gracefully...");
+  server.close(() => {
+    console.log("Closed server after SIGTERM.");
+    process.exit(0);
+  });
 });
