@@ -22,21 +22,3 @@ export const updateMenuItem = async (menuItemId: string, updatedData: Partial<IM
   export const deleteMenuItem = async (menuItemId: string) => {
     return await MenuItemModel.findByIdAndDelete(menuItemId);
   };
-
-  // Fetch all menu items for a specific restaurant
-export const getMenuItemsByRestaurant = async (restaurantId: string): Promise<IMenuItem[]> => {
-  try {
-    // Find categories associated with the restaurant
-    const categories = await CategoryModel.find({ restaurant_id: restaurantId });
-
-    // Extract category IDs
-    const categoryIds = categories.map((category) => category._id);
-
-    // Find menu items associated with the category IDs
-    const menuItems = await MenuItemModel.find({ category_id: { $in: categoryIds }, is_available: true });
-
-    return menuItems;
-  } catch (error) {
-    throw error;
-  }
-};

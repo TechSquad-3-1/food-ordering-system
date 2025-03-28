@@ -1,10 +1,9 @@
 import { Request, Response } from 'express';
 import { 
   createMenuItem, 
-  getMenuItemsByCategory, // Updated function name
-  updateMenuItem, 
-  deleteMenuItem, 
-  getMenuItemsByRestaurant
+  getMenuItemsByMenu, 
+  updateMenuItem,    // Add this import for updating a menu item
+  deleteMenuItem     // Add this import for deleting a menu item
 } from '../services/menuItem.service';
 
 // Create a new menu item (now associated with a category)
@@ -67,22 +66,6 @@ export const deleteMenuItemHandler = async (req: Request, res: Response): Promis
     }
 
     res.status(200).json({ message: 'Menu item deleted successfully' });
-  } catch (error) {
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: 'An unknown error occurred' });
-    }
-  }
-};
-
-// Get all menu items for a specific restaurant
-export const getMenuItemsByRestaurantHandler = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { restaurantId } = req.params; // Extract restaurant ID from URL params
-    const menuItems = await getMenuItemsByRestaurant(restaurantId);
-
-    res.status(200).json(menuItems);
   } catch (error) {
     if (error instanceof Error) {
       res.status(500).json({ error: error.message });
