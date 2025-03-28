@@ -15,6 +15,7 @@ export interface IRestaurant extends Document {
   location: {
     type: 'Point'; // GeoJSON type for coordinates
     coordinates: [number, number]; // [longitude, latitude]
+    tag: string; // Location tag (e.g., "kalutara")
   };
 }
 const RestaurantSchema: Schema = new Schema(
@@ -39,12 +40,16 @@ const RestaurantSchema: Schema = new Schema(
         type: [Number], // Array of [longitude, latitude]
         required: true,
       },
+      tag: {
+        type: String,
+        required: true,
+      },
     },
   },
   { timestamps: true }
 );
 
 // Add a 2dsphere index for geospatial queries
-RestaurantSchema.index({ location: '2dsphere' });
+RestaurantSchema.index({ 'location.coordinates': '2dsphere' });
 
 export default mongoose.model<IRestaurant>('Restaurant', RestaurantSchema);
