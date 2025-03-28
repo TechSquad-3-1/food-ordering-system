@@ -74,39 +74,39 @@ export const handleMenuItemSearch = async (req: Request, res: Response): Promise
   }
 };
 
-// Exporting the handleCategorySearch function
+// Handle Category Search
 export const handleCategorySearch = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { query, category } = req.query;
+    const { query } = req.query;
 
-    if (!query && !category) {
-      res.status(400).json({ message: 'Query or category parameter is required' });
+    if (!query) {
+      res.status(400).json({ message: 'Query parameter is required' });
       return;
     }
 
-    const results: any[] = [];
-
     try {
-      const categoriesResponse = await axios.get(`${MENU_SERVICE_URL}/categories?name=${query || category}`);
-      const categories = categoriesResponse.data;
+      // Fetch all categories from Menu Service
+      const response = await axios.get(`${MENU_SERVICE_URL}/api/category`);
 
-      results.push(...categories);
-    } catch (error: unknown) {  // Fix catch block type to `unknown`
-      console.error('Error fetching categories:', error);
-    }
+      const categories = response.data;
 
-    if (results.length > 0) {
-      res.status(200).json(results);
-    } else {
-      res.status(404).json({ message: 'No categories found' });
+      // Filter categories based on the query name (case-insensitive)
+      const filteredCategories = categories.filter((category: any) =>
+        category.name.toLowerCase() === query.toString().toLowerCase()
+      );
+
+      if (filteredCategories.length > 0) {
+        res.status(200).json(filteredCategories);
+      } else {
+        res.status(404).json({ message: 'Category not found' });
+      }
+    } catch (error: any) {
+      console.error('Error fetching category details:', error.response?.data || error.message);
+      res.status(500).json({ message: 'Error fetching category details', error: error.response?.data || error.message });
     }
-  } catch (error: unknown) {  // Fix catch block type to `unknown`
-    if (error instanceof Error) {  // Check if error is an instance of `Error`
-      console.error('Error during category search:', error.message);
-      res.status(500).json({ message: 'Internal Server Error', error: error.message });
-    } else {
-      console.error('Unknown error during category search');
-      res.status(500).json({ message: 'Internal Server Error' });
-    }
+  } catch (error: any) {
+    console.error('Unknown error during category search:', error.message);
+    res.status(500).json({ message: 'Internal Server Error', error: error.message });
   }
 };
+

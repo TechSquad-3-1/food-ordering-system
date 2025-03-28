@@ -98,3 +98,4 @@ export const searchMenuItems = async (query: string) => {
     throw error;
   }
 };
+
