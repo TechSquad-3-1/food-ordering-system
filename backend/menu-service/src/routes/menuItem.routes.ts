@@ -1,20 +1,20 @@
 import express from 'express';
-import {
-  createMenuItemHandler,
-  getMenuItemsByMenuHandler,
-  updateMenuItemHandler,
+import { 
+  createMenuItemHandler, 
+  getMenuItemsByCategoryHandler, 
+  updateMenuItemHandler, 
   deleteMenuItemHandler,
-  getAllMenuItemsHandler, // Import the new handler
+  getMenuItemsByRestaurantHandler, // Import the new handler
+  getAllMenuItemsHandler // Import the new handler
 } from '../controllers/menuItem.controller';
 
 const router = express.Router();
 
 router.post('/', createMenuItemHandler); // Create a new menu item
-router.get('/:menuId', getMenuItemsByMenuHandler); // Get menu items by menu ID
+router.get('/category/:categoryId', getMenuItemsByCategoryHandler); // Get menu items by category ID
 router.put('/:menuItemId', updateMenuItemHandler); // Update a menu item by ID
 router.delete('/:menuItemId', deleteMenuItemHandler); // Delete a menu item by ID
-
-// New Route: Get All Menu Items
-router.get('/', getAllMenuItemsHandler); // Fetch all menu items
+router.get('/restaurant/:restaurantId', getMenuItemsByRestaurantHandler); // Get menu items by restaurant ID
+router.get('/', getAllMenuItemsHandler); // Get all menu items from all restaurants
 
 export default router;
