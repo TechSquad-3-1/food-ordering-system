@@ -40,3 +40,15 @@ export const getMenuItemsByRestaurant = async (restaurantId: string): Promise<IM
     throw error;
   }
 };
+
+// Fetch all menu items from all restaurants
+export const getAllMenuItems = async (): Promise<IMenuItem[]> => {
+  try {
+    const menuItems = await MenuItemModel.find({ is_available: true })
+      .populate('category_id', 'name'); // Optionally populate category details
+
+    return menuItems;
+  } catch (error) {
+    throw error;
+  }
+};

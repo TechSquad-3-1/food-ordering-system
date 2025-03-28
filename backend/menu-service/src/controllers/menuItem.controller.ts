@@ -4,7 +4,8 @@ import {
   getMenuItemsByCategory, // Updated function name
   updateMenuItem, 
   deleteMenuItem, 
-  getMenuItemsByRestaurant
+  getMenuItemsByRestaurant,
+  getAllMenuItems
 } from '../services/menuItem.service';
 
 // Create a new menu item (now associated with a category)
@@ -82,6 +83,20 @@ export const getMenuItemsByRestaurantHandler = async (req: Request, res: Respons
     const { restaurantId } = req.params; // Extract restaurant ID from URL params
     const menuItems = await getMenuItemsByRestaurant(restaurantId);
 
+    res.status(200).json(menuItems);
+  } catch (error) {
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'An unknown error occurred' });
+    }
+  }
+};
+
+// Get all menu items from all restaurants
+export const getAllMenuItemsHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const menuItems = await getAllMenuItems();
     res.status(200).json(menuItems);
   } catch (error) {
     if (error instanceof Error) {
