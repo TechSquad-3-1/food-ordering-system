@@ -6,7 +6,7 @@ export interface ICategory extends Document {
   description: string;
   image_url: string;
   is_active: boolean;
-  category: string; // You might want to rename this field to avoid confusion
+  
 }
 
 const CategorySchema: Schema = new Schema(
@@ -16,7 +16,7 @@ const CategorySchema: Schema = new Schema(
     description: { type: String, required: true },
     image_url: { type: String, required: true },
     is_active: { type: Boolean, default: true },
-    category: { type: String, required: true }, // Consider renaming this field
+    
   },
   { timestamps: true }
 );

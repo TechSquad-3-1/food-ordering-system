@@ -5,10 +5,16 @@ export const createMenuItem = async (data: any) => {
   return await MenuItemModel.create(data);
 };
 
-export const getMenuItemsByCategory = async (categoryId: string) => {
-  return await MenuItemModel.find({ category_id: categoryId, is_available: true }); // Changed query to category_id
-};
+// Fetch all menu items for a specific category
+export const getMenuItemsByCategory = async (categoryId: string): Promise<IMenuItem[]> => {
+  try {
+    const menuItems = await MenuItemModel.find({ category_id: categoryId, is_available: true });
 
+    return menuItems;
+  } catch (error) {
+    throw error;
+  }
+};
 // Update a menu item
 export const updateMenuItem = async (menuItemId: string, updatedData: Partial<IMenuItem>) => {
     return await MenuItemModel.findByIdAndUpdate(
@@ -52,3 +58,4 @@ export const getAllMenuItems = async (): Promise<IMenuItem[]> => {
     throw error;
   }
 };
+

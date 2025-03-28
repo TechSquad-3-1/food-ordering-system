@@ -1,5 +1,6 @@
 import CategoryModel, { ICategory } from '../models/category.model'; // Updated import
 
+//create category
 export const createCategory = async (data: any) => {
   return await CategoryModel.create(data);
 };
