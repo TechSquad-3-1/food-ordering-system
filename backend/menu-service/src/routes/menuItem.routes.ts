@@ -4,7 +4,8 @@ import {
   getMenuItemsByCategoryHandler, 
   updateMenuItemHandler, 
   deleteMenuItemHandler,
-  getMenuItemsByRestaurantHandler // Import the new handler
+  getMenuItemsByRestaurantHandler, // Import the new handler
+  getAllMenuItemsHandler // Import the new handler
 } from '../controllers/menuItem.controller';
 
 const router = express.Router();
@@ -14,5 +15,6 @@ router.get('/category/:categoryId', getMenuItemsByCategoryHandler); // Get menu 
 router.put('/:menuItemId', updateMenuItemHandler); // Update a menu item by ID
 router.delete('/:menuItemId', deleteMenuItemHandler); // Delete a menu item by ID
 router.get('/restaurant/:restaurantId', getMenuItemsByRestaurantHandler); // Get menu items by restaurant ID
+router.get('/', getAllMenuItemsHandler); // Get all menu items from all restaurants
 
 export default router;
