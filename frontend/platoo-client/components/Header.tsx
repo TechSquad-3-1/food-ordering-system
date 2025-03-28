@@ -4,10 +4,11 @@ import { ChevronDown, ShoppingCart, User } from "lucide-react"
 import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation" // Import usePathname here
 
 const Header = ({ cartCount }: { cartCount: number }) => {
   const router = useRouter()
+  const currentPath = usePathname() // Use usePathname() to get the current route
 
   const handleSignOut = () => {
     localStorage.removeItem("token"); // Remove token from localStorage
@@ -24,6 +25,13 @@ const Header = ({ cartCount }: { cartCount: number }) => {
     }
   }
 
+  const getLinkClassName = (path: string) => {
+    // Check if current path starts with the given base path
+    return currentPath?.startsWith(path)
+      ? "text-sm font-medium border-b-2 border-red-500 pb-1 px-4"
+      : "text-sm font-medium text-gray-600 hover:text-gray-900 px-4"
+  }
+
   return (
     <header className="sticky top-0 z-10 bg-white border-b">
       <div className="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
@@ -34,16 +42,16 @@ const Header = ({ cartCount }: { cartCount: number }) => {
           </Link>
 
           <nav className="hidden md:flex items-center">
-            <Link href="/dashboard" className="text-sm font-medium border-b-2 border-red-500 pb-1 px-4">
+            <Link href="/dashboard" className={getLinkClassName("/dashboard")}>
               Home
             </Link>
-            <Link href="/categories" className="text-sm font-medium text-gray-600 hover:text-gray-900 px-4">
+            <Link href="/categories" className={getLinkClassName("/categories")}>
               Categories
             </Link>
-            <Link href="/restaurants" className="text-sm font-medium text-gray-600 hover:text-gray-900 px-4">
+            <Link href="/restaurants" className={getLinkClassName("/restaurants")}>
               Restaurants
             </Link>
-            <Link href="/about" className="text-sm font-medium text-gray-600 hover:text-gray-900 px-4">
+            <Link href="/about" className={getLinkClassName("/about")}>
               About us
             </Link>
           </nav>
