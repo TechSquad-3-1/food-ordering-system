@@ -22,10 +22,12 @@ export const createMenuItemHandler = async (req: Request, res: Response): Promis
   }
 };
 
-// Get menu items by category ID (previously menu ID)
+// Get menu items by category ID
 export const getMenuItemsByCategoryHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    const menuItems = await getMenuItemsByCategory(req.params.categoryId); // Updated param name
+    const { categoryId } = req.params; // Extract category ID from URL params
+    const menuItems = await getMenuItemsByCategory(categoryId);
+
     res.status(200).json(menuItems);
   } catch (error) {
     if (error instanceof Error) {
