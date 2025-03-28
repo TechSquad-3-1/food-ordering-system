@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IMenuItem extends Document {
-  menu_id: mongoose.Types.ObjectId;
+  category_id: mongoose.Types.ObjectId; // Changed from menu_id to category_id
   name: string;
   description: string;
   price: number;
@@ -12,7 +12,7 @@ export interface IMenuItem extends Document {
 
 const MenuItemSchema: Schema = new Schema(
   {
-    menu_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Menu', required: true },
+    category_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true }, // Changed reference to Category
     name: { type: String, required: true },
     description: { type: String, required: true },
     price: { type: Number, required: true },
@@ -23,4 +23,4 @@ const MenuItemSchema: Schema = new Schema(
   { timestamps: true }
 );
 
-export default mongoose.model<IMenuItem>('MenuItem', MenuItemSchema);
+export default mongoose.model<IMenuItem>('MenuItem', MenuItemSchema); // Model name remains the same
