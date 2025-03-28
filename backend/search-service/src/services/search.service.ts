@@ -1,17 +1,50 @@
+import { Request, Response } from 'express';
 import axios from 'axios';
 import RestaurantModel from '../models/restaurant.model';
 
 // Base URL of the Menu Service
 const MENU_SERVICE_URL = 'http://localhost:3001';
 
-/**
- * Search across restaurants, categories, and menu items.
- * @param query - The search term to match against names or descriptions.
- * @param location - The location to filter restaurants (optional).
- * @param category - The category name to filter categories (optional).
- * @param cuisine - The cuisine type to filter restaurants (optional).
- * @returns A combined array of matching restaurants, categories, and menu items.
- */
+// Handle Restaurant Search
+export const handleRestaurantSearch = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { query, location, cuisine } = req.query;
+
+    // Validate query parameters
+    if (!query && !location && !cuisine) {
+      res.status(400).json({ message: 'At least one search parameter is required' });
+      return;
+    }
+
+    // Build the query object to send to the Menu Service
+    const searchQuery: any = {};
+
+    if (query) {
+      searchQuery.$or = [
+        { name: { $regex: query, $options: 'i' } }, // Match restaurant name
+        { cuisines: { $regex: query, $options: 'i' } }, // Match cuisines
+      ];
+    }
+
+    if (location) {
+      searchQuery['location.tag'] = { $regex: `^${location}$`, $options: 'i' }; // Exact match for location tag
+    }
+
+    if (cuisine) {
+      searchQuery.cuisines = { $regex: cuisine, $options: 'i' }; // Match cuisine
+    }
+
+    // Fetch restaurants from the database
+    const restaurants = await RestaurantModel.find(searchQuery);
+
+    // Send the response
+    res.status(200).json(restaurants);
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
+
 export const searchRestaurants = async (
   query: string,
   location?: string,
@@ -27,82 +60,41 @@ export const searchRestaurants = async (
     // Build the restaurant query
     if (query) {
       restaurantQuery.$or = [
-        { name: { $regex: query, $options: 'i' } }, // Match restaurant name
-        { cuisines: { $regex: query, $options: 'i' } }, // Match cuisines
+        { name: { $regex: query, $options: 'i' } },
+        { cuisines: { $regex: query, $options: 'i' } },
       ];
     }
 
     if (location) {
-      restaurantQuery.location = { $regex: location, $options: 'i' }; // Match location
+      restaurantQuery['location.tag'] = { $regex: `^${location}$`, $options: 'i' }; // Exact match for location tag
     }
 
     if (cuisine) {
-      restaurantQuery.cuisines = { $regex: cuisine, $options: 'i' }; // Match cuisine
+      restaurantQuery.cuisines = { $regex: cuisine, $options: 'i' };
     }
 
     // Fetch matching restaurants
     const restaurants = await RestaurantModel.find(restaurantQuery).limit(10);
-
-    // Enrich restaurants with categories and menu items
-    const enrichedRestaurants = await Promise.all(
-      restaurants.map(async (restaurant) => {
-        // Fetch categories for the restaurant
-        const categoriesResponse = await axios.get(
-          `${MENU_SERVICE_URL}/categories?restaurant_id=${restaurant._id}`
-        );
-        const categories = categoriesResponse.data;
-
-        // Fetch menu items for the restaurant
-        const menuItemsResponse = await axios.get(
-          `${MENU_SERVICE_URL}/menu-items?restaurant_id=${restaurant._id}`
-        );
-        const menuItems = menuItemsResponse.data;
-
-        // Return the enriched restaurant object
-        return {
-          ...restaurant.toObject(),
-          categories,
-          menuItems,
-        };
-      })
-    );
-
-    // Add enriched restaurants to the results
-    results.push(...enrichedRestaurants);
+    results.push(...restaurants);
   }
 
-  // Step 2: Search Categories
-  if (category || query) {
-    try {
-      // Fetch categories matching the query or category name
-      const categoriesResponse = await axios.get(
-        `${MENU_SERVICE_URL}/categories?name=${query || category}`
-      );
-      const categories = categoriesResponse.data;
-
-      // Add matching categories to the results
-      results.push(...categories);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  }
-
-  // Step 3: Search Menu Items
-  if (query) {
-    try {
-      // Fetch menu items matching the query
-      const menuItemsResponse = await axios.get(
-        `${MENU_SERVICE_URL}/menu-items?name=${query}`
-      );
-      const menuItems = menuItemsResponse.data;
-
-      // Add matching menu items to the results
-      results.push(...menuItems);
-    } catch (error) {
-      console.error('Error fetching menu items:', error);
-    }
-  }
-
-  // Return the combined results
   return results;
+};
+
+
+export const searchMenuItems = async (query: string) => {
+  try {
+    // Fetch menu items from the Menu Service
+    const response = await axios.get(`${MENU_SERVICE_URL}/api/menu-items`, {
+      params: { query },
+    });
+
+    // Filter the menu items to only include exact matches for the query (case-insensitive)
+    return response.data.filter((menuItem: { name: string }) =>
+      menuItem.name.toLowerCase() === query.toLowerCase() // Exact match filtering
+    );
+  } catch (error: any) {
+    console.error('Error fetching menu items:', error);
+    throw error;
+  }
 };
