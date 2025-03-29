@@ -17,6 +17,8 @@ export interface IRestaurant extends Document {
     coordinates: [number, number]; // [longitude, latitude]
     tag: string; // Location tag (e.g., "kalutara")
   };
+  open_time: string; // New field for opening time
+  closed_time: string; // New field for closing time
 }
 const RestaurantSchema: Schema = new Schema(
   {
@@ -45,6 +47,8 @@ const RestaurantSchema: Schema = new Schema(
         required: true,
       },
     },
+    open_time: { type: String, default: '08:00 AM' }, // Default opening time
+    closed_time: { type: String, default: '10:00 PM' }, // Default closing time
   },
   { timestamps: true }
 );
