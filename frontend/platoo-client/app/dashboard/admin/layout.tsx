@@ -1,7 +1,8 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useRef } from "react"
+
+import { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { jwtDecode } from "jwt-decode"
@@ -24,19 +25,16 @@ import { Skeleton } from "@/components/ui/skeleton"
 import {
   LayoutDashboard,
   Users,
+  Store,
   ShoppingBag,
+  Truck,
+  BarChart3,
   Settings,
   Bell,
   LogOut,
   Search,
   HelpCircle,
   MessageSquare,
-  Star,
-  Tag,
-  Package,
-  DollarSign,
-  Utensils,
-  BarChart2,
 } from "lucide-react"
 
 interface JwtPayload {
@@ -44,12 +42,11 @@ interface JwtPayload {
   role: string
   name?: string
   email?: string
-  restaurantName?: string
   iat: number
   exp: number
 }
 
-export default function RestaurantDashboardLayout({
+export default function AdminDashboardLayout({
   children,
 }: {
   children: React.ReactNode
@@ -62,19 +59,11 @@ export default function RestaurantDashboardLayout({
     name: string
     email: string
     role: string
-    restaurantName: string
   } | null>(null)
   const [notifications, setNotifications] = useState(3)
-  const [pendingOrders, setPendingOrders] = useState(5)
-
-  const hasCheckedAuth = useRef(false) // This ref will track if we've already checked authentication
 
   useEffect(() => {
-    // Ensure we only check authentication once, especially on fast refresh
-    if (hasCheckedAuth.current) return // If we have already checked authentication, skip this effect
-    hasCheckedAuth.current = true
-
-    // Check if user is authenticated and is a restaurant owner/manager
+    // Check if user is authenticated and is an admin
     const token = localStorage.getItem("token")
 
     if (!token) {
@@ -86,18 +75,17 @@ export default function RestaurantDashboardLayout({
       // Decode the JWT token to get user role
       const decoded = jwtDecode<JwtPayload>(token)
 
-      if (decoded.role !== "restaurant") {
-        // Redirect non-restaurant users
+      if (decoded.role !== "admin") {
+        // Redirect non-admin users
         router.push("/dashboard")
         return
       }
 
       setUserData({
         id: decoded.id,
-        name: decoded.name || "Restaurant Manager",
-        email: decoded.email || "restaurant@example.com",
+        name: decoded.name || "Admin User",
+        email: decoded.email || "admin@example.com",
         role: decoded.role,
-        restaurantName: decoded.restaurantName || "Burger Palace",
       })
     } catch (error) {
       console.error("Invalid token:", error)
@@ -116,64 +104,41 @@ export default function RestaurantDashboardLayout({
   const navItems = [
     {
       title: "Dashboard",
-      href: "/dashboard/restaurant",
-      icon: <LayoutDashboard className="h-5 w-5" /> ,
+      href: "/dashboard/admin",
+      icon: <LayoutDashboard className="h-5 w-5" />,
       badge: null,
     },
     {
-      title: "Orders",
-      href: "/dashboard/restaurant/orders",
-      icon: <ShoppingBag className="h-5 w-5" />,
-      badge: { count: pendingOrders, variant: "default" },
-    },
-    {
-      title: "Menu",
-      href: "/dashboard/restaurant/menu",
-      icon: <Utensils className="h-5 w-5" /> ,
-      badge: null,
-    },
-    {
-      title: "Reviews",
-      href: "/dashboard/restaurant/reviews",
-      icon: <Star className="h-5 w-5" />,
-      badge: null,
-    },
-    {
-      title: "Promotions",
-      href: "/dashboard/restaurant/promotions",
-      icon: <Tag className="h-5 w-5" />,
-      badge: null,
-    },
-    {
-      title: "Inventory",
-      href: "/dashboard/restaurant/inventory",
-      icon: <Package className="h-5 w-5" />,
-      badge: null,
-    },
-    {
-      title: "Finances",
-      href: "/dashboard/restaurant/finances",
-      icon: <DollarSign className="h-5 w-5" />,
-      badge: null,
-    },
-    {
-      title: "Employees",
-      href: "/dashboard/restaurant/employees",
+      title: "Users",
+      href: "/dashboard/admin/users",
       icon: <Users className="h-5 w-5" />,
       badge: null,
     },
     {
-      title: "Analytics",
-      href: "/dashboard/restaurant/analytics",
-      icon: <BarChart2 className="h-5 w-5" />,
+      title: "Restaurants",
+      href: "/dashboard/admin/restaurants",
+      icon: <Store className="h-5 w-5" />,
       badge: null,
     },
     {
-      title: "Settings",
-      href: "/dashboard/restaurant/settings",
-      icon: <Settings className="h-5 w-5" />,
+      title: "Orders",
+      href: "/dashboard/admin/orders",
+      icon: <ShoppingBag className="h-5 w-5" />,
+      badge: { count: 12, variant: "default" },
+    },
+    {
+      title: "Delivery",
+      href: "/dashboard/admin/delivery",
+      icon: <Truck className="h-5 w-5" />,
       badge: null,
     },
+    {
+      title: "Reports",
+      href: "/dashboard/admin/reports",
+      icon: <BarChart3 className="h-5 w-5" />,
+      badge: null,
+    },
+    
   ]
 
   if (isLoading) {
@@ -194,11 +159,11 @@ export default function RestaurantDashboardLayout({
         {/* Sidebar */}
         <Sidebar>
           <SidebarHeader className="flex h-16 items-center border-b px-6">
-            <Link href="/dashboard/restaurant" className="flex items-center gap-2 font-semibold">
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-orange-500 text-white">
+            <Link href="/dashboard/admin" className="flex items-center gap-2 font-semibold">
+              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-red-500 text-white">
                 <span className="text-lg font-bold">P</span>
               </div>
-              <span className="text-lg font-bold">Platoo Restaurant</span>
+              <span className="text-lg font-bold">Platoo Admin</span>
             </Link>
           </SidebarHeader>
 
@@ -219,7 +184,7 @@ export default function RestaurantDashboardLayout({
                         {item.icon}
                         <span>{item.title}</span>
                       </div>
-                      {item.badge && <Badge className="ml-auto bg-orange-500 text-white">{item.badge.count}</Badge>}
+                      {item.badge && <Badge className="ml-auto bg-red-500 text-white">{item.badge.count}</Badge>}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -233,7 +198,7 @@ export default function RestaurantDashboardLayout({
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <Link href="/dashboard/restaurant/help">
+                    <Link href="/dashboard/admin/help">
                       <HelpCircle className="h-5 w-5" />
                       <span>Help Center</span>
                     </Link>
@@ -241,7 +206,7 @@ export default function RestaurantDashboardLayout({
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <Link href="/dashboard/restaurant/messages">
+                    <Link href="/dashboard/admin/messages">
                       <MessageSquare className="h-5 w-5" />
                       <span>Messages</span>
                     </Link>
@@ -255,11 +220,11 @@ export default function RestaurantDashboardLayout({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Avatar className="h-9 w-9">
-                  <AvatarImage src="/placeholder.svg?height=36&width=36" alt={userData?.name || "Restaurant"} />
-                  <AvatarFallback>{userData?.restaurantName?.charAt(0) || "R"}</AvatarFallback>
+                  <AvatarImage src="/placeholder.svg?height=36&width=36" alt={userData?.name || "Admin"} />
+                  <AvatarFallback>{userData?.name?.charAt(0) || "A"}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="text-sm font-medium">{userData?.restaurantName}</p>
+                  <p className="text-sm font-medium">{userData?.name}</p>
                   <p className="text-xs text-muted-foreground">{userData?.email}</p>
                 </div>
               </div>
@@ -272,11 +237,11 @@ export default function RestaurantDashboardLayout({
         </Sidebar>
 
         {/* Main Content */}
-        <div className="flex flex-1 flex-col w-full">
+        <div className="flex flex-1 flex-col">
           <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background px-6">
             <div className="flex items-center gap-4">
               <h1 className="text-xl font-semibold">
-                {navItems.find((item) => item.href === pathname)?.title || "Restaurant Dashboard"}
+                {navItems.find((item) => item.href === pathname)?.title || "Admin Dashboard"}
               </h1>
             </div>
 
@@ -284,7 +249,7 @@ export default function RestaurantDashboardLayout({
               <Button variant="outline" size="icon" className="relative">
                 <Bell className="h-5 w-5" />
                 {notifications > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-xs text-white">
+                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
                     {notifications}
                   </span>
                 )}
@@ -292,12 +257,12 @@ export default function RestaurantDashboardLayout({
 
               <div className="hidden md:flex items-center gap-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="/placeholder.svg?height=32&width=32" alt={userData?.name || "Restaurant"} />
-                  <AvatarFallback>{userData?.name?.charAt(0) || "R"}</AvatarFallback>
+                  <AvatarImage src="/placeholder.svg?height=32&width=32" alt={userData?.name || "Admin"} />
+                  <AvatarFallback>{userData?.name?.charAt(0) || "A"}</AvatarFallback>
                 </Avatar>
                 <div>
                   <p className="text-sm font-medium">{userData?.name}</p>
-                  <p className="text-xs text-muted-foreground">Restaurant Manager</p>
+                  <p className="text-xs text-muted-foreground">Administrator</p>
                 </div>
               </div>
             </div>
@@ -311,3 +276,4 @@ export default function RestaurantDashboardLayout({
     </SidebarProvider>
   )
 }
+
