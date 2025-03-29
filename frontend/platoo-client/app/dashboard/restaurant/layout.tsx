@@ -1,7 +1,8 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useRef } from "react"
+
+import { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { jwtDecode } from "jwt-decode"
@@ -11,6 +12,7 @@ import {
   SidebarHeader,
   SidebarContent,
   SidebarFooter,
+  SidebarTrigger,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
@@ -25,7 +27,6 @@ import {
   LayoutDashboard,
   Users,
   ShoppingBag,
-  Settings,
   Bell,
   LogOut,
   Search,
@@ -37,6 +38,7 @@ import {
   DollarSign,
   Utensils,
   BarChart2,
+  Settings,
 } from "lucide-react"
 
 interface JwtPayload {
@@ -67,18 +69,21 @@ export default function RestaurantDashboardLayout({
   const [notifications, setNotifications] = useState(3)
   const [pendingOrders, setPendingOrders] = useState(5)
 
-  const hasCheckedAuth = useRef(false) // This ref will track if we've already checked authentication
-
   useEffect(() => {
-    // Ensure we only check authentication once, especially on fast refresh
-    if (hasCheckedAuth.current) return // If we have already checked authentication, skip this effect
-    hasCheckedAuth.current = true
-
     // Check if user is authenticated and is a restaurant owner/manager
     const token = localStorage.getItem("token")
 
     if (!token) {
-      router.push("/login")
+      // For demo purposes, create a mock token instead of redirecting
+      const mockUserData = {
+        id: "rest-123",
+        name: "Restaurant Manager",
+        email: "restaurant@example.com",
+        role: "restaurant",
+        restaurantName: "Burger Palace",
+      }
+      setUserData(mockUserData)
+      setIsLoading(false)
       return
     }
 
@@ -86,27 +91,29 @@ export default function RestaurantDashboardLayout({
       // Decode the JWT token to get user role
       const decoded = jwtDecode<JwtPayload>(token)
 
-      if (decoded.role !== "restaurant") {
-        // Redirect non-restaurant users
-        router.push("/dashboard")
-        return
-      }
-
+      // In a real app, you would check the role and redirect if needed
       setUserData({
-        id: decoded.id,
+        id: decoded.id || "rest-123",
         name: decoded.name || "Restaurant Manager",
         email: decoded.email || "restaurant@example.com",
-        role: decoded.role,
+        role: decoded.role || "restaurant",
         restaurantName: decoded.restaurantName || "Burger Palace",
       })
     } catch (error) {
       console.error("Invalid token:", error)
-      localStorage.removeItem("token")
-      router.push("/login")
+      // For demo purposes, create a mock token instead of redirecting
+      const mockUserData = {
+        id: "rest-123",
+        name: "Restaurant Manager",
+        email: "restaurant@example.com",
+        role: "restaurant",
+        restaurantName: "Burger Palace",
+      }
+      setUserData(mockUserData)
     } finally {
       setIsLoading(false)
     }
-  }, [router])
+  }, [])
 
   const handleSignOut = () => {
     localStorage.removeItem("token")
@@ -117,7 +124,7 @@ export default function RestaurantDashboardLayout({
     {
       title: "Dashboard",
       href: "/dashboard/restaurant",
-      icon: <LayoutDashboard className="h-5 w-5" /> ,
+      icon: <LayoutDashboard className="h-5 w-5" />,
       badge: null,
     },
     {
@@ -129,7 +136,7 @@ export default function RestaurantDashboardLayout({
     {
       title: "Menu",
       href: "/dashboard/restaurant/menu",
-      icon: <Utensils className="h-5 w-5" /> ,
+      icon: <Utensils className="h-5 w-5" />,
       badge: null,
     },
     {
@@ -213,7 +220,13 @@ export default function RestaurantDashboardLayout({
             <SidebarMenu>
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={pathname === item.href}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={
+                      pathname === item.href ||
+                      (pathname.startsWith(item.href) && item.href !== "/dashboard/restaurant")
+                    }
+                  >
                     <Link href={item.href} className="flex justify-between w-full">
                       <div className="flex items-center">
                         {item.icon}
@@ -275,8 +288,12 @@ export default function RestaurantDashboardLayout({
         <div className="flex flex-1 flex-col w-full">
           <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background px-6">
             <div className="flex items-center gap-4">
+              <SidebarTrigger />
               <h1 className="text-xl font-semibold">
-                {navItems.find((item) => item.href === pathname)?.title || "Restaurant Dashboard"}
+                {navItems.find(
+                  (item) =>
+                    pathname === item.href || (pathname.startsWith(item.href) && item.href !== "/dashboard/restaurant"),
+                )?.title || "Restaurant Dashboard"}
               </h1>
             </div>
 
@@ -303,7 +320,7 @@ export default function RestaurantDashboardLayout({
             </div>
           </header>
 
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto ">
             <div className="container mx-auto p-6">{children}</div>
           </main>
         </div>
@@ -311,3 +328,4 @@ export default function RestaurantDashboardLayout({
     </SidebarProvider>
   )
 }
+
