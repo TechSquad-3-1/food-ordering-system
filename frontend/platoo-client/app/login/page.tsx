@@ -45,6 +45,10 @@ export default function LoginPage() {
       localStorage.setItem("userId", decodedToken.id);
       localStorage.setItem("role", decodedToken.role);
 
+      // Inside LoginPage component
+      localStorage.setItem("adminName", decodedToken.name); // Store admin's name
+      localStorage.setItem("adminEmail", decodedToken.email); // Store admin's email
+
       toast({
         title: "Login successful",
         description: "You have been logged in successfully.",

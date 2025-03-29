@@ -93,12 +93,12 @@ export default function AdminDashboard() {
 
   const navItems = [
     { title: "Dashboard", href: "/dashboard", icon: "layout-dashboard" },
-    { title: "Users", href: "/dashboard/users", icon: "users" },
-    { title: "Restaurants", href: "/dashboard/restaurants", icon: "store" },
-    { title: "Orders", href: "/dashboard/orders", icon: "shopping-bag" },
-    { title: "Delivery", href: "/dashboard/delivery", icon: "truck" },
-    { title: "Reports", href: "/dashboard/reports", icon: "bar-chart-3" },
-    { title: "Settings", href: "/dashboard/settings", icon: "settings" },
+    { title: "Users", href: "/dashboard/admin/users", icon: "users" },
+    { title: "Restaurants", href: "/dashboard/admin/restaurants", icon: "store" },
+    { title: "Orders", href: "/dashboard/admin/orders", icon: "shopping-bag" },
+    { title: "Delivery", href: "/dashboard/admin/delivery", icon: "truck" },
+    { title: "Reports", href: "/dashboard/admin/reports", icon: "bar-chart-3" },
+    { title: "Profile", href: "/dashboard/admin/profile", icon: "Profile" },
   ]
 
   const getRoleColor = (role: string) => {
