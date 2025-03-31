@@ -3,7 +3,7 @@ import Order, { IOrderItem } from '../models/order';
 
 export class OrderService {
   // Create a new order
-  static async createOrder(user_id: string, items: IOrderItem[], restaurant_id: string) {
+  static async createOrder(user_id: string, items: IOrderItem[], restaurant_id: string, delivery_fee: number) {
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -12,21 +12,25 @@ export class OrderService {
         return acc + item.price * item.quantity;
       }, 0);
 
+      // Include delivery fee in the total amount
+      const totalAmountWithDeliveryFee = totalAmount + delivery_fee;
+
       if (totalAmount === 0) {
         throw new Error("No valid menu items found for the order.");
       }
 
       // Generate custom order_id (e.g., ORD001, ORD002, etc.)
-      const orderCount = await Order.countDocuments(); // Get the total number of orders
+      const orderCount = await Order.countDocuments();
       const orderId = `ORD${(orderCount + 1).toString().padStart(3, '0')}`;
 
       const order = new Order({
-        order_id: orderId, // Set the generated order_id
+        order_id: orderId,
         user_id,
-        total_amount: totalAmount,
+        total_amount: totalAmountWithDeliveryFee, // Updated total_amount with delivery fee
         items: items,
-        status: 'pending', // Set the status to 'pending' initially
-        restaurant_id: restaurant_id // Added restaurant_id
+        status: 'pending',
+        restaurant_id: restaurant_id,
+        delivery_fee: delivery_fee, // Set the delivery fee
       });
 
       await order.save({ session });
@@ -71,7 +75,7 @@ export class OrderService {
   }
 
   // Update an order
-  static async updateOrder(orderId: string, user_id: string, items: IOrderItem[], status: string, restaurant_id: string) {
+  static async updateOrder(orderId: string, user_id: string, items: IOrderItem[], status: string, restaurant_id: string, delivery_fee: number) {
     const order = await Order.findById(orderId);
 
     if (!order) {
@@ -81,12 +85,17 @@ export class OrderService {
     order.user_id = user_id;
     order.items = items;
     order.status = status;
-    order.total_amount = items.reduce((acc: number, item) => acc + item.price * item.quantity, 0);
-    order.restaurant_id = restaurant_id; // Update restaurant_id
+    order.restaurant_id = restaurant_id;
+    
+    // Recalculate total_amount including delivery fee
+    const totalAmount = items.reduce((acc: number, item) => acc + item.price * item.quantity, 0);
+    order.total_amount = totalAmount + delivery_fee; // Add delivery fee to the total amount
+    order.delivery_fee = delivery_fee; // Update delivery fee
 
     await order.save();
     return order;
   }
+
 
   // Delete an order
   static async deleteOrder(orderId: string) {

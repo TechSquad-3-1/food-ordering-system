@@ -4,13 +4,13 @@ import { OrderService } from '../services/orderService';
 // Create order
 export const createOrder = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const { user_id, items, restaurant_id } = req.body;
+    const { user_id, items, restaurant_id, delivery_fee } = req.body;
 
-    if (!user_id || !Array.isArray(items) || items.length === 0 || !restaurant_id) {
-      return res.status(400).json({ message: 'Invalid request body, user_id, items, and restaurant_id are required' });
+    if (!user_id || !Array.isArray(items) || items.length === 0 || !restaurant_id || delivery_fee === undefined) {
+      return res.status(400).json({ message: 'Invalid request body, user_id, items, restaurant_id, and delivery_fee are required' });
     }
 
-    const order = await OrderService.createOrder(user_id, items, restaurant_id);
+    const order = await OrderService.createOrder(user_id, items, restaurant_id, delivery_fee);
     return res.status(201).json({ order });
   } catch (error: unknown) {
     if (error instanceof Error) {
@@ -20,6 +20,7 @@ export const createOrder = async (req: Request, res: Response): Promise<Response
     }
   }
 };
+
 
 // Get all orders
 export const getAllOrders = async (req: Request, res: Response): Promise<Response> => {
@@ -58,7 +59,7 @@ export const getOrderById = async (req: Request, res: Response): Promise<Respons
 // Update Order Handler
 export const updateOrder = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const { user_id, items, status, restaurant_id } = req.body;
+    const { user_id, items, status, restaurant_id, delivery_fee } = req.body;
 
     if (!user_id || !Array.isArray(items) || items.length === 0 || !restaurant_id) {
       return res.status(400).json({ message: 'Invalid request body, user_id, items, and restaurant_id are required' });
@@ -69,7 +70,8 @@ export const updateOrder = async (req: Request, res: Response): Promise<Response
       user_id,
       items,
       status,
-      restaurant_id
+      restaurant_id,
+      delivery_fee
     );
     return res.status(200).json(updatedOrder);
   } catch (error: unknown) {

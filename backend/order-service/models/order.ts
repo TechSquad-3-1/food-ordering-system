@@ -7,17 +7,18 @@ export interface IOrderItem {
 }
 
 export interface IOrder extends Document {
-  order_id: string; // Added order_id
+  order_id: string;
   user_id: string;
   total_amount: number;
   status: string;
   items: IOrderItem[];
   restaurant_id: string;
+  delivery_fee: number; // Added delivery_fee
 }
 
 const orderSchema: Schema = new Schema(
   {
-    order_id: { type: String, required: true, unique: true }, // Custom order_id field
+    order_id: { type: String, required: true, unique: true },
     user_id: { type: String, required: true },
     total_amount: { type: Number, required: true },
     status: { type: String, default: 'pending' },
@@ -29,6 +30,7 @@ const orderSchema: Schema = new Schema(
       },
     ],
     restaurant_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant', required: true },
+    delivery_fee: { type: Number, default: 0 }, // Added delivery_fee with a default value
   },
   { timestamps: true }
 );
@@ -37,7 +39,7 @@ const orderSchema: Schema = new Schema(
 orderSchema.pre('save', async function (next) {
   if (!this.order_id) {
     const count = await mongoose.model('Order').countDocuments();
-    this.order_id = `ORD${(count + 1).toString().padStart(3, '0')}`; // Generate order_id like ORD001, ORD002, etc.
+    this.order_id = `ORD${(count + 1).toString().padStart(3, '0')}`;
   }
   next();
 });
