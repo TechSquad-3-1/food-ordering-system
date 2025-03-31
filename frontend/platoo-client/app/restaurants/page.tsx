@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -54,139 +53,18 @@ export default function RestaurantsPage() {
   ]
 
   useEffect(() => {
-    // In a real app, fetch restaurants from API
-    // For demo purposes, we'll use mock data
+    // Fetch restaurants from the API
     const fetchRestaurants = async () => {
       setIsLoading(true)
       try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-
-        const mockRestaurants: Restaurant[] = [
-          {
-            id: "1",
-            name: "Burger Palace",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.7,
-            deliveryTime: "15-25 min",
-            deliveryFee: "$1.99",
-            minOrder: "$10",
-            distance: "1.2 miles",
-            cuisines: ["American", "Fast Food", "Burgers"],
-            priceLevel: 2,
-          },
-          {
-            id: "2",
-            name: "Pizza Heaven",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.5,
-            deliveryTime: "20-30 min",
-            deliveryFee: "$2.49",
-            minOrder: "$15",
-            distance: "1.8 miles",
-            cuisines: ["Italian", "Pizza"],
-            priceLevel: 2,
-          },
-          {
-            id: "3",
-            name: "Sushi Express",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.8,
-            deliveryTime: "25-35 min",
-            deliveryFee: "$3.99",
-            minOrder: "$20",
-            distance: "2.5 miles",
-            cuisines: ["Japanese", "Sushi", "Asian"],
-            priceLevel: 3,
-          },
-          {
-            id: "4",
-            name: "Taco Time",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.2,
-            deliveryTime: "15-25 min",
-            deliveryFee: "$1.99",
-            minOrder: "$12",
-            distance: "1.5 miles",
-            cuisines: ["Mexican", "Tacos"],
-            priceLevel: 1,
-          },
-          {
-            id: "5",
-            name: "Green Bowl",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.6,
-            deliveryTime: "15-25 min",
-            deliveryFee: "$2.99",
-            minOrder: "$15",
-            distance: "1.7 miles",
-            cuisines: ["Healthy", "Salads", "Bowls"],
-            priceLevel: 3,
-          },
-          {
-            id: "6",
-            name: "Pasta Place",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.4,
-            deliveryTime: "25-35 min",
-            deliveryFee: "$2.49",
-            minOrder: "$18",
-            distance: "2.2 miles",
-            cuisines: ["Italian", "Pasta"],
-            priceLevel: 2,
-          },
-          {
-            id: "7",
-            name: "Spice of India",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.6,
-            deliveryTime: "30-40 min",
-            deliveryFee: "$3.49",
-            minOrder: "$20",
-            distance: "2.8 miles",
-            cuisines: ["Indian", "Curry", "Spicy"],
-            priceLevel: 2,
-          },
-          {
-            id: "8",
-            name: "Thai Delight",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.5,
-            deliveryTime: "25-35 min",
-            deliveryFee: "$2.99",
-            minOrder: "$15",
-            distance: "2.1 miles",
-            cuisines: ["Thai", "Asian", "Spicy"],
-            priceLevel: 2,
-          },
-          {
-            id: "9",
-            name: "Mediterranean Grill",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.7,
-            deliveryTime: "25-35 min",
-            deliveryFee: "$3.49",
-            minOrder: "$18",
-            distance: "2.4 miles",
-            cuisines: ["Mediterranean", "Greek", "Healthy"],
-            priceLevel: 3,
-          },
-          {
-            id: "10",
-            name: "Fast Bites",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.1,
-            deliveryTime: "10-20 min",
-            deliveryFee: "$1.49",
-            minOrder: "$8",
-            distance: "0.8 miles",
-            cuisines: ["Fast Food", "Burgers", "Chicken"],
-            priceLevel: 1,
-          },
-        ]
-
-        setRestaurants(mockRestaurants)
-        setFilteredRestaurants(mockRestaurants)
+        const response = await fetch("http://localhost:3001/api/restaurants")
+        if (response.ok) {
+          const data: Restaurant[] = await response.json()
+          setRestaurants(data)
+          setFilteredRestaurants(data)
+        } else {
+          console.error("Failed to fetch restaurants")
+        }
       } catch (error) {
         console.error("Error fetching restaurants:", error)
       } finally {
@@ -467,4 +345,3 @@ export default function RestaurantsPage() {
     </div>
   )
 }
-
