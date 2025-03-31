@@ -20,3 +20,13 @@ export const updateRestaurant = async (restaurantId: string, updatedData: Partia
   export const deleteRestaurant = async (restaurantId: string) => {
     return await RestaurantModel.findByIdAndDelete(restaurantId);
   };
+
+  // Fetch a single restaurant by ID
+export const getRestaurantById = async (restaurantId: string): Promise<IRestaurant | null> => {
+  try {
+    const restaurant = await RestaurantModel.findById(restaurantId);
+    return restaurant;
+  } catch (error) {
+    throw error;
+  }
+};

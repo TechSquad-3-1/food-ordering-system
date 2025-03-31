@@ -153,7 +153,7 @@ export default function RestaurantSettings() {
                   <div className="flex items-center space-x-2">
                     <Switch id="gluten-free" />
                     <Label htmlFor="gluten-free">Gluten-Free Options</Label>
-                    />
+                    /
                     <Label htmlFor="gluten-free">Gluten-Free Options</Label>
                   </div>
                 </div>

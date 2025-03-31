@@ -3,7 +3,8 @@ import {
   createRestaurant, 
   getRestaurants, 
   updateRestaurant, 
-  deleteRestaurant 
+  deleteRestaurant, 
+  getRestaurantById
 } from '../services/restaurant.service';
 
 // Create a new restaurant
@@ -68,6 +69,27 @@ export const deleteRestaurantHandler = async (req: Request, res: Response): Prom
     }
 
     res.status(200).json({ message: 'Restaurant deleted successfully' }); // Do not use 'return' here
+  } catch (error) {
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'An unknown error occurred' });
+    }
+  }
+};
+
+// Get a single restaurant by ID
+export const getRestaurantByIdHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { restaurantId } = req.params; // Extract restaurant ID from URL params
+    const restaurant = await getRestaurantById(restaurantId);
+
+    if (!restaurant) {
+      res.status(404).json({ error: 'Restaurant not found' });
+      return;
+    }
+
+    res.status(200).json(restaurant);
   } catch (error) {
     if (error instanceof Error) {
       res.status(500).json({ error: error.message });
