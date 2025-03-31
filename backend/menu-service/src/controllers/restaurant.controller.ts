@@ -4,7 +4,8 @@ import {
   getRestaurants, 
   updateRestaurant, 
   deleteRestaurant, 
-  getRestaurantById
+  getRestaurantById,
+  getRestaurantWithCategoriesAndMenuItems
 } from '../services/restaurant.service';
 
 // Create a new restaurant
@@ -90,6 +91,27 @@ export const getRestaurantByIdHandler = async (req: Request, res: Response): Pro
     }
 
     res.status(200).json(restaurant);
+  } catch (error) {
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'An unknown error occurred' });
+    }
+  }
+};
+
+// Get restaurant's categories and menu items
+export const getRestaurantWithCategoriesAndMenuItemsHandler = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { restaurantId } = req.params; // Extract restaurant ID from URL params
+
+    // Fetch categories and menu items for the restaurant
+    const result = await getRestaurantWithCategoriesAndMenuItems(restaurantId);
+
+    res.status(200).json(result);
   } catch (error) {
     if (error instanceof Error) {
       res.status(500).json({ error: error.message });
