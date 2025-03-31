@@ -16,7 +16,7 @@ import Footer from "@/components/Footer"
 import { Search, MapPin, Star, Clock, Filter } from "lucide-react"
 
 interface Restaurant {
-  id: string
+  _id: string
   name: string
   image: string
   rating: number
@@ -238,7 +238,7 @@ export default function RestaurantsPage() {
               ) : filteredRestaurants.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredRestaurants.map((restaurant) => (
-                    <Link href={`/restaurants/${restaurant.id}`} key={restaurant.id}>
+                    <Link href={`/restaurants/${restaurant._id}`} key={restaurant._id}>
                       <Card className="overflow-hidden hover:shadow-md transition-shadow h-full">
                         <div className="aspect-video relative">
                           <img
