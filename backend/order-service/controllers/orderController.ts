@@ -1,18 +1,16 @@
-// controllers/orderController.ts
-
 import { Request, Response } from 'express';
 import { OrderService } from '../services/orderService';
 
 // Create order
 export const createOrder = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const { user_id, items } = req.body;
+    const { user_id, items, restaurant_id } = req.body;
 
-    if (!user_id || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: 'Invalid request body, user_id and items are required' });
+    if (!user_id || !Array.isArray(items) || items.length === 0 || !restaurant_id) {
+      return res.status(400).json({ message: 'Invalid request body, user_id, items, and restaurant_id are required' });
     }
 
-    const order = await OrderService.createOrder(user_id, items);
+    const order = await OrderService.createOrder(user_id, items, restaurant_id);
     return res.status(201).json({ order });
   } catch (error: unknown) {
     if (error instanceof Error) {
@@ -60,11 +58,18 @@ export const getOrderById = async (req: Request, res: Response): Promise<Respons
 // Update Order Handler
 export const updateOrder = async (req: Request, res: Response): Promise<Response> => {
   try {
+    const { user_id, items, status, restaurant_id } = req.body;
+
+    if (!user_id || !Array.isArray(items) || items.length === 0 || !restaurant_id) {
+      return res.status(400).json({ message: 'Invalid request body, user_id, items, and restaurant_id are required' });
+    }
+
     const updatedOrder = await OrderService.updateOrder(
-      req.params.orderId, 
-      req.body.user_id, 
-      req.body.items, 
-      req.body.status
+      req.params.orderId,
+      user_id,
+      items,
+      status,
+      restaurant_id
     );
     return res.status(200).json(updatedOrder);
   } catch (error: unknown) {
@@ -89,7 +94,6 @@ export const deleteOrder = async (req: Request, res: Response): Promise<Response
     }
   }
 };
-
 
 // Get orders by user_id handler
 export const getOrdersByUserId = async (req: Request, res: Response): Promise<Response> => {
