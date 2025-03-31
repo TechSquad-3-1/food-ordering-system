@@ -6,11 +6,17 @@ const router = express.Router();
 // Create a new delivery
 router.post("/", DeliveryController.createDelivery);
 
-// Get all deliveries
+// Get all deliveries (assigned + unassigned)
 router.get("/", DeliveryController.getAllDeliveries);
+
+// Get all unassigned deliveries (for delivery men to pick)
+router.get("/unassigned", DeliveryController.getUnassignedDeliveries);
 
 // Get delivery by ID
 router.get("/:id", DeliveryController.getDeliveryById);
+
+// Assign delivery to a delivery man
+router.put("/:id/assign", DeliveryController.assignDeliveryToMan);
 
 // Update delivery status
 router.put("/:id/status", DeliveryController.updateDeliveryStatus);

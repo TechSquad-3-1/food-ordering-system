@@ -5,9 +5,10 @@ export interface IDelivery extends Document {
   customerName: string;
   deliveryAddress: string;
   restaurantName: string;
-  deliveryStatus: string;
+  deliveryStatus: string; // "pending", "assigned", "delivered"
   pickupTime: Date;
   deliveryTime: Date;
+  assignedTo: string | null; // Delivery man ID (null if not assigned)
 }
 
 const deliverySchema: Schema = new Schema(
@@ -16,9 +17,10 @@ const deliverySchema: Schema = new Schema(
     customerName: { type: String, required: true },
     deliveryAddress: { type: String, required: true },
     restaurantName: { type: String, required: true },
-    deliveryStatus: { type: String, default: "pending" },
+    deliveryStatus: { type: String, default: "pending" }, // Default to "pending"
     pickupTime: { type: Date, required: true },
     deliveryTime: { type: Date, required: true },
+    assignedTo: { type: String, default: null }, // Initially not assigned
   },
   { timestamps: true }
 );
