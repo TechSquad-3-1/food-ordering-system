@@ -168,8 +168,16 @@ const orderNow = (item: MenuItem) => {
   // Set the selected item and navigate to checkout
   setSelectedItem(item);
   setSelectedQuantity(1); // Start with quantity 1
+
+  // Store the selected item in localStorage
+  localStorage.setItem('selectedItem', JSON.stringify(item));
+  localStorage.setItem('selectedQuantity', '1'); // Optionally store the quantity
+
+  // Navigate to the checkout page
   router.push("/checkout"); // Navigate to checkout page
 };
+
+
 
 
   const getCartTotal = () => {
