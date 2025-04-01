@@ -218,39 +218,39 @@ export default function OrderConfirmationPage() {
               </div>
 
               <div className="border rounded-lg overflow-hidden">
-  <div className="bg-gray-50 p-4 border-b">
-    <h3 className="font-medium">Order Summary</h3>
-  </div>
-  <div className="p-4">
-    <div className="space-y-3 mb-4">
-      {/* Display ordered items */}
-      {items?.map((item: any, index: number) => (
-        <div key={index} className="flex justify-between">
-          <div>
-            <span className="font-medium">{item.quantity}x</span> {item.name}
-          </div>
-          <div>${(item.price * item.quantity).toFixed(2)}</div>
-        </div>
-      ))}
-    </div>
+                <div className="bg-gray-50 p-4 border-b">
+                  <h3 className="font-medium">Order Summary</h3>
+                </div>
+                <div className="p-4">
+                  <div className="space-y-3 mb-4">
+                    {/* Display ordered items */}
+                    {items?.map((item: any, index: number) => (
+                      <div key={index} className="flex justify-between">
+                        <div>
+                          <span className="font-medium">{item.quantity}x</span> {item.name}
+                        </div>
+                        <div>${(item.price * item.quantity).toFixed(2)}</div>
+                      </div>
+                    ))}
+                  </div>
 
-    <div className="border-t pt-4 space-y-2">
-      {/* Display fetched subtotal, delivery fee, and total */}
-      <div className="flex justify-between text-sm">
-        <span>Subtotal</span>
-        <span>${total_amount.toFixed(2)}</span> {/* Displaying the fetched subtotal */}
-      </div>
-      <div className="flex justify-between text-sm">
-        <span>Delivery Fee</span>
-        <span>${delivery_fee.toFixed(2)}</span> {/* Displaying the fetched delivery fee */}
-      </div>
-      <div className="flex justify-between font-bold pt-2 border-t">
-        <span>Total</span>
-        <span>${(total_amount).toFixed(2)}</span> {/* Displaying the fetched total (total_amount + delivery_fee) */}
-      </div>
-    </div>
-  </div>
-</div>
+                  <div className="border-t pt-4 space-y-2">
+                    {/* Display fetched subtotal, delivery fee, and total */}
+                    <div className="flex justify-between text-sm">
+                      <span>Subtotal</span>
+                      <span>${total_amount.toFixed(2)}</span> {/* Displaying the fetched subtotal */}
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Delivery Fee</span>
+                      <span>${delivery_fee.toFixed(2)}</span> {/* Displaying the fetched delivery fee */}
+                    </div>
+                    <div className="flex justify-between font-bold pt-2 border-t">
+                      <span>Total</span>
+                      <span>${(total_amount).toFixed(2)}</span> {/* Displaying the fetched total (total_amount + delivery_fee) */}
+                    </div>
+                  </div>
+                </div>
+              </div>
 
             </CardContent>
             <CardFooter className="flex-col space-y-4">
