@@ -12,8 +12,14 @@ export interface IRestaurant extends Document {
   cuisines: string[];
   priceLevel: number;
   is_active: boolean;
+  location: {
+    type: 'Point'; // GeoJSON type for coordinates
+    coordinates: [number, number]; // [longitude, latitude]
+    tag: string; // Location tag (e.g., "kalutara")
+  };
+  open_time: string; // New field for opening time
+  closed_time: string; // New field for closing time
 }
-
 const RestaurantSchema: Schema = new Schema(
   {
     name: { type: String, required: true },
@@ -26,8 +32,28 @@ const RestaurantSchema: Schema = new Schema(
     cuisines: { type: [String], required: true },
     priceLevel: { type: Number, required: true },
     is_active: { type: Boolean, default: true },
+    location: {
+      type: {
+        type: String,
+        enum: ['Point'], // Only 'Point' is allowed
+        required: true,
+      },
+      coordinates: {
+        type: [Number], // Array of [longitude, latitude]
+        required: true,
+      },
+      tag: {
+        type: String,
+        required: true,
+      },
+    },
+    open_time: { type: String, default: '08:00 AM' }, // Default opening time
+    closed_time: { type: String, default: '10:00 PM' }, // Default closing time
   },
   { timestamps: true }
 );
+
+// Add a 2dsphere index for geospatial queries
+RestaurantSchema.index({ 'location.coordinates': '2dsphere' });
 
 export default mongoose.model<IRestaurant>('Restaurant', RestaurantSchema);

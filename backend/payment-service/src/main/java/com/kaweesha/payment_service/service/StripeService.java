@@ -15,69 +15,59 @@ public class StripeService {
     @Value("${stripe.secretKey}")
     private String secretKey;
 
-    //stripe -API
-    //-> productName , amount , quantity , currency
-    //-> return sessionId and url
-
-
-
     public StripeResponse checkoutProducts(ProductRequest productRequest) {
-        // Set your secret key. Remember to switch to your live secret key in production!
+        // Set your secret key
         Stripe.apiKey = secretKey;
 
-        // Create a PaymentIntent with the order amount and currency
+        // Directly use the amount as a decimal value (e.g., 13.74)
+        long amountInSmallestUnit = (long) (productRequest.getAmount() * 100); // Convert to cents as integer for backend use
+
+        // Create a ProductData object for the Stripe session
         SessionCreateParams.LineItem.PriceData.ProductData productData =
                 SessionCreateParams.LineItem.PriceData.ProductData.builder()
                         .setName(productRequest.getName())
                         .build();
 
-        // Create new line item with the above product data and associated price
-        long amountInSmallestUnit = productRequest.getAmount() * 100; // Convert to the smallest unit (e.g., cents)
-
+        // Create a priceData object
         SessionCreateParams.LineItem.PriceData priceData =
                 SessionCreateParams.LineItem.PriceData.builder()
                         .setCurrency(productRequest.getCurrency() != null ? productRequest.getCurrency() : "USD")
-                        .setUnitAmount(amountInSmallestUnit) // Use the corrected amount
+                        .setUnitAmount(amountInSmallestUnit) // In cents (rounded)
                         .setProductData(productData)
                         .build();
 
-
-        // Create new line item with the above price data
+        // Create a line item for the session
         SessionCreateParams.LineItem lineItem =
-                SessionCreateParams
-                        .LineItem.builder()
-                        .setQuantity(productRequest.getQuantity())
+                SessionCreateParams.LineItem.builder()
+                        .setQuantity(1L) // Set quantity to 1, as the amount already represents the total price
                         .setPriceData(priceData)
                         .build();
 
-        // Create new session with the line items
+        // Create the session parameters
         SessionCreateParams params =
                 SessionCreateParams.builder()
                         .setMode(SessionCreateParams.Mode.PAYMENT)
-                        .setSuccessUrl("http://localhost:8080/success")
+                        .setSuccessUrl("http://localhost:8000/order-confirmation?session_id={CHECKOUT_SESSION_ID}")
                         .setCancelUrl("http://localhost:8080/cancel")
                         .addLineItem(lineItem)
                         .build();
 
-        // Create new session
+        // Create the session
         Session session = null;
         try {
             session = Session.create(params);
         } catch (StripeException e) {
-            // Log the error for debugging purposes
             System.err.println("Error creating session: " + e.getMessage());
-            e.printStackTrace(); // Optionally print the stack trace
+            e.printStackTrace();
         }
 
-
+        // Return the session ID and URL for Stripe payment
         return StripeResponse
-                .builder()  // Correct method name
+                .builder()
                 .status("SUCCESS")
-                .message("Payment session created ")
+                .message("Payment session created")
                 .sessionId(session != null ? session.getId() : "No Session")
                 .sessionUrl(session != null ? session.getUrl() : "No URL")
                 .build();
     }
-
-
 }

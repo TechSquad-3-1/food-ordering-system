@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -17,7 +16,7 @@ import Footer from "@/components/Footer"
 import { Search, MapPin, Star, Clock, Filter } from "lucide-react"
 
 interface Restaurant {
-  id: string
+  _id: string
   name: string
   image: string
   rating: number
@@ -54,139 +53,17 @@ export default function RestaurantsPage() {
   ]
 
   useEffect(() => {
-    // In a real app, fetch restaurants from API
-    // For demo purposes, we'll use mock data
     const fetchRestaurants = async () => {
       setIsLoading(true)
       try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-
-        const mockRestaurants: Restaurant[] = [
-          {
-            id: "1",
-            name: "Burger Palace",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.7,
-            deliveryTime: "15-25 min",
-            deliveryFee: "$1.99",
-            minOrder: "$10",
-            distance: "1.2 miles",
-            cuisines: ["American", "Fast Food", "Burgers"],
-            priceLevel: 2,
-          },
-          {
-            id: "2",
-            name: "Pizza Heaven",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.5,
-            deliveryTime: "20-30 min",
-            deliveryFee: "$2.49",
-            minOrder: "$15",
-            distance: "1.8 miles",
-            cuisines: ["Italian", "Pizza"],
-            priceLevel: 2,
-          },
-          {
-            id: "3",
-            name: "Sushi Express",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.8,
-            deliveryTime: "25-35 min",
-            deliveryFee: "$3.99",
-            minOrder: "$20",
-            distance: "2.5 miles",
-            cuisines: ["Japanese", "Sushi", "Asian"],
-            priceLevel: 3,
-          },
-          {
-            id: "4",
-            name: "Taco Time",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.2,
-            deliveryTime: "15-25 min",
-            deliveryFee: "$1.99",
-            minOrder: "$12",
-            distance: "1.5 miles",
-            cuisines: ["Mexican", "Tacos"],
-            priceLevel: 1,
-          },
-          {
-            id: "5",
-            name: "Green Bowl",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.6,
-            deliveryTime: "15-25 min",
-            deliveryFee: "$2.99",
-            minOrder: "$15",
-            distance: "1.7 miles",
-            cuisines: ["Healthy", "Salads", "Bowls"],
-            priceLevel: 3,
-          },
-          {
-            id: "6",
-            name: "Pasta Place",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.4,
-            deliveryTime: "25-35 min",
-            deliveryFee: "$2.49",
-            minOrder: "$18",
-            distance: "2.2 miles",
-            cuisines: ["Italian", "Pasta"],
-            priceLevel: 2,
-          },
-          {
-            id: "7",
-            name: "Spice of India",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.6,
-            deliveryTime: "30-40 min",
-            deliveryFee: "$3.49",
-            minOrder: "$20",
-            distance: "2.8 miles",
-            cuisines: ["Indian", "Curry", "Spicy"],
-            priceLevel: 2,
-          },
-          {
-            id: "8",
-            name: "Thai Delight",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.5,
-            deliveryTime: "25-35 min",
-            deliveryFee: "$2.99",
-            minOrder: "$15",
-            distance: "2.1 miles",
-            cuisines: ["Thai", "Asian", "Spicy"],
-            priceLevel: 2,
-          },
-          {
-            id: "9",
-            name: "Mediterranean Grill",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.7,
-            deliveryTime: "25-35 min",
-            deliveryFee: "$3.49",
-            minOrder: "$18",
-            distance: "2.4 miles",
-            cuisines: ["Mediterranean", "Greek", "Healthy"],
-            priceLevel: 3,
-          },
-          {
-            id: "10",
-            name: "Fast Bites",
-            image: "/placeholder.svg?height=200&width=300",
-            rating: 4.1,
-            deliveryTime: "10-20 min",
-            deliveryFee: "$1.49",
-            minOrder: "$8",
-            distance: "0.8 miles",
-            cuisines: ["Fast Food", "Burgers", "Chicken"],
-            priceLevel: 1,
-          },
-        ]
-
-        setRestaurants(mockRestaurants)
-        setFilteredRestaurants(mockRestaurants)
+        const response = await fetch("http://localhost:3001/api/restaurants")
+        if (response.ok) {
+          const data: Restaurant[] = await response.json()
+          setRestaurants(data)
+          setFilteredRestaurants(data)
+        } else {
+          console.error("Failed to fetch restaurants")
+        }
       } catch (error) {
         console.error("Error fetching restaurants:", error)
       } finally {
@@ -198,14 +75,12 @@ export default function RestaurantsPage() {
   }, [])
 
   useEffect(() => {
-    // Apply filters whenever filter criteria change
     applyFilters()
   }, [searchQuery, selectedCuisine, priceRange, maxDeliveryTime, restaurants])
 
   const applyFilters = () => {
     let filtered = [...restaurants]
 
-    // Apply search query filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(
@@ -215,19 +90,16 @@ export default function RestaurantsPage() {
       )
     }
 
-    // Apply cuisine filter
     if (selectedCuisine && selectedCuisine !== "all") {
       filtered = filtered.filter((restaurant) =>
         restaurant.cuisines.some((cuisine) => cuisine.toLowerCase() === selectedCuisine.toLowerCase()),
       )
     }
 
-    // Apply price range filter
     filtered = filtered.filter(
       (restaurant) => restaurant.priceLevel >= priceRange[0] && restaurant.priceLevel <= priceRange[1],
     )
 
-    // Apply delivery time filter
     filtered = filtered.filter((restaurant) => {
       const maxTime = Number.parseInt(restaurant.deliveryTime.split("-")[1])
       return maxTime <= maxDeliveryTime
@@ -245,8 +117,9 @@ export default function RestaurantsPage() {
     return Array(level).fill("$").join("")
   }
 
-  const getDeliveryTimeMinutes = (timeRange: string) => {
-    return Number.parseInt(timeRange.split("-")[1])
+  const handleRestaurantClick = (restaurantId: string) => {
+    // Store the restaurant ID in localStorage when clicked
+    localStorage.setItem("restaurantId", restaurantId)
   }
 
   return (
@@ -278,11 +151,11 @@ export default function RestaurantsPage() {
             </Button>
           </form>
 
-          {/* Filters */}
           {showFilters && (
             <div className="mt-4 p-4 border rounded-md">
               <h3 className="font-medium mb-3">Filter Options</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Cuisine Filter */}
                 <div>
                   <label className="block text-sm font-medium mb-2">Cuisine Type</label>
                   <Select value={selectedCuisine} onValueChange={setSelectedCuisine}>
@@ -300,6 +173,7 @@ export default function RestaurantsPage() {
                   </Select>
                 </div>
 
+                {/* Price Range Filter */}
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     Price Range: {getPriceLevelString(priceRange[0])} - {getPriceLevelString(priceRange[1])}
@@ -315,6 +189,7 @@ export default function RestaurantsPage() {
                   />
                 </div>
 
+                {/* Max Delivery Time Filter */}
                 <div>
                   <label className="block text-sm font-medium mb-2">Max Delivery Time: {maxDeliveryTime} min</label>
                   <Slider
@@ -360,8 +235,11 @@ export default function RestaurantsPage() {
               ) : filteredRestaurants.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredRestaurants.map((restaurant) => (
-                    <Link href={`/restaurants/${restaurant.id}`} key={restaurant.id}>
-                      <Card className="overflow-hidden hover:shadow-md transition-shadow h-full">
+                    <Link href={`/restaurants/${restaurant._id}`} key={restaurant._id}>
+                      <Card
+                        className="overflow-hidden hover:shadow-md transition-shadow h-full"
+                        onClick={() => handleRestaurantClick(restaurant._id)}
+                      >
                         <div className="aspect-video relative">
                           <img
                             src={restaurant.image || "/placeholder.svg"}
@@ -467,4 +345,3 @@ export default function RestaurantsPage() {
     </div>
   )
 }
-
