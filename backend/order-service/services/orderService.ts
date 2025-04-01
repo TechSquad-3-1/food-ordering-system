@@ -3,7 +3,7 @@ import Order, { IOrderItem } from '../models/order';
 
 export class OrderService {
   // Create a new order
-  static async createOrder(user_id: string, items: IOrderItem[], restaurant_id: string, delivery_fee: number) {
+  static async createOrder(user_id: string, items: IOrderItem[], restaurant_id: string, delivery_fee: number, delivery_address: string) {
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -31,6 +31,7 @@ export class OrderService {
         status: 'pending',
         restaurant_id: restaurant_id,
         delivery_fee: delivery_fee, // Set the delivery fee
+        delivery_address: delivery_address, // Set the delivery address
       });
 
       await order.save({ session });

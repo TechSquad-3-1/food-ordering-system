@@ -14,6 +14,7 @@ export interface IOrder extends Document {
   items: IOrderItem[];
   restaurant_id: string;
   delivery_fee: number; // Added delivery_fee
+  delivery_address: string; // Added delivery_address field
 }
 
 const orderSchema: Schema = new Schema(
@@ -31,6 +32,7 @@ const orderSchema: Schema = new Schema(
     ],
     restaurant_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant', required: true },
     delivery_fee: { type: Number, default: 0 }, // Added delivery_fee with a default value
+    delivery_address: { type: String, required: true }, // Added required delivery_address field
   },
   { timestamps: true }
 );
