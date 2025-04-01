@@ -1,95 +1,94 @@
-"use client"
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
-import { CreditCard, MapPin, AlertCircle, Plus, Minus } from "lucide-react"
-import Header from "@/components/Header"
-import Footer from "@/components/Footer"
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { CreditCard, MapPin, AlertCircle, Plus, Minus } from "lucide-react";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 interface Address {
-  id: string
-  type: string
-  address: string
-  city: string
-  state: string
-  zip: string
-  isDefault: boolean
+  id: string;
+  type: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  isDefault: boolean;
 }
 
 interface MenuItem {
-  _id: string
-  name: string
-  description: string
-  price: number
-  image_url: string
-  is_veg: boolean
-  is_available: boolean
-  category_id: string
+  _id: string;
+  name: string;
+  description: string;
+  price: number;
+  image_url: string;
+  is_veg: boolean;
+  is_available: boolean;
+  category_id: string;
 }
 
 interface Restaurant {
-  _id: string
-  name: string
-  image: string
-  rating: number
-  reviewCount: number
-  deliveryTime: string
-  deliveryFee: string
-  minOrder: string
-  distance: string
-  address: string
-  cuisines: string[]
-  priceLevel: number
-  description: string
+  _id: string;
+  name: string;
+  image: string;
+  rating: number;
+  reviewCount: number;
+  deliveryTime: string;
+  deliveryFee: string;
+  minOrder: string;
+  distance: string;
+  address: string;
+  cuisines: string[];
+  priceLevel: number;
+  description: string;
 }
 
 interface PaymentMethod {
-  id: string
-  type: string
-  last4: string
-  expiry: string
-  isDefault: boolean
+  id: string;
+  type: string;
+  last4: string;
+  expiry: string;
+  isDefault: boolean;
 }
 
 export default function CheckoutPage() {
-  const router = useRouter()
-  const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
-  const [addresses, setAddresses] = useState<Address[]>([])
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
-  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null)
-  const [selectedQuantity, setSelectedQuantity] = useState<number>(1)
-  const [selectedAddressId, setSelectedAddressId] = useState<string>("")
-  const [selectedPaymentId, setSelectedPaymentId] = useState<string>("")
-  const [isProcessing, setIsProcessing] = useState(false)
+  const router = useRouter();
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  const [selectedQuantity, setSelectedQuantity] = useState<number>(1);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>("");
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string>("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    // Fetch restaurant data from localStorage or backend
     const fetchRestaurantData = async () => {
-      const restaurantId = localStorage.getItem("restaurantId")
+      const restaurantId = localStorage.getItem("restaurantId");
       if (restaurantId) {
         try {
-          const response = await fetch(`http://localhost:3001/api/restaurants/${restaurantId}`)
-          const restaurantData = await response.json()
+          const response = await fetch(`http://localhost:3001/api/restaurants/${restaurantId}`);
+          const restaurantData = await response.json();
           if (restaurantData) {
-            setRestaurant(restaurantData)
+            setRestaurant(restaurantData);
           } else {
-            console.error("Restaurant data not found")
+            console.error("Restaurant data not found");
           }
         } catch (error) {
-          console.error("Error fetching restaurant data:", error)
+          console.error("Error fetching restaurant data:", error);
         }
       } else {
-        console.error("No restaurantId found in localStorage")
+        console.error("No restaurantId found in localStorage");
       }
-    }
+    };
 
-    fetchRestaurantData()
+    fetchRestaurantData();
 
-    // Set default address and payment methods
     const mockAddresses: Address[] = [
       {
         id: "addr1",
@@ -109,7 +108,7 @@ export default function CheckoutPage() {
         zip: "20005",
         isDefault: false,
       },
-    ]
+    ];
 
     const mockPaymentMethods: PaymentMethod[] = [
       {
@@ -126,41 +125,33 @@ export default function CheckoutPage() {
         expiry: "12/24",
         isDefault: false,
       },
-    ]
+    ];
 
-    setAddresses(mockAddresses)
-    setPaymentMethods(mockPaymentMethods)
+    setAddresses(mockAddresses);
+    setPaymentMethods(mockPaymentMethods);
 
-    // Set default selections for address and payment
-    const defaultAddress = mockAddresses.find((addr) => addr.isDefault)
+    const defaultAddress = mockAddresses.find((addr) => addr.isDefault);
     if (defaultAddress) {
-      setSelectedAddressId(defaultAddress.id)
+      setSelectedAddressId(defaultAddress.id);
     }
 
-    const defaultPayment = mockPaymentMethods.find((pm) => pm.isDefault)
+    const defaultPayment = mockPaymentMethods.find((pm) => pm.isDefault);
     if (defaultPayment) {
-      setSelectedPaymentId(defaultPayment.id)
+      setSelectedPaymentId(defaultPayment.id);
     }
 
-    // Fetch selected item data from localStorage
-    const item = localStorage.getItem("selectedItem")
+    const item = localStorage.getItem("selectedItem");
     if (item) {
-      setSelectedItem(JSON.parse(item)) // Set the selected item
-      setSelectedQuantity(parseInt(localStorage.getItem("selectedQuantity") || "1")) // Set the quantity
+      setSelectedItem(JSON.parse(item));
+      setSelectedQuantity(parseInt(localStorage.getItem("selectedQuantity") || "1"));
     }
-  }, [])
+  }, []);
 
   const getCartTotal = () => {
-    return selectedItem ? selectedItem.price * selectedQuantity : 0
-  }
+    return selectedItem ? selectedItem.price * selectedQuantity : 0;
+  };
 
   const handlePlaceOrder = async () => {
-    console.log("selectedItem:", selectedItem);
-    console.log("selectedQuantity:", selectedQuantity);
-    console.log("selectedAddressId:", selectedAddressId);
-    console.log("selectedPaymentId:", selectedPaymentId);
-    console.log("restaurant:", restaurant);
-  
     if (!selectedAddressId || !selectedPaymentId || !selectedItem || !restaurant) {
       console.log("Order not placed. Missing data.");
       return;
@@ -173,8 +164,8 @@ export default function CheckoutPage() {
   
       // Calculate subtotal, delivery fee, and tax
       const subtotal = selectedItem.price * selectedQuantity;
-      const deliveryFee = 2.99; // This can be dynamic if needed
-      const tax = subtotal * 0.08; // Assuming 8% tax rate
+      const deliveryFee = 2.99;
+      const tax = subtotal * 0.08;
       const totalAmount = subtotal + deliveryFee + tax;
   
       // Prepare the order data
@@ -188,14 +179,11 @@ export default function CheckoutPage() {
             price: selectedItem.price,
           },
         ],
-        total_amount: totalAmount.toFixed(2), // Total amount including delivery and tax
+        total_amount: totalAmount.toFixed(2),
         delivery_fee: deliveryFee,
         status: "pending",
       };
   
-      console.log("Sending order data:", orderData);
-  
-      // Step 1: Send the order data to your backend to create the order in the database
       const orderResponse = await fetch("http://localhost:3008/api/orders", {
         method: "POST",
         headers: {
@@ -206,15 +194,23 @@ export default function CheckoutPage() {
   
       if (orderResponse.ok) {
         const orderConfirmation = await orderResponse.json();
-        console.log("Order placed successfully:", orderConfirmation);
-        // Store the orderId in localStorage
-        localStorage.setItem("orderId", orderConfirmation.orderId);
-        // Step 2: Now, trigger the Stripe payment session
+        console.log("Order Confirmation:", orderConfirmation); // Log the full response
+  
+        // Ensure order_id is available in the response and store it in localStorage
+        if (orderConfirmation && orderConfirmation.order && orderConfirmation.order.order_id) {
+          const orderId = orderConfirmation.order.order_id;
+          localStorage.setItem("order_id", orderId); // Save order_id in localStorage
+          console.log("Order ID saved to localStorage:", orderId); // Confirm that it's saved
+        } else {
+          console.error("Order ID not returned by the backend");
+        }
+  
+        // Proceed with payment (if applicable)
         const paymentData = {
-          amount: totalAmount, // Convert total amount to cents (Stripe expects the amount in the smallest unit)
+          amount: totalAmount,
           quantity: selectedQuantity,
           name: selectedItem.name,
-          currency: "USD", // Use the appropriate currency
+          currency: "USD",
         };
   
         const paymentResponse = await fetch("http://localhost:8080/product/v1/checkout", {
@@ -227,9 +223,6 @@ export default function CheckoutPage() {
   
         if (paymentResponse.ok) {
           const paymentConfirmation = await paymentResponse.json();
-          console.log("Stripe session created:", paymentConfirmation);
-  
-          // Step 3: Redirect the user to the Stripe checkout page
           if (paymentConfirmation.sessionUrl) {
             window.location.href = paymentConfirmation.sessionUrl;
           } else {
@@ -237,7 +230,7 @@ export default function CheckoutPage() {
             setIsProcessing(false);
           }
         } else {
-          console.error("Failed to create Stripe session. Response status:", paymentResponse.status);
+          console.error("Failed to create Stripe session.");
           setIsProcessing(false);
         }
       } else {
@@ -250,17 +243,16 @@ export default function CheckoutPage() {
     }
   };
   
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header cartCount={1} /> {/* Placeholder for cart count */}
+      <Header cartCount={1} />
 
       <main className="max-w-[1400px] mx-auto px-6 py-8">
         <h1 className="text-3xl font-bold mb-8">Checkout</h1>
 
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Left Column - Delivery & Payment */}
           <div className="w-full lg:w-2/3 space-y-6">
-            {/* Delivery Address */}
             <Card>
               <CardHeader>
                 <div className="flex items-center">
@@ -301,7 +293,6 @@ export default function CheckoutPage() {
               </CardContent>
             </Card>
 
-            {/* Payment Method */}
             <Card>
               <CardHeader>
                 <div className="flex items-center">
@@ -343,7 +334,6 @@ export default function CheckoutPage() {
             </Card>
           </div>
 
-          {/* Right Column - Order Summary */}
           <div className="w-full lg:w-1/3">
             <div className="sticky top-4">
               <Card>
@@ -430,5 +420,5 @@ export default function CheckoutPage() {
 
       <Footer />
     </div>
-  )
+  );
 }
