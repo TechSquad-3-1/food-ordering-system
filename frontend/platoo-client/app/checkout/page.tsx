@@ -3,12 +3,10 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { CreditCard, MapPin, Clock, AlertCircle, Plus, Minus } from "lucide-react"
+import { CreditCard, MapPin, AlertCircle, Plus, Minus } from "lucide-react"
 import Header from "@/components/Header"
 import Footer from "@/components/Footer"
 
@@ -157,22 +155,28 @@ export default function CheckoutPage() {
   }
 
   const handlePlaceOrder = async () => {
-    console.log("selectedItem:", selectedItem)
-    console.log("selectedQuantity:", selectedQuantity)
-    console.log("selectedAddressId:", selectedAddressId)
-    console.log("selectedPaymentId:", selectedPaymentId)
-    console.log("restaurant:", restaurant)
-
+    console.log("selectedItem:", selectedItem);
+    console.log("selectedQuantity:", selectedQuantity);
+    console.log("selectedAddressId:", selectedAddressId);
+    console.log("selectedPaymentId:", selectedPaymentId);
+    console.log("restaurant:", restaurant);
+  
     if (!selectedAddressId || !selectedPaymentId || !selectedItem || !restaurant) {
-      console.log("Order not placed. Missing data.")
-      return
+      console.log("Order not placed. Missing data.");
+      return;
     }
-
-    setIsProcessing(true)
-
+  
+    setIsProcessing(true);
+  
     try {
-      const userId = localStorage.getItem("userId")
-
+      const userId = localStorage.getItem("userId");
+  
+      // Calculate subtotal, delivery fee, and tax
+      const subtotal = selectedItem.price * selectedQuantity;
+      const deliveryFee = 2.99; // This can be dynamic if needed
+      const tax = subtotal * 0.08; // Assuming 8% tax rate
+      const totalAmount = subtotal + deliveryFee + tax;
+  
       // Prepare the order data
       const orderData = {
         user_id: userId,
@@ -184,35 +188,68 @@ export default function CheckoutPage() {
             price: selectedItem.price,
           },
         ],
-        total_amount: selectedItem.price * selectedQuantity + 2.99, // Including delivery fee
-        delivery_fee: 2.99,
+        total_amount: totalAmount.toFixed(2), // Total amount including delivery and tax
+        delivery_fee: deliveryFee,
         status: "pending",
-      }
-
-      console.log("Sending order data:", orderData)
-
-      const response = await fetch("http://localhost:3008/api/orders", {
+      };
+  
+      console.log("Sending order data:", orderData);
+  
+      // Step 1: Send the order data to your backend to create the order in the database
+      const orderResponse = await fetch("http://localhost:3008/api/orders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(orderData),
-      })
-
-      if (response.ok) {
-        const orderConfirmation = await response.json()
-        console.log("Order placed successfully:", orderConfirmation)
-        router.push("/order-confirmation")
+      });
+  
+      if (orderResponse.ok) {
+        const orderConfirmation = await orderResponse.json();
+        console.log("Order placed successfully:", orderConfirmation);
+        // Store the orderId in localStorage
+        localStorage.setItem("orderId", orderConfirmation.orderId);
+        // Step 2: Now, trigger the Stripe payment session
+        const paymentData = {
+          amount: totalAmount, // Convert total amount to cents (Stripe expects the amount in the smallest unit)
+          quantity: selectedQuantity,
+          name: selectedItem.name,
+          currency: "USD", // Use the appropriate currency
+        };
+  
+        const paymentResponse = await fetch("http://localhost:8080/product/v1/checkout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(paymentData),
+        });
+  
+        if (paymentResponse.ok) {
+          const paymentConfirmation = await paymentResponse.json();
+          console.log("Stripe session created:", paymentConfirmation);
+  
+          // Step 3: Redirect the user to the Stripe checkout page
+          if (paymentConfirmation.sessionUrl) {
+            window.location.href = paymentConfirmation.sessionUrl;
+          } else {
+            console.error("Failed to create Stripe session.");
+            setIsProcessing(false);
+          }
+        } else {
+          console.error("Failed to create Stripe session. Response status:", paymentResponse.status);
+          setIsProcessing(false);
+        }
       } else {
-        console.error("Failed to place order. Response status:", response.status)
-        setIsProcessing(false)
+        console.error("Failed to place order. Response status:", orderResponse.status);
+        setIsProcessing(false);
       }
     } catch (error) {
-      console.error("Error placing order:", error)
-      setIsProcessing(false)
+      console.error("Error placing order:", error);
+      setIsProcessing(false);
     }
-  }
-
+  };
+  
   return (
     <div className="min-h-screen bg-gray-50">
       <Header cartCount={1} /> {/* Placeholder for cart count */}

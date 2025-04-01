@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,21 +10,47 @@ import { Check, Clock, MapPin, ArrowRight } from "lucide-react"
 
 export default function OrderConfirmationPage() {
   const router = useRouter()
-  const [orderDetails, setOrderDetails] = useState({
-    orderId: `ORD-${Math.floor(Math.random() * 10000)}`,
-    restaurant: "Burger Palace",
-    estimatedDelivery: "25-35 minutes",
-    deliveryAddress: "123 Main Street, Apt 4B, Washington, DC 20001",
-    items: [
-      { name: "Classic Cheeseburger", quantity: 2, price: 8.99 },
-      { name: "French Fries", quantity: 1, price: 3.99 },
-      { name: "Chocolate Milkshake", quantity: 1, price: 5.99 },
-    ],
-    subtotal: 27.96,
-    deliveryFee: 2.99,
-    tax: 2.24,
-    total: 33.19,
-  })
+  const [orderDetails, setOrderDetails] = useState<any>(null) // Use any for flexibility
+  const [paymentSuccess, setPaymentSuccess] = useState<boolean>(false)
+
+  useEffect(() => {
+    const orderId = localStorage.getItem("orderId")
+    console.log("Order ID from localStorage:", orderId)
+
+    if (orderId) {
+      fetchOrderDetails(orderId)
+    } else {
+      console.error("No order ID found in localStorage.")
+    }
+  }, [])
+
+  // Fetch order details from the backend API
+  const fetchOrderDetails = async (orderId: string) => {
+    try {
+      const response = await fetch(`http://localhost:3008/api/orders/${orderId}`)
+      const data = await response.json()
+      if (data) {
+        setOrderDetails(data)
+      } else {
+        console.error("Order details not found.")
+      }
+    } catch (error) {
+      console.error("Error fetching order details:", error)
+    }
+  }
+
+  // Display loading message until orderDetails are fetched
+  if (!orderDetails) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header cartCount={0} />
+        <main className="max-w-[1400px] mx-auto px-6 py-8">
+          <h2>Loading order details...</h2>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -44,7 +70,7 @@ export default function OrderConfirmationPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Order #{orderDetails.orderId}</CardTitle>
+              <CardTitle>Order #{orderDetails.order_id}</CardTitle>
               <CardDescription>Thank you for your order from {orderDetails.restaurant}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -70,7 +96,7 @@ export default function OrderConfirmationPage() {
                 </div>
                 <div className="p-4">
                   <div className="space-y-3 mb-4">
-                    {orderDetails.items.map((item, index) => (
+                    {orderDetails.items && orderDetails.items.map((item: any, index: number) => (
                       <div key={index} className="flex justify-between">
                         <div>
                           <span className="font-medium">{item.quantity}x</span> {item.name}
@@ -124,6 +150,5 @@ export default function OrderConfirmationPage() {
 
       <Footer />
     </div>
-  )
+  );
 }
-
