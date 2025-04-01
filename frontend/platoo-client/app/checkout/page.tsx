@@ -88,109 +88,109 @@ export default function CheckoutPage() {
   const getCartTotal = () => {
     return selectedItem ? selectedItem.price * selectedQuantity : 0;
   };
+
   const userId = localStorage.getItem("userId");
-  console.log("User ID:", userId); // Check if user_id is being set correctly
-  
+  console.log("User ID:", userId);
+
   if (!userId) {
     alert("User is not logged in. Please log in before placing the order.");
     return;
   }
-  
+
   const handlePlaceOrder = async () => {
     if (!deliveryAddress || !phone || !email || !selectedItem || !restaurant) {
-      console.log("Order not placed. Missing data.");
-      return;
+        console.log("Order not placed. Missing data.");
+        return;
     }
 
     setIsProcessing(true);
 
     try {
-      const userId = localStorage.getItem("userId");
+        // Calculate subtotal and delivery fee (no tax anymore)
+        const subtotal = selectedItem.price * selectedQuantity;
+        const deliveryFee = 2.99;
 
-      // Calculate subtotal, delivery fee, and tax
-      const subtotal = selectedItem.price * selectedQuantity;
-      const deliveryFee = 2.99;
-      const tax = subtotal * 0.08;
-      const totalAmount = subtotal + deliveryFee + tax;
+        // Correct total calculation for the order (without tax)
+        const totalAmount = (subtotal + deliveryFee).toFixed(2); // Pass it as a string with 2 decimals
 
-      // Prepare the order data
-      const orderData = {
-        user_id: userId,
-        restaurant_id: restaurant._id,
-        items: [
-          {
-            menu_item_id: selectedItem._id,
-            quantity: selectedQuantity,
-            price: selectedItem.price,
-          },
-        ],
-        total_amount: totalAmount.toFixed(2),
-        delivery_fee: deliveryFee,
-        status: "pending",
-        delivery_address: deliveryAddress,
-        phone: phone,
-        email: email,
-      };
-
-      console.log("Order Data:", orderData);  // Log order data for debugging
-
-      const orderResponse = await fetch("http://localhost:3008/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(orderData),
-      });
-
-      if (orderResponse.ok) {
-        const orderConfirmation = await orderResponse.json();
-        console.log("Order Confirmation:", orderConfirmation); // Log the full response
-
-        if (orderConfirmation && orderConfirmation.order && orderConfirmation.order.order_id) {
-          const orderId = orderConfirmation.order.order_id;
-          localStorage.setItem("order_id", orderId); // Save order_id in localStorage
-          console.log("Order ID saved to localStorage:", orderId);
-        } else {
-          console.error("Order ID not returned by the backend");
-        }
-
-        // Proceed with payment (if applicable)
-        const paymentData = {
-          amount: totalAmount,
-          quantity: selectedQuantity,
-          name: selectedItem.name,
-          currency: "USD",
+        // Prepare the order data
+        const orderData = {
+            user_id: userId,
+            restaurant_id: restaurant._id,
+            items: [
+                {
+                    menu_item_id: selectedItem._id,
+                    quantity: selectedQuantity,
+                    price: selectedItem.price,
+                },
+            ],
+            total_amount: parseFloat(totalAmount), // Send the value as float, not a string
+            delivery_fee: deliveryFee,
+            status: "pending",
+            delivery_address: deliveryAddress,
+            phone: phone,
+            email: email,
         };
 
-        const paymentResponse = await fetch("http://localhost:8080/product/v1/checkout", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(paymentData),
+        console.log("Order Data:", orderData); // Log order data for debugging
+
+        const orderResponse = await fetch("http://localhost:3008/api/orders", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(orderData),
         });
 
-        if (paymentResponse.ok) {
-          const paymentConfirmation = await paymentResponse.json();
-          if (paymentConfirmation.sessionUrl) {
-            window.location.href = paymentConfirmation.sessionUrl;
-          } else {
-            console.error("Failed to create Stripe session.");
-            setIsProcessing(false);
-          }
+        if (orderResponse.ok) {
+            const orderConfirmation = await orderResponse.json();
+            console.log("Order Confirmation:", orderConfirmation);
+
+            if (orderConfirmation && orderConfirmation.order && orderConfirmation.order.order_id) {
+                const orderId = orderConfirmation.order.order_id;
+                localStorage.setItem("order_id", orderId); // Save order_id in localStorage
+                console.log("Order ID saved to localStorage:", orderId);
+            } else {
+                console.error("Order ID not returned by the backend");
+            }
+
+            // Proceed with payment (pass the correct total amount)
+            const paymentData = {
+                amount: totalAmount, // Correct amount for the payment
+                quantity: selectedQuantity,
+                name: selectedItem.name,
+                currency: "USD",
+            };
+
+            const paymentResponse = await fetch("http://localhost:8080/product/v1/checkout", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(paymentData),
+            });
+
+            if (paymentResponse.ok) {
+                const paymentConfirmation = await paymentResponse.json();
+                if (paymentConfirmation.sessionUrl) {
+                    window.location.href = paymentConfirmation.sessionUrl;
+                } else {
+                    console.error("Failed to create Stripe session.");
+                    setIsProcessing(false);
+                }
+            } else {
+                console.error("Failed to create Stripe session.");
+                setIsProcessing(false);
+            }
         } else {
-          console.error("Failed to create Stripe session.");
-          setIsProcessing(false);
+            console.error("Failed to place order. Response status:", orderResponse.status);
+            setIsProcessing(false);
         }
-      } else {
-        console.error("Failed to place order. Response status:", orderResponse.status);
-        setIsProcessing(false);
-      }
     } catch (error) {
-      console.error("Error placing order:", error);
-      setIsProcessing(false);
+        console.error("Error placing order:", error);
+        setIsProcessing(false);
     }
-  };
+};
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -302,17 +302,12 @@ export default function CheckoutPage() {
                       <span>Delivery Fee</span>
                       <span>$2.99</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Tax</span>
-                      <span>${((selectedItem ? selectedItem.price * selectedQuantity : 0) * 0.08).toFixed(2)}</span>
-                    </div>
                     <div className="flex justify-between font-bold text-lg pt-2 border-t">
                       <span>Total</span>
                       <span>
                         ${(
                           (selectedItem ? selectedItem.price * selectedQuantity : 0) +
-                          2.99 +
-                          (selectedItem ? selectedItem.price * selectedQuantity : 0) * 0.08
+                          2.99
                         ).toFixed(2)}
                       </span>
                     </div>

@@ -7,14 +7,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Check, Clock, MapPin, ArrowRight } from "lucide-react";
+import jsPDF from "jspdf";  // Import jsPDF
 
 export default function OrderConfirmationPage() {
   const router = useRouter();
   const [orderDetails, setOrderDetails] = useState<any>(null);
   const [restaurantName, setRestaurantName] = useState<string>("");
   const [deliveryTime, setDeliveryTime] = useState<string>("");
-  const [userAddress, setUserAddress] = useState<string>("");
-  const [userPhone, setUserPhone] = useState<string>("");
 
   // Function to clear the localStorage
   const clearLocalStorage = () => {
@@ -29,19 +28,17 @@ export default function OrderConfirmationPage() {
 
   useEffect(() => {
     const orderId = localStorage.getItem("order_id");
-    console.log("Order ID from localStorage:", orderId);
     if (orderId) {
       fetchOrderDetails(orderId); // Fetch the order details from the backend
     } else {
       console.error("No order ID found in localStorage.");
     }
 
-    // Fetch restaurant details based on the restaurantId from localStorage
     const restaurantId = localStorage.getItem("restaurantId");
     if (restaurantId) {
       fetchRestaurantName(restaurantId);
     }
-    
+
     // Cleanup localStorage when the component is unmounted (page close)
     return () => {
       clearLocalStorage();
@@ -54,8 +51,6 @@ export default function OrderConfirmationPage() {
       const data = await response.json();
       if (data) {
         setOrderDetails(data);
-        setUserAddress(data.delivery_address || "Not Provided");
-        setUserPhone(data.phone || "Not Provided");
       } else {
         console.error("Order details not found.");
       }
@@ -92,18 +87,7 @@ export default function OrderConfirmationPage() {
     );
   }
 
-  // Fallback for missing data: Show default values if undefined
-  const subtotal = parseFloat(orderDetails?.total_amount?.toFixed(2) || "0.00");
-  const deliveryFee = parseFloat(orderDetails?.delivery_fee?.toFixed(2) || "0.00");
-  const tax = parseFloat(orderDetails?.tax?.toFixed(2) || "0.80");
-
-  // Calculate total
-  const total = (subtotal + tax).toFixed(2);
-
-
-  const estimatedDelivery = orderDetails?.estimatedDelivery || "N/A";
-  const deliveryAddress = userAddress || "Not provided";
-  const phone = userPhone || "Not provided";
+  const { total_amount, delivery_fee, items, delivery_address, phone } = orderDetails;
 
   // Handle "Order More Food" and "Go to Dashboard" button clicks
   const handleOrderMoreFood = () => {
@@ -114,6 +98,77 @@ export default function OrderConfirmationPage() {
   const handleGoToDashboard = () => {
     clearLocalStorage();
     router.push("/dashboard");
+  };
+
+  // Function to generate modern styled PDF invoice
+  const generatePDF = () => {
+    const doc = new jsPDF();
+  
+    // Set up fonts and styles
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+  
+    // Add header with company name and logo (can be customized)
+    doc.setFontSize(18);
+    doc.setTextColor(0, 0, 0);
+    doc.text("PLATOO", 14, 20);  // Adjust with your company name
+    doc.setFontSize(12);
+    doc.text("Your Order Invoice", 14, 30);
+    
+    // Add order ID and other info
+    doc.text(`Order ID: ${orderDetails?.order_id}`, 14, 40);
+    doc.text(`Restaurant: ${restaurantName || "Loading restaurant name..."}`, 14, 50);
+    doc.text(`Delivery Address: ${delivery_address || "Not provided"}`, 14, 60);
+    doc.text(`Phone: ${phone || "Not provided"}`, 14, 70);
+    doc.text(`Estimated Delivery Time: ${deliveryTime || "Loading..."}`, 14, 80);
+  
+    // Add a line separator
+    doc.setLineWidth(0.5);
+    doc.line(14, 85, 200, 85);
+  
+    // Add Order Summary title
+    doc.setFontSize(14);
+    doc.text("Order Summary", 14, 95);
+  
+    let yOffset = 105;
+  
+    let subtotal = 0;  // Initialize subtotal to 0
+
+    // Add ordered items and calculate subtotal
+    items?.forEach((item: { quantity: number; name: any; price: number; }, index: any) => {
+      const itemTotal = item.price * item.quantity;  // Calculate the total for the current item
+      subtotal += itemTotal;  // Add the item total to the subtotal
+      doc.setFontSize(12);
+      doc.text(`${item.quantity}x ${item.name}`, 14, yOffset);
+      doc.text(`$${itemTotal.toFixed(2)}`, 120, yOffset, { align: "right" });
+      yOffset += 10;
+    });
+  
+    // Add a line separator for the items
+    doc.line(14, yOffset, 200, yOffset);
+  
+    // Add Price Breakdown (Subtotal, Delivery Fee, Total)
+    yOffset += 10;
+  
+    doc.setFontSize(12);
+    doc.text(`Subtotal: $${subtotal.toFixed(2)}`, 14, yOffset);  // Display the correct subtotal
+    yOffset += 6;
+    doc.text(`Delivery Fee: $${delivery_fee.toFixed(2)}`, 14, yOffset);  // Display the correct delivery fee
+    yOffset += 6;
+  
+    const totalAmount = subtotal + delivery_fee;  // Calculate the total amount (subtotal + delivery fee)
+  
+    doc.setFontSize(14);
+    doc.text(`Total: $${totalAmount.toFixed(2)}`, 14, yOffset);  // Display the total amount
+    yOffset += 6;
+  
+    // Add Footer
+    doc.setFontSize(10);
+    doc.text("Thank you for your order!", 14, yOffset + 10);
+    doc.text("For inquiries, contact support at support@example.com", 14, yOffset + 16);
+  
+    // Save the generated invoice as a PDF file
+    doc.save(`Order_${orderDetails?.order_id}.pdf`);
   };
 
   return (
@@ -150,7 +205,7 @@ export default function OrderConfirmationPage() {
                 <MapPin className="h-5 w-5 text-gray-500 mt-0.5" />
                 <div>
                   <h3 className="font-medium">Delivery Address</h3>
-                  <p className="text-gray-500">{deliveryAddress}</p>
+                  <p className="text-gray-500">{delivery_address}</p>
                 </div>
               </div>
 
@@ -163,41 +218,40 @@ export default function OrderConfirmationPage() {
               </div>
 
               <div className="border rounded-lg overflow-hidden">
-                <div className="bg-gray-50 p-4 border-b">
-                  <h3 className="font-medium">Order Summary</h3>
-                </div>
-                <div className="p-4">
-                  <div className="space-y-3 mb-4">
-                    {orderDetails?.items?.map((item: any, index: number) => (
-                      <div key={index} className="flex justify-between">
-                        <div>
-                          <span className="font-medium">{item.quantity}x</span> {item.name}
-                        </div>
-                        <div>${(item.price * item.quantity).toFixed(2)}</div>
-                      </div>
-                    ))}
-                  </div>
+  <div className="bg-gray-50 p-4 border-b">
+    <h3 className="font-medium">Order Summary</h3>
+  </div>
+  <div className="p-4">
+    <div className="space-y-3 mb-4">
+      {/* Display ordered items */}
+      {items?.map((item: any, index: number) => (
+        <div key={index} className="flex justify-between">
+          <div>
+            <span className="font-medium">{item.quantity}x</span> {item.name}
+          </div>
+          <div>${(item.price * item.quantity).toFixed(2)}</div>
+        </div>
+      ))}
+    </div>
 
-                  <div className="border-t pt-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                      <span>subtotal</span>
-                      <span>${subtotal}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Delivery Fee</span>
-                      <span>${deliveryFee}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Tax</span>
-                      <span>${tax}</span>
-                    </div>
-                    <div className="flex justify-between font-bold pt-2 border-t">
-                      <span>Total</span>
-                      <span>${total}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+    <div className="border-t pt-4 space-y-2">
+      {/* Display fetched subtotal, delivery fee, and total */}
+      <div className="flex justify-between text-sm">
+        <span>Subtotal</span>
+        <span>${total_amount.toFixed(2)}</span> {/* Displaying the fetched subtotal */}
+      </div>
+      <div className="flex justify-between text-sm">
+        <span>Delivery Fee</span>
+        <span>${delivery_fee.toFixed(2)}</span> {/* Displaying the fetched delivery fee */}
+      </div>
+      <div className="flex justify-between font-bold pt-2 border-t">
+        <span>Total</span>
+        <span>${(total_amount).toFixed(2)}</span> {/* Displaying the fetched total (total_amount + delivery_fee) */}
+      </div>
+    </div>
+  </div>
+</div>
+
             </CardContent>
             <CardFooter className="flex-col space-y-4">
               <div className="flex flex-col sm:flex-row gap-4 w-full">
@@ -206,6 +260,9 @@ export default function OrderConfirmationPage() {
                 </Button>
                 <Button className="flex-1 bg-red-500 hover:bg-red-600" onClick={handleGoToDashboard}>
                   Go to Dashboard
+                </Button>
+                <Button className="flex-1 bg-blue-500 hover:bg-blue-600" onClick={generatePDF}>
+                  Download Invoice
                 </Button>
               </div>
             </CardFooter>
