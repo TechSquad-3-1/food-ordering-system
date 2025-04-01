@@ -3,7 +3,7 @@ import Order, { IOrderItem } from '../models/order';
 
 export class OrderService {
   // Create a new order
-  static async createOrder(user_id: string, items: IOrderItem[], restaurant_id: string, delivery_fee: number, delivery_address: string, phone: string, email: string, payment_method: string) {
+  static async createOrder(user_id: string, items: IOrderItem[], restaurant_id: string, delivery_fee: number, delivery_address: string, phone: string, email: string) {
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -32,10 +32,8 @@ export class OrderService {
         restaurant_id: restaurant_id,
         delivery_fee: delivery_fee, // Set the delivery fee
         delivery_address: delivery_address, // Set the delivery address
-        phone: phone, // Set the phone number
-        email: email, // Set the email address
-        payment_method: payment_method, // Set the payment method
-        order_date: new Date(), // Set the order date
+        phone: phone, // Set the phone field
+        email: email, // Set the email field
       });
 
       await order.save({ session });
@@ -100,7 +98,6 @@ export class OrderService {
     await order.save();
     return order;
   }
-
 
   // Delete an order
   static async deleteOrder(orderId: string) {

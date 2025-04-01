@@ -13,12 +13,10 @@ export interface IOrder extends Document {
   status: string;
   items: IOrderItem[];
   restaurant_id: string;
-  delivery_fee: number;
-  delivery_address: string;
+  delivery_fee: number; // Added delivery_fee
+  delivery_address: string; // Added delivery_address field
   phone: string; // Added phone field
   email: string; // Added email field
-  payment_method: string; // Added payment method field
-  order_date: Date; // Added order date field
 }
 
 const orderSchema: Schema = new Schema(
@@ -35,12 +33,10 @@ const orderSchema: Schema = new Schema(
       },
     ],
     restaurant_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant', required: true },
-    delivery_fee: { type: Number, default: 0 },
-    delivery_address: { type: String, required: true },
+    delivery_fee: { type: Number, default: 0 }, // Added delivery_fee with a default value
+    delivery_address: { type: String, required: true }, // Added required delivery_address field
     phone: { type: String, required: true }, // Added phone field
     email: { type: String, required: true }, // Added email field
-    payment_method: { type: String, required: true }, // Added payment method
-    order_date: { type: Date, default: Date.now }, // Added order date field
   },
   { timestamps: true }
 );

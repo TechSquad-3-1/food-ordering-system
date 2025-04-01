@@ -4,13 +4,13 @@ import { OrderService } from '../services/orderService';
 // Create order
 export const createOrder = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const { user_id, items, restaurant_id, delivery_fee, delivery_address, phone, email, payment_method } = req.body;
+    const { user_id, items, restaurant_id, delivery_fee, delivery_address, phone, email } = req.body;
 
-    if (!user_id || !Array.isArray(items) || items.length === 0 || !restaurant_id || delivery_fee === undefined || !delivery_address || !phone || !email || !payment_method) {
-      return res.status(400).json({ message: 'Invalid request body, user_id, items, restaurant_id, delivery_fee, delivery_address, phone, email, and payment_method are required' });
+    if (!user_id || !Array.isArray(items) || items.length === 0 || !restaurant_id || delivery_fee === undefined || !delivery_address || !phone || !email) {
+      return res.status(400).json({ message: 'Invalid request body, user_id, items, restaurant_id, delivery_fee, delivery_address, phone, and email are required' });
     }
 
-    const order = await OrderService.createOrder(user_id, items, restaurant_id, delivery_fee, delivery_address, phone, email, payment_method);
+    const order = await OrderService.createOrder(user_id, items, restaurant_id, delivery_fee, delivery_address, phone, email);
     return res.status(201).json({ order });
   } catch (error: unknown) {
     if (error instanceof Error) {
@@ -20,7 +20,6 @@ export const createOrder = async (req: Request, res: Response): Promise<Response
     }
   }
 };
-
 
 // Get all orders
 export const getAllOrders = async (req: Request, res: Response): Promise<Response> => {
