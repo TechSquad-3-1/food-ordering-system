@@ -89,6 +89,7 @@ export default function CheckoutPage() {
 
     fetchRestaurantData();
 
+    // Mock data for addresses and payment methods
     const mockAddresses: Address[] = [
       {
         id: "addr1",
@@ -156,18 +157,18 @@ export default function CheckoutPage() {
       console.log("Order not placed. Missing data.");
       return;
     }
-  
+
     setIsProcessing(true);
-  
+
     try {
       const userId = localStorage.getItem("userId");
-  
+
       // Calculate subtotal, delivery fee, and tax
       const subtotal = selectedItem.price * selectedQuantity;
       const deliveryFee = 2.99;
       const tax = subtotal * 0.08;
       const totalAmount = subtotal + deliveryFee + tax;
-  
+
       // Prepare the order data
       const orderData = {
         user_id: userId,
@@ -182,8 +183,9 @@ export default function CheckoutPage() {
         total_amount: totalAmount.toFixed(2),
         delivery_fee: deliveryFee,
         status: "pending",
+        delivery_address: addresses.find((address) => address.id === selectedAddressId)?.address || "", // Add delivery address
       };
-  
+
       const orderResponse = await fetch("http://localhost:3008/api/orders", {
         method: "POST",
         headers: {
@@ -191,11 +193,11 @@ export default function CheckoutPage() {
         },
         body: JSON.stringify(orderData),
       });
-  
+
       if (orderResponse.ok) {
         const orderConfirmation = await orderResponse.json();
         console.log("Order Confirmation:", orderConfirmation); // Log the full response
-  
+
         // Ensure order_id is available in the response and store it in localStorage
         if (orderConfirmation && orderConfirmation.order && orderConfirmation.order.order_id) {
           const orderId = orderConfirmation.order.order_id;
@@ -204,7 +206,7 @@ export default function CheckoutPage() {
         } else {
           console.error("Order ID not returned by the backend");
         }
-  
+
         // Proceed with payment (if applicable)
         const paymentData = {
           amount: totalAmount,
@@ -212,7 +214,7 @@ export default function CheckoutPage() {
           name: selectedItem.name,
           currency: "USD",
         };
-  
+
         const paymentResponse = await fetch("http://localhost:8080/product/v1/checkout", {
           method: "POST",
           headers: {
@@ -220,7 +222,7 @@ export default function CheckoutPage() {
           },
           body: JSON.stringify(paymentData),
         });
-  
+
         if (paymentResponse.ok) {
           const paymentConfirmation = await paymentResponse.json();
           if (paymentConfirmation.sessionUrl) {
@@ -242,7 +244,6 @@ export default function CheckoutPage() {
       setIsProcessing(false);
     }
   };
-  
 
   return (
     <div className="min-h-screen bg-gray-50">
