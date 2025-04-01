@@ -53,7 +53,6 @@ export default function RestaurantsPage() {
   ]
 
   useEffect(() => {
-    // Fetch restaurants from the API
     const fetchRestaurants = async () => {
       setIsLoading(true)
       try {
@@ -76,14 +75,12 @@ export default function RestaurantsPage() {
   }, [])
 
   useEffect(() => {
-    // Apply filters whenever filter criteria change
     applyFilters()
   }, [searchQuery, selectedCuisine, priceRange, maxDeliveryTime, restaurants])
 
   const applyFilters = () => {
     let filtered = [...restaurants]
 
-    // Apply search query filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(
@@ -93,19 +90,16 @@ export default function RestaurantsPage() {
       )
     }
 
-    // Apply cuisine filter
     if (selectedCuisine && selectedCuisine !== "all") {
       filtered = filtered.filter((restaurant) =>
         restaurant.cuisines.some((cuisine) => cuisine.toLowerCase() === selectedCuisine.toLowerCase()),
       )
     }
 
-    // Apply price range filter
     filtered = filtered.filter(
       (restaurant) => restaurant.priceLevel >= priceRange[0] && restaurant.priceLevel <= priceRange[1],
     )
 
-    // Apply delivery time filter
     filtered = filtered.filter((restaurant) => {
       const maxTime = Number.parseInt(restaurant.deliveryTime.split("-")[1])
       return maxTime <= maxDeliveryTime
@@ -123,8 +117,9 @@ export default function RestaurantsPage() {
     return Array(level).fill("$").join("")
   }
 
-  const getDeliveryTimeMinutes = (timeRange: string) => {
-    return Number.parseInt(timeRange.split("-")[1])
+  const handleRestaurantClick = (restaurantId: string) => {
+    // Store the restaurant ID in localStorage when clicked
+    localStorage.setItem("restaurantId", restaurantId)
   }
 
   return (
@@ -156,11 +151,11 @@ export default function RestaurantsPage() {
             </Button>
           </form>
 
-          {/* Filters */}
           {showFilters && (
             <div className="mt-4 p-4 border rounded-md">
               <h3 className="font-medium mb-3">Filter Options</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Cuisine Filter */}
                 <div>
                   <label className="block text-sm font-medium mb-2">Cuisine Type</label>
                   <Select value={selectedCuisine} onValueChange={setSelectedCuisine}>
@@ -178,6 +173,7 @@ export default function RestaurantsPage() {
                   </Select>
                 </div>
 
+                {/* Price Range Filter */}
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     Price Range: {getPriceLevelString(priceRange[0])} - {getPriceLevelString(priceRange[1])}
@@ -193,6 +189,7 @@ export default function RestaurantsPage() {
                   />
                 </div>
 
+                {/* Max Delivery Time Filter */}
                 <div>
                   <label className="block text-sm font-medium mb-2">Max Delivery Time: {maxDeliveryTime} min</label>
                   <Slider
@@ -239,7 +236,10 @@ export default function RestaurantsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredRestaurants.map((restaurant) => (
                     <Link href={`/restaurants/${restaurant._id}`} key={restaurant._id}>
-                      <Card className="overflow-hidden hover:shadow-md transition-shadow h-full">
+                      <Card
+                        className="overflow-hidden hover:shadow-md transition-shadow h-full"
+                        onClick={() => handleRestaurantClick(restaurant._id)}
+                      >
                         <div className="aspect-video relative">
                           <img
                             src={restaurant.image || "/placeholder.svg"}

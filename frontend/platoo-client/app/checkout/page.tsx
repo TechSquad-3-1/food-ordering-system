@@ -1,6 +1,4 @@
 "use client"
-
-import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -10,10 +8,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { CreditCard, MapPin, Clock, AlertCircle, Plus, Minus } from "lucide-react"
 import Header from "@/components/Header"
 import Footer from "@/components/Footer"
-import { CreditCard, MapPin, Clock, AlertCircle, Plus, Minus } from "lucide-react"
 
 interface Address {
   id: string
@@ -24,17 +21,33 @@ interface Address {
   zip: string
   isDefault: boolean
 }
+
 interface MenuItem {
-  _id: string;
-  name: string;
-  description: string;
-  price: number;
-  image_url: string;
-  is_veg: boolean;
-  is_available: boolean;
-  category_id: string;
+  _id: string
+  name: string
+  description: string
+  price: number
+  image_url: string
+  is_veg: boolean
+  is_available: boolean
+  category_id: string
 }
 
+interface Restaurant {
+  _id: string
+  name: string
+  image: string
+  rating: number
+  reviewCount: number
+  deliveryTime: string
+  deliveryFee: string
+  minOrder: string
+  distance: string
+  address: string
+  cuisines: string[]
+  priceLevel: number
+  description: string
+}
 
 interface PaymentMethod {
   id: string
@@ -46,35 +59,39 @@ interface PaymentMethod {
 
 export default function CheckoutPage() {
   const router = useRouter()
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
   const [addresses, setAddresses] = useState<Address[]>([])
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
-  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null); // selected item from the "Order Now" button
-  const [selectedQuantity, setSelectedQuantity] = useState<number>(1); // selected quantity (set to 1 initially)
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null)
+  const [selectedQuantity, setSelectedQuantity] = useState<number>(1)
   const [selectedAddressId, setSelectedAddressId] = useState<string>("")
   const [selectedPaymentId, setSelectedPaymentId] = useState<string>("")
-  const [deliveryInstructions, setDeliveryInstructions] = useState("")
-  const [isAddingAddress, setIsAddingAddress] = useState(false)
-  const [isAddingPayment, setIsAddingPayment] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [deliveryTime, setDeliveryTime] = useState<string>("asap")
-
-  const [newAddress, setNewAddress] = useState({
-    type: "Home",
-    address: "",
-    city: "",
-    state: "",
-    zip: "",
-  })
-
-  const [newPayment, setNewPayment] = useState({
-    cardNumber: "",
-    cardName: "",
-    expiry: "",
-    cvv: "",
-  })
 
   useEffect(() => {
-    // Fetch mock addresses and payment methods (simulate fetching)
+    // Fetch restaurant data from localStorage or backend
+    const fetchRestaurantData = async () => {
+      const restaurantId = localStorage.getItem("restaurantId")
+      if (restaurantId) {
+        try {
+          const response = await fetch(`http://localhost:3001/api/restaurants/${restaurantId}`)
+          const restaurantData = await response.json()
+          if (restaurantData) {
+            setRestaurant(restaurantData)
+          } else {
+            console.error("Restaurant data not found")
+          }
+        } catch (error) {
+          console.error("Error fetching restaurant data:", error)
+        }
+      } else {
+        console.error("No restaurantId found in localStorage")
+      }
+    }
+
+    fetchRestaurantData()
+
+    // Set default address and payment methods
     const mockAddresses: Address[] = [
       {
         id: "addr1",
@@ -126,39 +143,76 @@ export default function CheckoutPage() {
     if (defaultPayment) {
       setSelectedPaymentId(defaultPayment.id)
     }
+
+    // Fetch selected item data from localStorage
+    const item = localStorage.getItem("selectedItem")
+    if (item) {
+      setSelectedItem(JSON.parse(item)) // Set the selected item
+      setSelectedQuantity(parseInt(localStorage.getItem("selectedQuantity") || "1")) // Set the quantity
+    }
   }, [])
 
   const getCartTotal = () => {
-    return (selectedItem ? selectedItem.price * selectedQuantity : 0);
+    return selectedItem ? selectedItem.price * selectedQuantity : 0
   }
 
   const handlePlaceOrder = async () => {
-    if (!selectedAddressId || !selectedPaymentId) {
+    console.log("selectedItem:", selectedItem)
+    console.log("selectedQuantity:", selectedQuantity)
+    console.log("selectedAddressId:", selectedAddressId)
+    console.log("selectedPaymentId:", selectedPaymentId)
+    console.log("restaurant:", restaurant)
+
+    if (!selectedAddressId || !selectedPaymentId || !selectedItem || !restaurant) {
+      console.log("Order not placed. Missing data.")
       return
     }
 
     setIsProcessing(true)
 
     try {
-      // In a real app, this would send the order to the backend
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      const userId = localStorage.getItem("userId")
 
-      // Clear cart or reset any necessary data
-      // Redirect to order confirmation
-      router.push("/order-confirmation")
+      // Prepare the order data
+      const orderData = {
+        user_id: userId,
+        restaurant_id: restaurant._id,
+        items: [
+          {
+            menu_item_id: selectedItem._id,
+            quantity: selectedQuantity,
+            price: selectedItem.price,
+          },
+        ],
+        total_amount: selectedItem.price * selectedQuantity + 2.99, // Including delivery fee
+        delivery_fee: 2.99,
+        status: "pending",
+      }
+
+      console.log("Sending order data:", orderData)
+
+      const response = await fetch("http://localhost:3008/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(orderData),
+      })
+
+      if (response.ok) {
+        const orderConfirmation = await response.json()
+        console.log("Order placed successfully:", orderConfirmation)
+        router.push("/order-confirmation")
+      } else {
+        console.error("Failed to place order. Response status:", response.status)
+        setIsProcessing(false)
+      }
     } catch (error) {
       console.error("Error placing order:", error)
       setIsProcessing(false)
     }
   }
-  useEffect(() => {
-    const item = localStorage.getItem("selectedItem");
-    if (item) {
-      setSelectedItem(JSON.parse(item)); // Set the selected item
-      setSelectedQuantity(parseInt(localStorage.getItem("selectedQuantity") || "1")); // Set the quantity
-    }
-  }, []);
-  
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header cartCount={1} /> {/* Placeholder for cart count */}
@@ -254,87 +308,86 @@ export default function CheckoutPage() {
 
           {/* Right Column - Order Summary */}
           <div className="w-full lg:w-1/3">
-  <div className="sticky top-4">
-    <Card>
-      <CardHeader>
-        <CardTitle>Order Summary</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {selectedItem && (
-            <div key={selectedItem._id} className="flex justify-between items-center">
-              <div className="flex flex-col">
-                <span className="font-medium">{selectedItem.name}</span>
-                <div className="flex items-center gap-2">
+            <div className="sticky top-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Order Summary</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {selectedItem && (
+                      <div key={selectedItem._id} className="flex justify-between items-center">
+                        <div className="flex flex-col">
+                          <span className="font-medium">{selectedItem.name}</span>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              className="px-4 py-1"
+                              onClick={() => setSelectedQuantity((prev) => Math.max(prev - 1, 1))}
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                            <span>{selectedQuantity}</span>
+                            <Button
+                              variant="outline"
+                              className="px-4 py-1"
+                              onClick={() => setSelectedQuantity((prev) => prev + 1)}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="font-bold">${(selectedItem.price * selectedQuantity).toFixed(2)}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <Separator className="my-4" />
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Subtotal</span>
+                      <span>${(selectedItem ? selectedItem.price * selectedQuantity : 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Delivery Fee</span>
+                      <span>$2.99</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Tax</span>
+                      <span>${((selectedItem ? selectedItem.price * selectedQuantity : 0) * 0.08).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-lg pt-2 border-t">
+                      <span>Total</span>
+                      <span>
+                        ${(
+                          (selectedItem ? selectedItem.price * selectedQuantity : 0) +
+                          2.99 +
+                          (selectedItem ? selectedItem.price * selectedQuantity : 0) * 0.08
+                        ).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex-col space-y-4">
                   <Button
-                    variant="outline"
-                    className="px-4 py-1"
-                    onClick={() => setSelectedQuantity((prev) => Math.max(prev - 1, 1))}
+                    className="w-full bg-red-500 hover:bg-red-600"
+                    disabled={!selectedAddressId || !selectedPaymentId || isProcessing}
+                    onClick={handlePlaceOrder}
                   >
-                    <Minus className="h-4 w-4" />
+                    {isProcessing ? <>Processing Order...</> : <>Place Order</>}
                   </Button>
-                  <span>{selectedQuantity}</span>
-                  <Button
-                    variant="outline"
-                    className="px-4 py-1"
-                    onClick={() => setSelectedQuantity((prev) => prev + 1)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <div className="font-bold">${(selectedItem.price * selectedQuantity).toFixed(2)}</div>
+
+                  {(!selectedAddressId || !selectedPaymentId) && (
+                    <div className="flex items-center text-sm text-amber-600">
+                      <AlertCircle className="h-4 w-4 mr-2" />
+                      <span>Please select both delivery address and payment method</span>
+                    </div>
+                  )}
+                </CardFooter>
+              </Card>
             </div>
-          )}
-        </div>
-
-        <Separator className="my-4" />
-
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span>Subtotal</span>
-            <span>${(selectedItem ? selectedItem.price * selectedQuantity : 0).toFixed(2)}</span>
           </div>
-          <div className="flex justify-between text-sm">
-            <span>Delivery Fee</span>
-            <span>$2.99</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span>Tax</span>
-            <span>${((selectedItem ? selectedItem.price * selectedQuantity : 0) * 0.08).toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between font-bold text-lg pt-2 border-t">
-            <span>Total</span>
-            <span>
-              ${(
-                (selectedItem ? selectedItem.price * selectedQuantity : 0) +
-                2.99 +
-                (selectedItem ? selectedItem.price * selectedQuantity : 0) * 0.08
-              ).toFixed(2)}
-            </span>
-          </div>
-        </div>
-      </CardContent>
-      <CardFooter className="flex-col space-y-4">
-        <Button
-          className="w-full bg-red-500 hover:bg-red-600"
-          disabled={!selectedAddressId || !selectedPaymentId || isProcessing}
-          onClick={handlePlaceOrder}
-        >
-          {isProcessing ? <>Processing Order...</> : <>Place Order</>}
-        </Button>
-
-        {(!selectedAddressId || !selectedPaymentId) && (
-          <div className="flex items-center text-sm text-amber-600">
-            <AlertCircle className="h-4 w-4 mr-2" />
-            <span>Please select both delivery address and payment method</span>
-          </div>
-        )}
-      </CardFooter>
-    </Card>
-  </div>
-</div>
-
         </div>
       </main>
 
