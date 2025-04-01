@@ -10,11 +10,11 @@ import { Check, Clock, MapPin, ArrowRight } from "lucide-react";
 
 export default function OrderConfirmationPage() {
   const router = useRouter();
-  const [orderDetails, setOrderDetails] = useState<any>(null); // Use any for flexibility
-  const [paymentSuccess, setPaymentSuccess] = useState<boolean>(false);
+  const [orderDetails, setOrderDetails] = useState<any>(null);
   const [restaurantName, setRestaurantName] = useState<string>("");
-  const [deliveryTime, setDeliveryTime] = useState<string>("");  // Delivery time state
+  const [deliveryTime, setDeliveryTime] = useState<string>("");
   const [userAddress, setUserAddress] = useState<string>("");
+  const [userPhone, setUserPhone] = useState<string>("");
 
   // Function to clear the localStorage
   const clearLocalStorage = () => {
@@ -22,49 +22,40 @@ export default function OrderConfirmationPage() {
     localStorage.removeItem("selectedItem");
     localStorage.removeItem("selectedQuantity");
     localStorage.removeItem("restaurantId");
+    localStorage.removeItem("selectedAddress");
+    localStorage.removeItem("userPhone");
     console.log("Order data cleared from localStorage.");
   };
 
   useEffect(() => {
     const orderId = localStorage.getItem("order_id");
-    console.log("Order ID from localStorage:", orderId);  // Add this line to check the order_id
+    console.log("Order ID from localStorage:", orderId);
     if (orderId) {
-      fetchOrderDetails(orderId);
+      fetchOrderDetails(orderId); // Fetch the order details from the backend
     } else {
       console.error("No order ID found in localStorage.");
     }
 
+    // Fetch restaurant details based on the restaurantId from localStorage
+    const restaurantId = localStorage.getItem("restaurantId");
+    if (restaurantId) {
+      fetchRestaurantName(restaurantId);
+    }
+    
     // Cleanup localStorage when the component is unmounted (page close)
     return () => {
       clearLocalStorage();
     };
   }, []);
 
-  useEffect(() => {
-    // Fetch restaurant details from API based on the restaurant ID from localStorage
-    const restaurantId = localStorage.getItem("restaurantId");
-    if (restaurantId) {
-      fetchRestaurantName(restaurantId);
-    }
-    
-    // Fetch user address from localStorage (or backend)
-    const userAddress = localStorage.getItem("selectedAddress");
-    if (userAddress) {
-      setUserAddress(userAddress);  // Assuming the address is stored in localStorage
-    }
-  }, []);
-
   const fetchOrderDetails = async (orderId: string) => {
-    if (!orderId) {
-      console.error("Order ID is undefined");
-      return;
-    }
-
     try {
       const response = await fetch(`http://localhost:3008/api/orders/${orderId}`);
       const data = await response.json();
       if (data) {
-        setOrderDetails(data);  // Set order details state
+        setOrderDetails(data);
+        setUserAddress(data.delivery_address || "Not Provided");
+        setUserPhone(data.phone || "Not Provided");
       } else {
         console.error("Order details not found.");
       }
@@ -78,8 +69,8 @@ export default function OrderConfirmationPage() {
       const response = await fetch(`http://localhost:3001/api/restaurants/${restaurantId}`);
       const data = await response.json();
       if (data) {
-        setRestaurantName(data.name);  // Set the restaurant name
-        setDeliveryTime(data.deliveryTime);  // Set the delivery time
+        setRestaurantName(data.name);
+        setDeliveryTime(data.deliveryTime);
       } else {
         console.error("Restaurant details not found.");
       }
@@ -102,14 +93,17 @@ export default function OrderConfirmationPage() {
   }
 
   // Fallback for missing data: Show default values if undefined
-  const subtotal = orderDetails?.total_amount?.toFixed(2) || "0.00";
-  const deliveryFee = orderDetails?.delivery_fee?.toFixed(2) || "0.00";
-  const tax = orderDetails?.tax?.toFixed(2) || "0.00";
-  const total = subtotal;
+  const subtotal = parseFloat(orderDetails?.total_amount?.toFixed(2) || "0.00");
+  const deliveryFee = parseFloat(orderDetails?.delivery_fee?.toFixed(2) || "0.00");
+  const tax = parseFloat(orderDetails?.tax?.toFixed(2) || "0.80");
 
-  // Estimated delivery time and address might be missing in some cases
+  // Calculate total
+  const total = (subtotal + tax).toFixed(2);
+
+
   const estimatedDelivery = orderDetails?.estimatedDelivery || "N/A";
-  const deliveryAddress = orderDetails?.deliveryAddress || userAddress || "Not provided";  // Use localStorage address if not provided in order
+  const deliveryAddress = userAddress || "Not provided";
+  const phone = userPhone || "Not provided";
 
   // Handle "Order More Food" and "Go to Dashboard" button clicks
   const handleOrderMoreFood = () => {
@@ -160,6 +154,14 @@ export default function OrderConfirmationPage() {
                 </div>
               </div>
 
+              <div className="flex items-start space-x-3">
+                <MapPin className="h-5 w-5 text-gray-500 mt-0.5" />
+                <div>
+                  <h3 className="font-medium">Phone</h3>
+                  <p className="text-gray-500">{phone}</p>
+                </div>
+              </div>
+
               <div className="border rounded-lg overflow-hidden">
                 <div className="bg-gray-50 p-4 border-b">
                   <h3 className="font-medium">Order Summary</h3>
@@ -177,6 +179,10 @@ export default function OrderConfirmationPage() {
                   </div>
 
                   <div className="border-t pt-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                      <span>subtotal</span>
+                      <span>${subtotal}</span>
+                    </div>
                     <div className="flex justify-between text-sm">
                       <span>Delivery Fee</span>
                       <span>${deliveryFee}</span>

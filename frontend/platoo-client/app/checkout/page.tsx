@@ -11,16 +11,6 @@ import { CreditCard, MapPin, AlertCircle, Plus, Minus } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
-interface Address {
-  id: string;
-  type: string;
-  address: string;
-  city: string;
-  state: string;
-  zip: string;
-  isDefault: boolean;
-}
-
 interface MenuItem {
   _id: string;
   name: string;
@@ -59,12 +49,11 @@ interface PaymentMethod {
 export default function CheckoutPage() {
   const router = useRouter();
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
-  const [addresses, setAddresses] = useState<Address[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState<number>(1);
-  const [selectedAddressId, setSelectedAddressId] = useState<string>("");
-  const [selectedPaymentId, setSelectedPaymentId] = useState<string>("");
+  const [deliveryAddress, setDeliveryAddress] = useState<string>("");
+  const [phone, setPhone] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
@@ -89,58 +78,6 @@ export default function CheckoutPage() {
 
     fetchRestaurantData();
 
-    // Mock data for addresses and payment methods
-    const mockAddresses: Address[] = [
-      {
-        id: "addr1",
-        type: "Home",
-        address: "123 Main Street, Apt 4B",
-        city: "Washington",
-        state: "DC",
-        zip: "20001",
-        isDefault: true,
-      },
-      {
-        id: "addr2",
-        type: "Work",
-        address: "456 Office Plaza, Suite 200",
-        city: "Washington",
-        state: "DC",
-        zip: "20005",
-        isDefault: false,
-      },
-    ];
-
-    const mockPaymentMethods: PaymentMethod[] = [
-      {
-        id: "pm1",
-        type: "Visa",
-        last4: "4242",
-        expiry: "05/25",
-        isDefault: true,
-      },
-      {
-        id: "pm2",
-        type: "Mastercard",
-        last4: "8888",
-        expiry: "12/24",
-        isDefault: false,
-      },
-    ];
-
-    setAddresses(mockAddresses);
-    setPaymentMethods(mockPaymentMethods);
-
-    const defaultAddress = mockAddresses.find((addr) => addr.isDefault);
-    if (defaultAddress) {
-      setSelectedAddressId(defaultAddress.id);
-    }
-
-    const defaultPayment = mockPaymentMethods.find((pm) => pm.isDefault);
-    if (defaultPayment) {
-      setSelectedPaymentId(defaultPayment.id);
-    }
-
     const item = localStorage.getItem("selectedItem");
     if (item) {
       setSelectedItem(JSON.parse(item));
@@ -151,9 +88,16 @@ export default function CheckoutPage() {
   const getCartTotal = () => {
     return selectedItem ? selectedItem.price * selectedQuantity : 0;
   };
-
+  const userId = localStorage.getItem("userId");
+  console.log("User ID:", userId); // Check if user_id is being set correctly
+  
+  if (!userId) {
+    alert("User is not logged in. Please log in before placing the order.");
+    return;
+  }
+  
   const handlePlaceOrder = async () => {
-    if (!selectedAddressId || !selectedPaymentId || !selectedItem || !restaurant) {
+    if (!deliveryAddress || !phone || !email || !selectedItem || !restaurant) {
       console.log("Order not placed. Missing data.");
       return;
     }
@@ -183,8 +127,12 @@ export default function CheckoutPage() {
         total_amount: totalAmount.toFixed(2),
         delivery_fee: deliveryFee,
         status: "pending",
-        delivery_address: addresses.find((address) => address.id === selectedAddressId)?.address || "", // Add delivery address
+        delivery_address: deliveryAddress,
+        phone: phone,
+        email: email,
       };
+
+      console.log("Order Data:", orderData);  // Log order data for debugging
 
       const orderResponse = await fetch("http://localhost:3008/api/orders", {
         method: "POST",
@@ -198,11 +146,10 @@ export default function CheckoutPage() {
         const orderConfirmation = await orderResponse.json();
         console.log("Order Confirmation:", orderConfirmation); // Log the full response
 
-        // Ensure order_id is available in the response and store it in localStorage
         if (orderConfirmation && orderConfirmation.order && orderConfirmation.order.order_id) {
           const orderId = orderConfirmation.order.order_id;
           localStorage.setItem("order_id", orderId); // Save order_id in localStorage
-          console.log("Order ID saved to localStorage:", orderId); // Confirm that it's saved
+          console.log("Order ID saved to localStorage:", orderId);
         } else {
           console.error("Order ID not returned by the backend");
         }
@@ -258,80 +205,54 @@ export default function CheckoutPage() {
               <CardHeader>
                 <div className="flex items-center">
                   <MapPin className="h-5 w-5 mr-2 text-red-500" />
-                  <CardTitle>Delivery Address</CardTitle>
+                  <CardTitle>Order Details</CardTitle>
                 </div>
-                <CardDescription>Select where you want your order delivered</CardDescription>
+                <CardDescription>Provide your delivery address, phone, and email</CardDescription>
               </CardHeader>
               <CardContent>
-                {addresses.length > 0 ? (
-                  <RadioGroup value={selectedAddressId} onValueChange={setSelectedAddressId}>
-                    <div className="space-y-4">
-                      {addresses.map((address) => (
-                        <div key={address.id} className="flex items-start space-x-3">
-                          <RadioGroupItem value={address.id} id={address.id} className="mt-1" />
-                          <div className="flex-1">
-                            <Label htmlFor={address.id} className="flex items-center cursor-pointer">
-                              <span className="font-medium">{address.type}</span>
-                              {address.isDefault && (
-                                <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
-                                  Default
-                                </span>
-                              )}
-                            </Label>
-                            <p className="text-sm text-gray-500 mt-1">
-                              {address.address}, {address.city}, {address.state} {address.zip}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </RadioGroup>
-                ) : (
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 mb-4">No saved addresses found</p>
-                  </div>
-                )}
+                <div className="space-y-4">
+                  <input
+                    type="text"
+                    placeholder="Enter delivery address"
+                    value={deliveryAddress}
+                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Enter your phone number"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                  <input
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader>
-                <div className="flex items-center">
-                  <CreditCard className="h-5 w-5 mr-2 text-red-500" />
-                  <CardTitle>Payment Method</CardTitle>
-                </div>
-                <CardDescription>Select how you want to pay for your order</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {paymentMethods.length > 0 ? (
-                  <RadioGroup value={selectedPaymentId} onValueChange={setSelectedPaymentId}>
-                    <div className="space-y-4">
-                      {paymentMethods.map((payment) => (
-                        <div key={payment.id} className="flex items-start space-x-3">
-                          <RadioGroupItem value={payment.id} id={payment.id} className="mt-1" />
-                          <div className="flex-1">
-                            <Label htmlFor={payment.id} className="flex items-center cursor-pointer">
-                              <span className="font-medium">
-                                {payment.type} •••• {payment.last4}
-                              </span>
-                              {payment.isDefault && (
-                                <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
-                                  Default
-                                </span>
-                              )}
-                            </Label>
-                            <p className="text-sm text-gray-500 mt-1">Expires {payment.expiry}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </RadioGroup>
-                ) : (
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 mb-4">No saved payment methods found</p>
+              <CardFooter className="flex-col space-y-4">
+                <Button
+                  className="w-full bg-red-500 hover:bg-red-600"
+                  disabled={isProcessing}
+                  onClick={handlePlaceOrder}
+                >
+                  {isProcessing ? <>Processing Order...</> : <>Place Order</>}
+                </Button>
+
+                {(!deliveryAddress || !phone || !email) && (
+                  <div className="flex items-center text-sm text-amber-600">
+                    <AlertCircle className="h-4 w-4 mr-2" />
+                    <span>Please fill in the delivery address, phone, and email</span>
                   </div>
                 )}
-              </CardContent>
+              </CardFooter>
             </Card>
           </div>
 
@@ -397,22 +318,6 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 </CardContent>
-                <CardFooter className="flex-col space-y-4">
-                  <Button
-                    className="w-full bg-red-500 hover:bg-red-600"
-                    disabled={!selectedAddressId || !selectedPaymentId || isProcessing}
-                    onClick={handlePlaceOrder}
-                  >
-                    {isProcessing ? <>Processing Order...</> : <>Place Order</>}
-                  </Button>
-
-                  {(!selectedAddressId || !selectedPaymentId) && (
-                    <div className="flex items-center text-sm text-amber-600">
-                      <AlertCircle className="h-4 w-4 mr-2" />
-                      <span>Please select both delivery address and payment method</span>
-                    </div>
-                  )}
-                </CardFooter>
               </Card>
             </div>
           </div>
