@@ -78,13 +78,18 @@ const Header = ({ cartCount }: { cartCount: number }) => {
                   </button>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
-                  <Link href="/order-history" className="block text-sm text-gray-700 hover:bg-gray-100 px-4 py-2 rounded">
+                  <Link href="/orders/history" className="block text-sm text-gray-700 hover:bg-gray-100 px-4 py-2 rounded">
                     Order History
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
-                  <Link href="/order-tracking" className="block text-sm text-gray-700 hover:bg-gray-100 px-4 py-2 rounded">
-                    Order Tracking
+                  <Link href="/orders" className="block text-sm text-gray-700 hover:bg-gray-100 px-4 py-2 rounded">
+                    My Orders
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Link href="/orders" className="block text-sm text-gray-700 hover:bg-gray-100 px-4 py-2 rounded">
+                    Track orders
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
