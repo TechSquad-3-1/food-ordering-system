@@ -1,105 +1,146 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import axios from "axios"
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
-import { Minus, Plus, Trash2 } from "lucide-react"
-import Header from "@/components/Header"
-import Footer from "@/components/Footer"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import axios from "axios";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Minus, Plus, Trash2 } from "lucide-react";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
-// Update type according to response
 type CartItemType = {
-  id: string
-  name: string
-  price: number
-  quantity: number
-  image?: string
-}
+  id: string;
+  menuItemId: string; // used consistently with RestaurantPage
+  name: string;
+  price: number;
+  quantity: number;
+  image?: string;
+};
+
+type CartAPIResponse = {
+  _id: string;
+  userId: string;
+  items: {
+    _id: string;
+    productId: string;
+    name: string;
+    price: number;
+    quantity: number;
+  }[];
+};
 
 export default function CartPage() {
-  const router = useRouter()
-  const [cartItems, setCartItems] = useState<CartItemType[]>([])
+  const router = useRouter();
+  const [cartItems, setCartItems] = useState<CartItemType[]>([]);
 
   useEffect(() => {
     const fetchCart = async () => {
       try {
-        // Fetch userId from localStorage
-        const storedUserId = localStorage.getItem("userId")
-
+        const storedUserId = localStorage.getItem("userId");
         if (!storedUserId) {
-          console.warn("No userId in localStorage")
-          return
+          console.warn("No userId in localStorage");
+          return;
         }
 
-        const response = await axios.get(`http://localhost:3005/api/cart/${storedUserId}`)
+        const response = await axios.get<CartAPIResponse>(
+          `http://localhost:3005/api/cart/${storedUserId}`
+        );
 
-        // Extract items array from response and map to local format
-        const items = response.data.items.map((item: any) => ({
+        const items = response.data.items.map((item) => ({
           id: item._id,
+          menuItemId: item.productId, // ✅ used in downstream processing
           name: item.name,
           price: item.price,
           quantity: item.quantity,
-          image: "/placeholder.svg", // or add image support later
-        }))
+          image: "/placeholder.svg",
+        }));
 
-        setCartItems(items)
+        setCartItems(items);
       } catch (error) {
-        console.error("Failed to fetch cart data:", error)
+        console.error("Failed to fetch cart data:", error);
       }
-    }
+    };
 
-    fetchCart()
-  }, [])
+    fetchCart();
+  }, []);
 
   const updateQuantity = async (id: string, change: number) => {
-    const item = cartItems.find((item) => item.id === id)
-    if (!item) return
-    const newQuantity = Math.max(1, item.quantity + change)
+    const item = cartItems.find((item) => item.id === id);
+    if (!item) return;
+
+    const newQuantity = Math.max(1, item.quantity + change);
 
     try {
-      const userId = localStorage.getItem("userId")
-
+      const userId = localStorage.getItem("userId");
       await axios.post("http://localhost:3005/api/cart/update", {
         userId,
-        itemId: id,
+        productId: item.menuItemId,
         quantity: newQuantity,
-      })
+      });
 
       setCartItems((prev) =>
         prev.map((item) => (item.id === id ? { ...item, quantity: newQuantity } : item))
-      )
+      );
     } catch (error) {
-      console.error("Failed to update quantity:", error)
+      console.error("Failed to update quantity:", error);
     }
-  }
+  };
 
   const removeItem = async (id: string) => {
-    try {
-      const userId = localStorage.getItem("userId")
+    const item = cartItems.find((item) => item.id === id);
+    if (!item) return;
 
+    try {
+      const userId = localStorage.getItem("userId");
       await axios.post("http://localhost:3005/api/cart/remove", {
         userId,
-        itemId: id,
-      })
+        productId: item.menuItemId,
+      });
 
-      setCartItems((prev) => prev.filter((item) => item.id !== id))
+      setCartItems((prev) => prev.filter((i) => i.id !== id));
     } catch (error) {
-      console.error("Failed to remove item:", error)
+      console.error("Failed to remove item:", error);
     }
-  }
+  };
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const deliveryFee = 2.99
-  const tax = subtotal * 0.08
-  const total = subtotal + deliveryFee + tax
+  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const deliveryFee = 2.99;
+  const tax = subtotal * 0.08;
+  const total = subtotal + deliveryFee + tax;
 
   const proceedToCheckout = () => {
-    router.push("/checkout")
-  }
+    if (cartItems.length === 0) {
+      console.warn("Cart is empty.");
+      return;
+    }
+  
+    // Store full cart in localStorage
+    localStorage.setItem("checkoutCart", JSON.stringify(cartItems));
+    localStorage.setItem("selectedItem", ""); // clear single item if any
+    localStorage.setItem("selectedQuantity", ""); // clear single item quantity
+  
+    // Optional: You can still store pricing breakdown if needed
+    localStorage.setItem("checkoutSubtotal", subtotal.toFixed(2));
+    localStorage.setItem("checkoutDeliveryFee", deliveryFee.toFixed(2));
+    localStorage.setItem("checkoutTax", tax.toFixed(2));
+    localStorage.setItem("checkoutTotal", total.toFixed(2));
+  
+    // Save restaurant ID if not already present
+    const storedRestaurantId = localStorage.getItem("restaurantId");
+    if (!storedRestaurantId) {
+      const guessedRestaurantId = cartItems[0]?.menuItemId?.split("-")?.[0]; // fallback logic if needed
+      if (guessedRestaurantId) {
+        localStorage.setItem("restaurantId", guessedRestaurantId);
+      }
+    }
+  
+    // Navigate to checkout
+    router.push("/checkout");
+  };
+  
 
   return (
     <div>
@@ -130,19 +171,38 @@ export default function CartPage() {
                           <div className="flex flex-col flex-1 justify-between">
                             <div>
                               <h3 className="font-semibold">{item.name}</h3>
-                              <p className="text-sm text-gray-500">Product ID: {item.id}</p>
+                              <p className="text-sm text-gray-500">
+                                Menu Item ID: {item.menuItemId}
+                              </p>
                             </div>
                             <div className="flex justify-between items-center mt-2">
-                              <div className="font-medium">${(item.price * item.quantity).toFixed(2)}</div>
+                              <div className="font-medium">
+                                ${(item.price * item.quantity).toFixed(2)}
+                              </div>
                               <div className="flex items-center gap-3">
-                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQuantity(item.id, -1)}>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => updateQuantity(item.id, -1)}
+                                >
                                   <Minus className="h-4 w-4" />
                                 </Button>
                                 <span>{item.quantity}</span>
-                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQuantity(item.id, 1)}>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => updateQuantity(item.id, 1)}
+                                >
                                   <Plus className="h-4 w-4" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => removeItem(item.id)}>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-red-500"
+                                  onClick={() => removeItem(item.id)}
+                                >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
@@ -158,8 +218,10 @@ export default function CartPage() {
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <div className="text-center">
                       <h3 className="text-lg font-semibold mb-2">Your cart is empty</h3>
-                      <p className="text-gray-500 mb-6">Add some delicious items to your cart</p>
-                      <Button onClick={() => router.push("/menu")}>Browse Menu</Button>
+                      <p className="text-gray-500 mb-6">
+                        Add some delicious items to your cart
+                      </p>
+                      <Button onClick={() => router.push("/restaurants")}>Browse Restaurants</Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -193,7 +255,12 @@ export default function CartPage() {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button className="w-full" size="lg" disabled={cartItems.length === 0} onClick={proceedToCheckout}>
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    disabled={cartItems.length === 0}
+                    onClick={proceedToCheckout}
+                  >
                     Proceed to Checkout
                   </Button>
                 </CardFooter>
@@ -204,5 +271,5 @@ export default function CartPage() {
       </div>
       <Footer />
     </div>
-  )
+  );
 }
