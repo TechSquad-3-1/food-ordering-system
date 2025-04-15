@@ -21,3 +21,13 @@ export class DeliveryController {
       res.status(400).json({ message: "Failed to fetch deliveries", error });
     }
   }
+
+  // Get all unassigned deliveries (for the delivery man to pick)
+  static async getUnassignedDeliveries(req: Request, res: Response): Promise<void> {
+    try {
+      const deliveries = await DeliveryService.getUnassignedDeliveries();
+      res.status(200).json(deliveries);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to fetch unassigned deliveries", error });
+    }
+  }
