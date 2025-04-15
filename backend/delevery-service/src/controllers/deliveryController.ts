@@ -63,3 +63,20 @@ export class DeliveryController {
       res.status(400).json({ message: "Failed to assign delivery", error });
     }
   }
+  
+  // Update delivery status (e.g., delivered)
+  static async updateDeliveryStatus(req: Request, res: Response): Promise<void> {
+    try {
+      const updatedDelivery = await DeliveryService.updateDeliveryStatus(
+        req.params.id,
+        req.body.status
+      );
+      if (updatedDelivery) {
+        res.status(200).json(updatedDelivery);
+      } else {
+        res.status(404).json({ message: "Delivery not found" });
+      }
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update delivery status", error });
+    }
+  }
