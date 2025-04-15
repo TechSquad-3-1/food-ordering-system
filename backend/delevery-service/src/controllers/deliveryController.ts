@@ -31,3 +31,17 @@ export class DeliveryController {
       res.status(400).json({ message: "Failed to fetch unassigned deliveries", error });
     }
   }
+
+  // Get delivery by ID
+  static async getDeliveryById(req: Request, res: Response): Promise<void> {
+    try {
+      const delivery = await DeliveryService.getDeliveryById(req.params.id);
+      if (delivery) {
+        res.status(200).json(delivery);
+      } else {
+        res.status(404).json({ message: "Delivery not found" });
+      }
+    } catch (error) {
+      res.status(400).json({ message: "Failed to fetch delivery", error });
+    }
+  }
