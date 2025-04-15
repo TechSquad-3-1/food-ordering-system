@@ -80,3 +80,18 @@ export class DeliveryController {
       res.status(400).json({ message: "Failed to update delivery status", error });
     }
   }
+  
+  // Delete delivery
+  static async deleteDelivery(req: Request, res: Response): Promise<void> {
+    try {
+      const deletedDelivery = await DeliveryService.deleteDelivery(req.params.id);
+      if (deletedDelivery) {
+        res.status(200).json({ message: "Delivery deleted" });
+      } else {
+        res.status(404).json({ message: "Delivery not found" });
+      }
+    } catch (error) {
+      res.status(400).json({ message: "Failed to delete delivery", error });
+    }
+  }
+}
