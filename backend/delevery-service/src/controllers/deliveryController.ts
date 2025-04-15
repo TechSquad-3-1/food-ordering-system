@@ -45,3 +45,21 @@ export class DeliveryController {
       res.status(400).json({ message: "Failed to fetch delivery", error });
     }
   }
+
+  // Assign a delivery to a delivery man
+  static async assignDeliveryToMan(req: Request, res: Response): Promise<void> {
+    const { deliveryManId } = req.body;
+    try {
+      const updatedDelivery = await DeliveryService.assignDeliveryToMan(
+        req.params.id,
+        deliveryManId
+      );
+      if (updatedDelivery) {
+        res.status(200).json(updatedDelivery);
+      } else {
+        res.status(404).json({ message: "Delivery not found or already assigned" });
+      }
+    } catch (error) {
+      res.status(400).json({ message: "Failed to assign delivery", error });
+    }
+  }
