@@ -8,23 +8,16 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ProductRequest {
-    private Long amount;
-    private Long quantity;
+    private Double amount;  // Directly use the amount, e.g., 24.57
+    private String name;
+    private String currency;
 
-    public Long getAmount() {
+    public Double getAmount() {
         return amount;
     }
 
-    public void setAmount(Long amount) {
+    public void setAmount(Double amount) {
         this.amount = amount;
-    }
-
-    public Long getQuantity() {
-        return quantity;
-    }
-
-    public void setQuantity(Long quantity) {
-        this.quantity = quantity;
     }
 
     public String getName() {
@@ -42,7 +35,4 @@ public class ProductRequest {
     public void setCurrency(String currency) {
         this.currency = currency;
     }
-
-    private String name;
-    private String currency;
 }

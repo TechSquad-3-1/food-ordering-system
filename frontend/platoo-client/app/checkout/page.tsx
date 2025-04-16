@@ -1,535 +1,225 @@
-"use client"
+"use client";
 
-import type React from "react"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { MapPin, AlertCircle, Plus, Minus } from "lucide-react";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import Header from "@/components/Header"
-import Footer from "@/components/Footer"
-import { CreditCard, MapPin, Clock, AlertCircle, Plus } from "lucide-react"
+interface MenuItem {
+  _id: string;
+  name: string;
+  description: string;
+  price: number;
+  image_url: string;
+  is_veg: boolean;
+  is_available: boolean;
+  category_id: string;
+}
+
+interface Restaurant {
+  _id: string;
+  name: string;
+  image: string;
+  rating: number;
+  reviewCount: number;
+  deliveryTime: string;
+  deliveryFee: string;
+  minOrder: string;
+  distance: string;
+  address: string;
+  cuisines: string[];
+  priceLevel: number;
+  description: string;
+}
 
 interface CartItem {
-  id: string
-  menuItemId: string
-  name: string
-  price: number
-  quantity: number
-}
-
-interface Address {
-  id: string
-  type: string
-  address: string
-  city: string
-  state: string
-  zip: string
-  isDefault: boolean
-}
-
-interface PaymentMethod {
-  id: string
-  type: string
-  last4: string
-  expiry: string
-  isDefault: boolean
+  id: string;
+  productId: string;
+  name: string;
+  price: number;
+  quantity: number;
+  image?: string;
 }
 
 export default function CheckoutPage() {
-  const router = useRouter()
-  const [cart, setCart] = useState<CartItem[]>([])
-  const [addresses, setAddresses] = useState<Address[]>([])
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
-  const [selectedAddressId, setSelectedAddressId] = useState<string>("")
-  const [selectedPaymentId, setSelectedPaymentId] = useState<string>("")
-  const [deliveryInstructions, setDeliveryInstructions] = useState("")
-  const [isAddingAddress, setIsAddingAddress] = useState(false)
-  const [isAddingPayment, setIsAddingPayment] = useState(false)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [deliveryTime, setDeliveryTime] = useState<string>("asap")
+  const router = useRouter();
 
-  const [newAddress, setNewAddress] = useState({
-    type: "Home",
-    address: "",
-    city: "",
-    state: "",
-    zip: "",
-  })
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  const [selectedQuantity, setSelectedQuantity] = useState<number>(1);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [subtotal, setSubtotal] = useState<number>(0);
+  const [deliveryFee, setDeliveryFee] = useState<number>(2.99);
+  const [tax, setTax] = useState<number>(0);
+  const [total, setTotal] = useState<number>(0);
+  const [deliveryAddress, setDeliveryAddress] = useState<string>("");
+  const [phone, setPhone] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const [newPayment, setNewPayment] = useState({
-    cardNumber: "",
-    cardName: "",
-    expiry: "",
-    cvv: "",
-  })
+  const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : null;
 
   useEffect(() => {
-    // Load cart from localStorage
-    const savedCart = localStorage.getItem("cart")
-    if (savedCart) {
-      setCart(JSON.parse(savedCart))
+    const restaurantId = localStorage.getItem("restaurantId");
+    if (restaurantId) {
+      fetch(`http://localhost:3001/api/restaurants/${restaurantId}`)
+        .then((res) => res.json())
+        .then(setRestaurant)
+        .catch((err) => console.error("Failed to fetch restaurant:", err));
+    }
+
+    const cart = localStorage.getItem("checkoutCart");
+    if (cart) {
+      const items: CartItem[] = JSON.parse(cart);
+      setCartItems(items);
+
+      const calcSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const calcTax = calcSubtotal * 0.08;
+      const calcTotal = calcSubtotal + deliveryFee + calcTax;
+
+      setSubtotal(calcSubtotal);
+      setTax(calcTax);
+      setTotal(calcTotal);
     } else {
-      // Redirect to restaurants if cart is empty
-      router.push("/restaurants")
+      const item = localStorage.getItem("selectedItem");
+      const quantity = localStorage.getItem("selectedQuantity") || "1";
+
+      if (item) {
+        setSelectedItem(JSON.parse(item));
+        setSelectedQuantity(parseInt(quantity));
+      }
     }
 
-    // In a real app, fetch addresses and payment methods from API
-    // For demo purposes, we'll use mock data
-    const mockAddresses: Address[] = [
-      {
-        id: "addr1",
-        type: "Home",
-        address: "123 Main Street, Apt 4B",
-        city: "Washington",
-        state: "DC",
-        zip: "20001",
-        isDefault: true,
-      },
-      {
-        id: "addr2",
-        type: "Work",
-        address: "456 Office Plaza, Suite 200",
-        city: "Washington",
-        state: "DC",
-        zip: "20005",
-        isDefault: false,
-      },
-    ]
+    return () => {
+      localStorage.removeItem("checkoutCart");
+      localStorage.removeItem("selectedItem");
+      localStorage.removeItem("selectedQuantity");
+    };
+  }, []);
 
-    const mockPaymentMethods: PaymentMethod[] = [
-      {
-        id: "pm1",
-        type: "Visa",
-        last4: "4242",
-        expiry: "05/25",
-        isDefault: true,
-      },
-      {
-        id: "pm2",
-        type: "Mastercard",
-        last4: "8888",
-        expiry: "12/24",
-        isDefault: false,
-      },
-    ]
-
-    setAddresses(mockAddresses)
-    setPaymentMethods(mockPaymentMethods)
-
-    // Set default selections
-    const defaultAddress = mockAddresses.find((addr) => addr.isDefault)
-    if (defaultAddress) {
-      setSelectedAddressId(defaultAddress.id)
-    } else if (mockAddresses.length > 0) {
-      setSelectedAddressId(mockAddresses[0].id)
-    }
-
-    const defaultPayment = mockPaymentMethods.find((pm) => pm.isDefault)
-    if (defaultPayment) {
-      setSelectedPaymentId(defaultPayment.id)
-    } else if (mockPaymentMethods.length > 0) {
-      setSelectedPaymentId(mockPaymentMethods[0].id)
-    }
-  }, [router])
-
-  const getCartTotal = () => {
-    return cart.reduce((total, item) => total + item.price * item.quantity, 0)
-  }
-
-  const getCartItemCount = () => {
-    return cart.reduce((count, item) => count + item.quantity, 0)
-  }
-
-  const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setNewAddress((prev) => ({ ...prev, [name]: value }))
-  }
-
-  const handlePaymentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setNewPayment((prev) => ({ ...prev, [name]: value }))
-  }
-
-  const handleAddAddress = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    const newAddr: Address = {
-      id: `addr${Date.now()}`,
-      ...newAddress,
-      isDefault: addresses.length === 0,
-    }
-
-    setAddresses((prev) => [...prev, newAddr])
-    setSelectedAddressId(newAddr.id)
-    setIsAddingAddress(false)
-    setNewAddress({
-      type: "Home",
-      address: "",
-      city: "",
-      state: "",
-      zip: "",
-    })
-  }
-
-  const handleAddPayment = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    // In a real app, this would send card info to a payment processor
-    // and store only the token/last4 digits
-    const newPm: PaymentMethod = {
-      id: `pm${Date.now()}`,
-      type: newPayment.cardNumber.startsWith("4") ? "Visa" : "Mastercard",
-      last4: newPayment.cardNumber.slice(-4),
-      expiry: newPayment.expiry,
-      isDefault: paymentMethods.length === 0,
-    }
-
-    setPaymentMethods((prev) => [...prev, newPm])
-    setSelectedPaymentId(newPm.id)
-    setIsAddingPayment(false)
-    setNewPayment({
-      cardNumber: "",
-      cardName: "",
-      expiry: "",
-      cvv: "",
-    })
+  if (!userId) {
+    alert("User is not logged in. Please log in before placing the order.");
+    return null;
   }
 
   const handlePlaceOrder = async () => {
-    if (!selectedAddressId || !selectedPaymentId) {
-      return
+    if (!deliveryAddress || !phone || !email || (!selectedItem && cartItems.length === 0)) {
+      console.log("Missing order details");
+      return;
     }
 
-    setIsProcessing(true)
+    setIsProcessing(true);
 
     try {
-      // In a real app, this would send the order to the backend
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      const itemsToSend =
+        cartItems.length > 0
+          ? cartItems.map((item) => ({
+              menu_item_id: item.productId,
+              quantity: item.quantity,
+              price: item.price,
+              name: item.name, // Include the name
+            }))
+          : [
+              {
+                menu_item_id: selectedItem!._id,
+                quantity: selectedQuantity,
+                price: selectedItem!.price,
+                name: selectedItem!.name,
+              },
+            ];
 
-      // Clear cart
-      localStorage.removeItem("cart")
+      const orderTotal = cartItems.length > 0 ? total : selectedItem!.price * selectedQuantity + deliveryFee;
 
-      // Redirect to order confirmation
-      router.push("/order-confirmation")
+      const orderPayload = {
+        user_id: userId,
+        restaurant_id: restaurant?._id,
+        items: itemsToSend,
+        total_amount: orderTotal,
+        delivery_fee: deliveryFee,
+        status: "pending",
+        delivery_address: deliveryAddress,
+        phone,
+        email,
+      };
+
+      localStorage.setItem("pending_order", JSON.stringify(orderPayload));
+
+      const paymentData = {
+        amount: orderTotal.toFixed(2),
+        quantity: itemsToSend.reduce((acc, item) => acc + item.quantity, 0),
+        name: "Food Order",
+        currency: "USD",
+        successUrl: "http://localhost:8000/payment-success",
+        cancelUrl: "http://localhost:8000/checkout",
+      };
+
+      const response = await fetch("http://localhost:8080/product/v1/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(paymentData),
+      });
+
+      const result = await response.json();
+      if (response.ok && result.sessionUrl) {
+        window.location.href = result.sessionUrl;
+      } else {
+        console.error("Payment session failed.");
+        setIsProcessing(false);
+      }
     } catch (error) {
-      console.error("Error placing order:", error)
-      setIsProcessing(false)
+      console.error("Error placing order:", error);
+      setIsProcessing(false);
     }
-  }
-
-  const selectedAddress = addresses.find((addr) => addr.id === selectedAddressId)
-  const selectedPayment = paymentMethods.find((pm) => pm.id === selectedPaymentId)
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header cartCount={getCartItemCount()} />
-
+      <Header cartCount={cartItems.length || 1} />
       <main className="max-w-[1400px] mx-auto px-6 py-8">
         <h1 className="text-3xl font-bold mb-8">Checkout</h1>
-
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Left Column - Delivery & Payment */}
           <div className="w-full lg:w-2/3 space-y-6">
-            {/* Delivery Address */}
             <Card>
               <CardHeader>
                 <div className="flex items-center">
                   <MapPin className="h-5 w-5 mr-2 text-red-500" />
-                  <CardTitle>Delivery Address</CardTitle>
+                  <CardTitle>Order Details</CardTitle>
                 </div>
-                <CardDescription>Select where you want your order delivered</CardDescription>
+                <CardDescription>Provide your delivery address, phone, and email</CardDescription>
               </CardHeader>
               <CardContent>
-                {addresses.length > 0 ? (
-                  <RadioGroup value={selectedAddressId} onValueChange={setSelectedAddressId}>
-                    <div className="space-y-4">
-                      {addresses.map((address) => (
-                        <div key={address.id} className="flex items-start space-x-3">
-                          <RadioGroupItem value={address.id} id={address.id} className="mt-1" />
-                          <div className="flex-1">
-                            <Label htmlFor={address.id} className="flex items-center cursor-pointer">
-                              <span className="font-medium">{address.type}</span>
-                              {address.isDefault && (
-                                <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
-                                  Default
-                                </span>
-                              )}
-                            </Label>
-                            <p className="text-sm text-gray-500 mt-1">
-                              {address.address}, {address.city}, {address.state} {address.zip}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </RadioGroup>
-                ) : (
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 mb-4">No saved addresses found</p>
-                  </div>
-                )}
-
-                {isAddingAddress ? (
-                  <div className="mt-6 border-t pt-6">
-                    <h3 className="font-medium mb-4">Add New Address</h3>
-                    <form onSubmit={handleAddAddress} className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="type">Address Type</Label>
-                          <Select
-                            value={newAddress.type}
-                            onValueChange={(value) => setNewAddress({ ...newAddress, type: value })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Home">Home</SelectItem>
-                              <SelectItem value="Work">Work</SelectItem>
-                              <SelectItem value="Other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="address">Street Address</Label>
-                          <Input
-                            id="address"
-                            name="address"
-                            value={newAddress.address}
-                            onChange={handleAddressChange}
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="city">City</Label>
-                          <Input
-                            id="city"
-                            name="city"
-                            value={newAddress.city}
-                            onChange={handleAddressChange}
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="state">State</Label>
-                          <Input
-                            id="state"
-                            name="state"
-                            value={newAddress.state}
-                            onChange={handleAddressChange}
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="zip">ZIP Code</Label>
-                          <Input id="zip" name="zip" value={newAddress.zip} onChange={handleAddressChange} required />
-                        </div>
-                      </div>
-                      <div className="flex justify-end space-x-2">
-                        <Button type="button" variant="outline" onClick={() => setIsAddingAddress(false)}>
-                          Cancel
-                        </Button>
-                        <Button type="submit" className="bg-red-500 hover:bg-red-600">
-                          Save Address
-                        </Button>
-                      </div>
-                    </form>
-                  </div>
-                ) : (
-                  <Button variant="outline" className="mt-4" onClick={() => setIsAddingAddress(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add New Address
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Delivery Time */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center">
-                  <Clock className="h-5 w-5 mr-2 text-red-500" />
-                  <CardTitle>Delivery Time</CardTitle>
-                </div>
-                <CardDescription>Choose when you want your order delivered</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <RadioGroup value={deliveryTime} onValueChange={setDeliveryTime}>
-                  <div className="space-y-4">
-                    <div className="flex items-start space-x-3">
-                      <RadioGroupItem value="asap" id="asap" className="mt-1" />
-                      <div>
-                        <Label htmlFor="asap" className="font-medium cursor-pointer">
-                          As soon as possible
-                        </Label>
-                        <p className="text-sm text-gray-500">Delivery in 25-35 minutes</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-3">
-                      <RadioGroupItem value="scheduled" id="scheduled" className="mt-1" />
-                      <div className="flex-1">
-                        <Label htmlFor="scheduled" className="font-medium cursor-pointer">
-                          Schedule for later
-                        </Label>
-                        <div className="mt-2 flex space-x-2">
-                          <Select disabled={deliveryTime !== "scheduled"}>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select date" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="today">Today</SelectItem>
-                              <SelectItem value="tomorrow">Tomorrow</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Select disabled={deliveryTime !== "scheduled"}>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select time" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="12:00">12:00 PM</SelectItem>
-                              <SelectItem value="12:30">12:30 PM</SelectItem>
-                              <SelectItem value="13:00">1:00 PM</SelectItem>
-                              <SelectItem value="13:30">1:30 PM</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </RadioGroup>
-
-                <div className="mt-4">
-                  <Label htmlFor="instructions" className="font-medium">
-                    Delivery Instructions (Optional)
-                  </Label>
-                  <Textarea
-                    id="instructions"
-                    placeholder="Add any special instructions for delivery"
-                    className="mt-2"
-                    value={deliveryInstructions}
-                    onChange={(e) => setDeliveryInstructions(e.target.value)}
-                  />
+                <div className="space-y-4">
+                  <input type="text" placeholder="Enter delivery address" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="text" placeholder="Enter your phone number" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="email" placeholder="Enter your email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                 </div>
               </CardContent>
             </Card>
-
-            {/* Payment Method */}
             <Card>
-              <CardHeader>
-                <div className="flex items-center">
-                  <CreditCard className="h-5 w-5 mr-2 text-red-500" />
-                  <CardTitle>Payment Method</CardTitle>
-                </div>
-                <CardDescription>Select how you want to pay for your order</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {paymentMethods.length > 0 ? (
-                  <RadioGroup value={selectedPaymentId} onValueChange={setSelectedPaymentId}>
-                    <div className="space-y-4">
-                      {paymentMethods.map((payment) => (
-                        <div key={payment.id} className="flex items-start space-x-3">
-                          <RadioGroupItem value={payment.id} id={payment.id} className="mt-1" />
-                          <div className="flex-1">
-                            <Label htmlFor={payment.id} className="flex items-center cursor-pointer">
-                              <span className="font-medium">
-                                {payment.type} •••• {payment.last4}
-                              </span>
-                              {payment.isDefault && (
-                                <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
-                                  Default
-                                </span>
-                              )}
-                            </Label>
-                            <p className="text-sm text-gray-500 mt-1">Expires {payment.expiry}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </RadioGroup>
-                ) : (
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 mb-4">No saved payment methods found</p>
+              <CardFooter className="flex-col space-y-4">
+                <Button className="w-full bg-red-500 hover:bg-red-600" disabled={isProcessing} onClick={handlePlaceOrder}>
+                  {isProcessing ? <>Processing Order...</> : <>Place Order</>}
+                </Button>
+                {(!deliveryAddress || !phone || !email) && (
+                  <div className="flex items-center text-sm text-amber-600">
+                    <AlertCircle className="h-4 w-4 mr-2" />
+                    <span>Please fill in the delivery address, phone, and email</span>
                   </div>
                 )}
-
-                {isAddingPayment ? (
-                  <div className="mt-6 border-t pt-6">
-                    <h3 className="font-medium mb-4">Add New Payment Method</h3>
-                    <form onSubmit={handleAddPayment} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="cardNumber">Card Number</Label>
-                        <Input
-                          id="cardNumber"
-                          name="cardNumber"
-                          placeholder="1234 5678 9012 3456"
-                          value={newPayment.cardNumber}
-                          onChange={handlePaymentChange}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="cardName">Name on Card</Label>
-                        <Input
-                          id="cardName"
-                          name="cardName"
-                          placeholder="John Doe"
-                          value={newPayment.cardName}
-                          onChange={handlePaymentChange}
-                          required
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="expiry">Expiration Date</Label>
-                          <Input
-                            id="expiry"
-                            name="expiry"
-                            placeholder="MM/YY"
-                            value={newPayment.expiry}
-                            onChange={handlePaymentChange}
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="cvv">CVV</Label>
-                          <Input
-                            id="cvv"
-                            name="cvv"
-                            placeholder="123"
-                            value={newPayment.cvv}
-                            onChange={handlePaymentChange}
-                            required
-                          />
-                        </div>
-                      </div>
-                      <div className="flex justify-end space-x-2">
-                        <Button type="button" variant="outline" onClick={() => setIsAddingPayment(false)}>
-                          Cancel
-                        </Button>
-                        <Button type="submit" className="bg-red-500 hover:bg-red-600">
-                          Save Payment Method
-                        </Button>
-                      </div>
-                    </form>
-                  </div>
-                ) : (
-                  <Button variant="outline" className="mt-4" onClick={() => setIsAddingPayment(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add New Payment Method
-                  </Button>
-                )}
-              </CardContent>
+              </CardFooter>
             </Card>
           </div>
-
-          {/* Right Column - Order Summary */}
           <div className="w-full lg:w-1/3">
             <div className="sticky top-4">
               <Card>
@@ -538,61 +228,62 @@ export default function CheckoutPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {cart.map((item) => (
-                      <div key={item.id} className="flex justify-between">
-                        <div>
-                          <span className="font-medium">{item.quantity}x</span> {item.name}
+                    {cartItems.length > 0 ? (
+                      cartItems.map((item) => (
+                        <div key={item.id} className="flex justify-between items-center">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{item.name}</span>
+                            <span className="text-sm text-gray-500">Qty: {item.quantity}</span>
+                          </div>
+                          <div className="font-bold">${(item.price * item.quantity).toFixed(2)}</div>
                         </div>
-                        <div>${(item.price * item.quantity).toFixed(2)}</div>
+                      ))
+                    ) : selectedItem ? (
+                      <div key={selectedItem._id} className="flex justify-between items-center">
+                        <div className="flex flex-col">
+                          <span className="font-medium">{selectedItem.name}</span>
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" className="px-4 py-1" onClick={() => setSelectedQuantity((prev) => Math.max(prev - 1, 1))}>
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                            <span>{selectedQuantity}</span>
+                            <Button variant="outline" className="px-4 py-1" onClick={() => setSelectedQuantity((prev) => prev + 1)}>
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="font-bold">${(selectedItem.price * selectedQuantity).toFixed(2)}</div>
                       </div>
-                    ))}
+                    ) : (
+                      <p>No items in cart</p>
+                    )}
                   </div>
-
                   <Separator className="my-4" />
-
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Subtotal</span>
-                      <span>${getCartTotal().toFixed(2)}</span>
+                      <span>${cartItems.length > 0 ? subtotal.toFixed(2) : ((selectedItem?.price || 0) * selectedQuantity).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Delivery Fee</span>
-                      <span>$2.99</span>
+                      <span>${deliveryFee.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Tax</span>
-                      <span>${(getCartTotal() * 0.08).toFixed(2)}</span>
+                      <span>${cartItems.length > 0 ? tax.toFixed(2) : ((selectedItem?.price || 0) * selectedQuantity * 0.08).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between font-bold text-lg pt-2 border-t">
                       <span>Total</span>
-                      <span>${(getCartTotal() + 2.99 + getCartTotal() * 0.08).toFixed(2)}</span>
+                      <span>${cartItems.length > 0 ? total.toFixed(2) : ((selectedItem?.price || 0) * selectedQuantity + deliveryFee).toFixed(2)}</span>
                     </div>
                   </div>
                 </CardContent>
-                <CardFooter className="flex-col space-y-4">
-                  <Button
-                    className="w-full bg-red-500 hover:bg-red-600"
-                    disabled={!selectedAddressId || !selectedPaymentId || isProcessing}
-                    onClick={handlePlaceOrder}
-                  >
-                    {isProcessing ? <>Processing Order...</> : <>Place Order</>}
-                  </Button>
-
-                  {(!selectedAddressId || !selectedPaymentId) && (
-                    <div className="flex items-center text-sm text-amber-600">
-                      <AlertCircle className="h-4 w-4 mr-2" />
-                      <span>Please select both delivery address and payment method</span>
-                    </div>
-                  )}
-                </CardFooter>
               </Card>
             </div>
           </div>
         </div>
       </main>
-
       <Footer />
     </div>
-  )
+  );
 }
-
