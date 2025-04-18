@@ -108,3 +108,29 @@ export const getAllMenuItemsHandler = async (req: Request, res: Response): Promi
     }
   }
 };
+
+import { getMenuItemImage } from '../services/menuItem.service';
+
+// Get only the image URL of a menu item by ID
+export const getMenuItemImageHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { menuItemId } = req.params;
+
+    // Fetch the image URL using the service function
+    const image = await getMenuItemImage(menuItemId);
+
+    if (!image) {
+      res.status(404).json({ error: 'Menu item or image not found' });
+      return;
+    }
+
+    // Return only the image URL
+    res.status(200).json(image);
+  } catch (error) {
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'An unknown error occurred' });
+    }
+  }
+};
