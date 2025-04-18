@@ -1,3 +1,5 @@
+"use client"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -8,46 +10,124 @@ import Image from "next/image"
 import Header from "@/components/Header"
 import Footer from "@/components/Footer"
 
+// Interface definitions for order and order items
+interface OrderItem {
+  name: string
+  quantity: number
+  price: number
+}
+
+interface Order {
+  id: string
+  date: string
+  status: "Preparing" | "On the way" | "Delivered" | "Cancelled"
+  items: OrderItem[]
+  address: string
+  deliveryTime: string
+  total: number
+  restaurantName: string
+  restaurantImage: string
+  restaurantRating: number
+}
+
 export default function OrderHistoryPage() {
+  const [completedOrders, setCompletedOrders] = useState<Order[]>([])
+  const [cancelledOrders, setCancelledOrders] = useState<Order[]>([])
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  
+  const loggedInUserId = localStorage.getItem("userId") // Retrieve the logged-in user's ID
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const response = await fetch(`http://localhost:3008/api/orders/user/${loggedInUserId}`)
+        if (!response.ok) {
+          throw new Error("Failed to fetch orders")
+        }
+        const orders = await response.json()
+
+        // Map the fetched orders to match the expected format and filter by logged-in user ID
+        const mappedOrders: Order[] = orders.map((order: any) => ({
+          id: order.order_id,
+          date: new Date(order.createdAt).toLocaleString(), // Formatting date
+          status: order.status,
+          items: order.items.map((item: any) => ({
+            name: item.menu_item_id, // You might want to replace this with the actual item name from your database
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          address: order.delivery_address,
+          deliveryTime: order.delivery_time || "TBD", // Placeholder if no delivery time available
+          total: order.total_amount + order.delivery_fee,
+          restaurantName: order.restaurant_name, // Assuming the restaurant name is part of the order data
+          restaurantImage: order.restaurant_image || "/placeholder.svg", // Fallback to placeholder
+          restaurantRating: order.restaurant_rating || 0, // Assuming restaurant rating is part of the order data
+        }))
+
+        // Categorize orders based on their status
+        setCompletedOrders(mappedOrders.filter((order) => order.status === "Delivered"))
+        setCancelledOrders(mappedOrders.filter((order) => order.status === "Cancelled"))
+      } catch (error) {
+        console.error("Error fetching orders:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchOrders()
+  }, [loggedInUserId])
+
+  if (isLoading) {
+    return (
+      <div>
+        <Header cartCount={1} />
+        <div className="flex justify-center items-center h-[50vh]">
+          <p className="text-gray-500">Loading orders...</p>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
+
   return (
     <div>
-        <Header cartCount={1}/>
-        <div className="container py-8">
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold">Order History</h1>
-          <p className="text-gray-500">View and manage your past orders</p>
-        </div>
+      <Header cartCount={1} />
+      <div className="container py-8">
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-3xl font-bold">Order History</h1>
+            <p className="text-gray-500">View and manage your past orders</p>
+          </div>
 
-        <Tabs defaultValue="all">
-          <TabsList>
-            <TabsTrigger value="all">All Orders</TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
-            <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
-          </TabsList>
-          <div className="mt-6">
-            <TabsContent value="all" className="space-y-4">
-              {[...completedOrders, ...cancelledOrders]
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .map((order) => (
+          <Tabs defaultValue="all">
+            <TabsList>
+              <TabsTrigger value="all">All Orders</TabsTrigger>
+              <TabsTrigger value="completed">Completed</TabsTrigger>
+              <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+            </TabsList>
+            <div className="mt-6">
+              <TabsContent value="all" className="space-y-4">
+                {[...completedOrders, ...cancelledOrders]
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map((order) => (
+                    <OrderCard key={order.id} order={order} />
+                  ))}
+              </TabsContent>
+              <TabsContent value="completed" className="space-y-4">
+                {completedOrders.map((order) => (
                   <OrderCard key={order.id} order={order} />
                 ))}
-            </TabsContent>
-            <TabsContent value="completed" className="space-y-4">
-              {completedOrders.map((order) => (
-                <OrderCard key={order.id} order={order} />
-              ))}
-            </TabsContent>
-            <TabsContent value="cancelled" className="space-y-4">
-              {cancelledOrders.map((order) => (
-                <OrderCard key={order.id} order={order} />
-              ))}
-            </TabsContent>
-          </div>
-        </Tabs>
+              </TabsContent>
+              <TabsContent value="cancelled" className="space-y-4">
+                {cancelledOrders.map((order) => (
+                  <OrderCard key={order.id} order={order} />
+                ))}
+              </TabsContent>
+            </div>
+          </Tabs>
+        </div>
       </div>
-    </div>
-    <Footer />
+      <Footer />
     </div>
   )
 }
@@ -66,8 +146,8 @@ function OrderCard({ order }: { order: Order }) {
               order.status === "Delivered"
                 ? "bg-green-500"
                 : order.status === "Cancelled"
-                  ? "bg-red-500"
-                  : "bg-orange-500"
+                ? "bg-red-500"
+                : "bg-orange-500"
             }
           >
             {order.status}
@@ -146,92 +226,3 @@ function OrderCard({ order }: { order: Order }) {
     </Card>
   )
 }
-
-interface OrderItem {
-  name: string
-  quantity: number
-  price: number
-}
-
-interface Order {
-  id: string
-  date: string
-  status: "Preparing" | "On the way" | "Delivered" | "Cancelled"
-  items: OrderItem[]
-  address: string
-  deliveryTime: string
-  total: number
-  restaurantName: string
-  restaurantImage: string
-  restaurantRating: number
-}
-
-const completedOrders: Order[] = [
-  {
-    id: "ORD-7801",
-    date: "March 18, 2025 - 7:45 PM",
-    status: "Delivered",
-    items: [
-      { name: "Vegetable Curry", quantity: 1, price: 13.99 },
-      { name: "Garlic Naan", quantity: 2, price: 2.99 },
-      { name: "Mango Lassi", quantity: 1, price: 3.99 },
-    ],
-    address: "123 Main St, Apt 4B, New York, NY 10001",
-    deliveryTime: "Delivered at 8:20 PM",
-    total: 23.96,
-    restaurantName: "Curry House",
-    restaurantImage: "/placeholder.svg?height=300&width=500",
-    restaurantRating: 4.6,
-  },
-  {
-    id: "ORD-7790",
-    date: "March 15, 2025 - 1:30 PM",
-    status: "Delivered",
-    items: [
-      { name: "California Roll", quantity: 2, price: 8.99 },
-      { name: "Miso Soup", quantity: 2, price: 2.99 },
-      { name: "Green Tea", quantity: 2, price: 1.99 },
-    ],
-    address: "123 Main St, Apt 4B, New York, NY 10001",
-    deliveryTime: "Delivered at 2:05 PM",
-    total: 29.94,
-    restaurantName: "Sushi Spot",
-    restaurantImage: "/placeholder.svg?height=300&width=500",
-    restaurantRating: 4.7,
-  },
-  {
-    id: "ORD-7785",
-    date: "March 10, 2025 - 6:15 PM",
-    status: "Delivered",
-    items: [
-      { name: "Margherita Pizza", quantity: 1, price: 12.99 },
-      { name: "Garlic Bread", quantity: 1, price: 4.99 },
-      { name: "Tiramisu", quantity: 1, price: 6.99 },
-    ],
-    address: "123 Main St, Apt 4B, New York, NY 10001",
-    deliveryTime: "Delivered at 6:50 PM",
-    total: 24.97,
-    restaurantName: "Pizza Palace",
-    restaurantImage: "/placeholder.svg?height=300&width=500",
-    restaurantRating: 4.8,
-  },
-]
-
-const cancelledOrders: Order[] = [
-  {
-    id: "ORD-7795",
-    date: "March 16, 2025 - 8:15 PM",
-    status: "Cancelled",
-    items: [
-      { name: "Pepperoni Pizza", quantity: 1, price: 14.99 },
-      { name: "Garlic Bread", quantity: 1, price: 4.99 },
-      { name: "Coca Cola", quantity: 2, price: 1.99 },
-    ],
-    address: "123 Main St, Apt 4B, New York, NY 10001",
-    deliveryTime: "Cancelled at 8:20 PM",
-    total: 23.96,
-    restaurantName: "Pizza Palace",
-    restaurantImage: "/placeholder.svg?height=300&width=500",
-    restaurantRating: 4.8,
-  },
-]
