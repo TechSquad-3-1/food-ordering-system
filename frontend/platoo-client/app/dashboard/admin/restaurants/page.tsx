@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -42,22 +41,27 @@ import {
 } from "lucide-react"
 
 interface Restaurant {
-  id: string
-  name: string
-  owner: {
-    id: string
-    name: string
-    email: string
+  location: {
+    type: string
+    coordinates: [number, number]
+    tag: string
   }
-  address: string
-  cuisine: string[]
+  _id: string
+  name: string
+  image: string
   rating: number
-  reviewCount: number
-  status: string
-  joinDate: string
-  orders: number
-  revenue: number
-  image?: string
+  deliveryTime: string
+  deliveryFee: string
+  minOrder: string
+  distance: string
+  cuisines: string[]
+  priceLevel: number
+  is_active: boolean
+  open_time: string
+  closed_time: string
+  createdAt: string
+  updatedAt: string
+  __v: number
 }
 
 export default function RestaurantsPage() {
@@ -67,245 +71,50 @@ export default function RestaurantsPage() {
   const [filteredRestaurants, setFilteredRestaurants] = useState<Restaurant[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [cuisineFilter, setCuisineFilter] = useState("all")
-  const [statusFilter, setStatusFilter] = useState("all")
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null)
 
   useEffect(() => {
-    // In a real app, fetch restaurants from API
-    // For demo purposes, we'll use mock data
     const fetchRestaurants = async () => {
       setIsLoading(true)
       try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-
-        const mockRestaurants: Restaurant[] = [
-          {
-            id: "RES-1001",
-            name: "Burger Palace",
-            owner: {
-              id: "USR-1002",
-              name: "Mike Chen",
-              email: "mike.c@example.com",
-            },
-            address: "123 Main St, Washington, DC",
-            cuisine: ["American", "Fast Food", "Burgers"],
-            rating: 4.7,
-            reviewCount: 253,
-            status: "active",
-            joinDate: "2023-01-15",
-            orders: 1245,
-            revenue: 18675.5,
-            image: "/placeholder.svg?height=40&width=40",
-          },
-          {
-            id: "RES-1002",
-            name: "Pizza Heaven",
-            owner: {
-              id: "USR-1007",
-              name: "Angela Martinez",
-              email: "angela.m@example.com",
-            },
-            address: "456 Oak St, Washington, DC",
-            cuisine: ["Italian", "Pizza"],
-            rating: 4.5,
-            reviewCount: 187,
-            status: "active",
-            joinDate: "2023-02-10",
-            orders: 987,
-            revenue: 14560.75,
-            image: "/placeholder.svg?height=40&width=40",
-          },
-          {
-            id: "RES-1003",
-            name: "Sushi Express",
-            owner: {
-              id: "USR-1012",
-              name: "Takashi Yamamoto",
-              email: "takashi.y@example.com",
-            },
-            address: "789 Pine St, Washington, DC",
-            cuisine: ["Japanese", "Sushi", "Asian"],
-            rating: 4.8,
-            reviewCount: 142,
-            status: "active",
-            joinDate: "2023-03-05",
-            orders: 756,
-            revenue: 12890.25,
-            image: "/placeholder.svg?height=40&width=40",
-          },
-          {
-            id: "RES-1004",
-            name: "Taco Time",
-            owner: {
-              id: "USR-1018",
-              name: "Carlos Rodriguez",
-              email: "carlos.r@example.com",
-            },
-            address: "321 Elm St, Washington, DC",
-            cuisine: ["Mexican", "Tacos"],
-            rating: 4.2,
-            reviewCount: 98,
-            status: "active",
-            joinDate: "2023-03-20",
-            orders: 543,
-            revenue: 8765.5,
-            image: "/placeholder.svg?height=40&width=40",
-          },
-          {
-            id: "RES-1005",
-            name: "Green Bowl",
-            owner: {
-              id: "USR-1023",
-              name: "Sarah Green",
-              email: "sarah.g@example.com",
-            },
-            address: "567 Maple St, Washington, DC",
-            cuisine: ["Healthy", "Salads", "Bowls"],
-            rating: 4.6,
-            reviewCount: 76,
-            status: "active",
-            joinDate: "2023-04-01",
-            orders: 432,
-            revenue: 6543.75,
-            image: "/placeholder.svg?height=40&width=40",
-          },
-          {
-            id: "RES-1006",
-            name: "Pasta Place",
-            owner: {
-              id: "USR-1029",
-              name: "Sophia Romano",
-              email: "sophia.r@example.com",
-            },
-            address: "890 Cedar St, Washington, DC",
-            cuisine: ["Italian", "Pasta"],
-            rating: 4.4,
-            reviewCount: 112,
-            status: "suspended",
-            joinDate: "2023-02-15",
-            orders: 654,
-            revenue: 9876.25,
-            image: "/placeholder.svg?height=40&width=40",
-          },
-          {
-            id: "RES-1007",
-            name: "Spice of India",
-            owner: {
-              id: "USR-1035",
-              name: "Raj Patel",
-              email: "raj.p@example.com",
-            },
-            address: "432 Birch St, Washington, DC",
-            cuisine: ["Indian", "Curry", "Spicy"],
-            rating: 4.6,
-            reviewCount: 89,
-            status: "active",
-            joinDate: "2023-03-10",
-            orders: 521,
-            revenue: 7654.5,
-            image: "/placeholder.svg?height=40&width=40",
-          },
-          {
-            id: "RES-1008",
-            name: "Thai Delight",
-            owner: {
-              id: "USR-1041",
-              name: "Suki Thani",
-              email: "suki.t@example.com",
-            },
-            address: "765 Walnut St, Washington, DC",
-            cuisine: ["Thai", "Asian", "Spicy"],
-            rating: 4.5,
-            reviewCount: 67,
-            status: "pending_review",
-            joinDate: "2023-04-05",
-            orders: 0,
-            revenue: 0,
-            image: "/placeholder.svg?height=40&width=40",
-          },
-          {
-            id: "RES-1009",
-            name: "Mediterranean Grill",
-            owner: {
-              id: "USR-1047",
-              name: "Elias Stavros",
-              email: "elias.s@example.com",
-            },
-            address: "234 Olive St, Washington, DC",
-            cuisine: ["Mediterranean", "Greek", "Healthy"],
-            rating: 4.7,
-            reviewCount: 54,
-            status: "pending_documents",
-            joinDate: "2023-04-10",
-            orders: 0,
-            revenue: 0,
-            image: "/placeholder.svg?height=40&width=40",
-          },
-          {
-            id: "RES-1010",
-            name: "Fast Bites",
-            owner: {
-              id: "USR-1053",
-              name: "Tom Jackson",
-              email: "tom.j@example.com",
-            },
-            address: "876 Cherry St, Washington, DC",
-            cuisine: ["Fast Food", "Burgers", "Chicken"],
-            rating: 4.1,
-            reviewCount: 123,
-            status: "inactive",
-            joinDate: "2023-01-20",
-            orders: 345,
-            revenue: 4567.25,
-            image: "/placeholder.svg?height=40&width=40",
-          },
-        ]
-
-        setRestaurants(mockRestaurants)
-        setFilteredRestaurants(mockRestaurants)
+        const response = await fetch("http://localhost:3001/api/restaurants")
+        if (!response.ok) {
+          throw new Error(`Failed to fetch restaurants: ${response.statusText}`)
+        }
+        const data: Restaurant[] = await response.json()
+        setRestaurants(data)
+        setFilteredRestaurants(data)
       } catch (error) {
         console.error("Error fetching restaurants:", error)
       } finally {
         setIsLoading(false)
       }
     }
-
     fetchRestaurants()
   }, [])
 
   useEffect(() => {
-    // Apply filters whenever filter criteria change
     applyFilters()
-  }, [searchQuery, cuisineFilter, statusFilter, restaurants])
+  }, [searchQuery, cuisineFilter, restaurants])
 
   const applyFilters = () => {
     let filtered = [...restaurants]
-
-    // Apply search query filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(
         (restaurant) =>
           restaurant.name.toLowerCase().includes(query) ||
-          restaurant.owner.name.toLowerCase().includes(query) ||
-          restaurant.id.toLowerCase().includes(query),
+          restaurant._id.toLowerCase().includes(query) ||
+          restaurant.cuisines.some((c) => c.toLowerCase().includes(query)) ||
+          restaurant.location.tag.toLowerCase().includes(query)
       )
     }
-
-    // Apply cuisine filter
     if (cuisineFilter !== "all") {
       filtered = filtered.filter((restaurant) =>
-        restaurant.cuisine.some((cuisine) => cuisine.toLowerCase() === cuisineFilter.toLowerCase()),
+        restaurant.cuisines.some((cuisine) => cuisine.toLowerCase() === cuisineFilter.toLowerCase())
       )
     }
-
-    // Apply status filter
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((restaurant) => restaurant.status === statusFilter)
-    }
-
     setFilteredRestaurants(filtered)
   }
 
@@ -316,54 +125,28 @@ export default function RestaurantsPage() {
 
   const handleDeleteRestaurant = () => {
     if (!selectedRestaurant) return
-
-    // In a real app, this would send a delete request to the backend
-    setRestaurants((prev) => prev.filter((restaurant) => restaurant.id !== selectedRestaurant.id))
-
-    // Close dialog and reset selected restaurant
+    setRestaurants((prev) => prev.filter((restaurant) => restaurant._id !== selectedRestaurant._id))
     setIsDeleteDialogOpen(false)
     setSelectedRestaurant(null)
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-green-500"
-      case "inactive":
-        return "bg-gray-500"
-      case "suspended":
-        return "bg-red-500"
-      case "pending_review":
-      case "pending_documents":
-        return "bg-yellow-500"
-      default:
-        return "bg-gray-500"
-    }
-  }
-
-  const getStatusName = (status: string) => {
-    switch (status) {
-      case "pending_review":
-        return "Pending Review"
-      case "pending_documents":
-        return "Pending Documents"
-      default:
-        return status.charAt(0).toUpperCase() + status.slice(1)
-    }
-  }
-
   const cuisineTypes = [
     "All",
-    "American",
-    "Italian",
-    "Japanese",
-    "Mexican",
-    "Indian",
-    "Thai",
-    "Mediterranean",
-    "Fast Food",
-    "Healthy",
+    ...Array.from(
+      new Set(
+        restaurants
+          .flatMap((r) => r.cuisines)
+          .map((c) => c.charAt(0).toUpperCase() + c.slice(1))
+      )
+    ),
   ]
+
+  const getPriceLevel = (level: number) => "$".repeat(level)
+
+  // Helper: fallback to placeholder if image fails
+  const handleImgError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    e.currentTarget.src = "https://via.placeholder.com/40x40?text=No+Image"
+  }
 
   return (
     <div className="space-y-6">
@@ -371,16 +154,13 @@ export default function RestaurantsPage() {
         <h1 className="text-3xl font-bold tracking-tight">Restaurant Management</h1>
         <p className="text-muted-foreground">Manage all restaurants on your platform</p>
       </div>
-
       <Tabs defaultValue="all" className="space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <TabsList>
             <TabsTrigger value="all">All Restaurants</TabsTrigger>
             <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="pending">Pending</TabsTrigger>
-            <TabsTrigger value="suspended">Suspended</TabsTrigger>
+            <TabsTrigger value="inactive">Inactive</TabsTrigger>
           </TabsList>
-
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => router.push("/dashboard/admin/restaurants/add")}>
               <Store className="mr-2 h-4 w-4" />
@@ -392,7 +172,6 @@ export default function RestaurantsPage() {
             </Button>
           </div>
         </div>
-
         <Card>
           <CardHeader className="pb-3">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -408,7 +187,6 @@ export default function RestaurantsPage() {
                   />
                 </form>
               </div>
-
               <div className="flex gap-2 w-full sm:w-auto">
                 <Select value={cuisineFilter} onValueChange={setCuisineFilter}>
                   <SelectTrigger className="w-full sm:w-[180px]">
@@ -416,25 +194,13 @@ export default function RestaurantsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Cuisines</SelectItem>
-                    {cuisineTypes.map((cuisine) => (
-                      <SelectItem key={cuisine.toLowerCase()} value={cuisine.toLowerCase()}>
-                        {cuisine}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="suspended">Suspended</SelectItem>
-                    <SelectItem value="pending_review">Pending Review</SelectItem>
-                    <SelectItem value="pending_documents">Pending Documents</SelectItem>
+                    {cuisineTypes
+                      .filter((c) => c.toLowerCase() !== "all")
+                      .map((cuisine) => (
+                        <SelectItem key={cuisine.toLowerCase()} value={cuisine.toLowerCase()}>
+                          {cuisine}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -450,45 +216,48 @@ export default function RestaurantsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Restaurant</TableHead>
-                    <TableHead>Owner</TableHead>
-                    <TableHead>Cuisine</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Cuisines</TableHead>
                     <TableHead>Rating</TableHead>
+                    <TableHead>Delivery</TableHead>
+                    <TableHead>Price</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Orders</TableHead>
-                    <TableHead>Revenue</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredRestaurants.map((restaurant) => (
-                    <TableRow key={restaurant.id}>
+                    <TableRow key={restaurant._id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-md overflow-hidden">
                             <img
-                              src={restaurant.image || "/placeholder.svg"}
+                              src={restaurant.image || "https://via.placeholder.com/40x40?text=No+Image"}
                               alt={restaurant.name}
                               className="h-full w-full object-cover"
+                              onError={handleImgError}
                             />
                           </div>
                           <div>
                             <div className="font-medium">{restaurant.name}</div>
-                            <div className="text-sm text-muted-foreground truncate max-w-[200px]">
-                              {restaurant.address}
+                            <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                              ID: {restaurant._id}
                             </div>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{restaurant.owner.name}</div>
-                          <div className="text-sm text-muted-foreground">{restaurant.owner.email}</div>
+                          <div className="font-medium">{restaurant.location.tag}</div>
+                          <div className="text-xs text-muted-foreground">
+                            [{restaurant.location.coordinates.join(", ")}]
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
-                          {restaurant.cuisine.map((type, index) => (
-                            <Badge key={index} variant="outline" className="bg-muted/50">
+                          {restaurant.cuisines.map((type, idx) => (
+                            <Badge key={idx} variant="outline" className="bg-muted/50">
                               {type}
                             </Badge>
                           ))}
@@ -498,16 +267,29 @@ export default function RestaurantsPage() {
                         <div className="flex items-center">
                           <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
                           <span>{restaurant.rating}</span>
-                          <span className="text-muted-foreground ml-1">({restaurant.reviewCount})</span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={`${getStatusColor(restaurant.status)} text-white`}>
-                          {getStatusName(restaurant.status)}
+                        <div>
+                          <div>
+                            <span>{restaurant.deliveryTime}</span>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Fee: {restaurant.deliveryFee} | Min: {restaurant.minOrder}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Dist: {restaurant.distance}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span>{getPriceLevel(restaurant.priceLevel)}</span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={restaurant.is_active ? "bg-green-500 text-white" : "bg-gray-500 text-white"}>
+                          {restaurant.is_active ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
-                      <TableCell>{restaurant.orders.toLocaleString()}</TableCell>
-                      <TableCell>${restaurant.revenue.toLocaleString()}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -519,34 +301,29 @@ export default function RestaurantsPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuItem
-                              onClick={() => router.push(`/dashboard/admin/restaurants/${restaurant.id}`)}
+                              onClick={() => router.push(`/dashboard/admin/restaurants/${restaurant._id}`)}
                             >
                               <Eye className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => router.push(`/dashboard/admin/restaurants/${restaurant.id}/edit`)}
+                              onClick={() => router.push(`/dashboard/admin/restaurants/${restaurant._id}/edit`)}
                             >
                               <Edit className="mr-2 h-4 w-4" />
                               Edit
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            {restaurant.status === "active" ? (
+                            {restaurant.is_active ? (
                               <DropdownMenuItem className="text-amber-600">
                                 <XCircle className="mr-2 h-4 w-4" />
                                 Suspend
                               </DropdownMenuItem>
-                            ) : restaurant.status === "suspended" ? (
+                            ) : (
                               <DropdownMenuItem className="text-green-600">
                                 <CheckCircle className="mr-2 h-4 w-4" />
                                 Reactivate
                               </DropdownMenuItem>
-                            ) : restaurant.status.startsWith("pending") ? (
-                              <DropdownMenuItem className="text-green-600">
-                                <CheckCircle className="mr-2 h-4 w-4" />
-                                Approve
-                              </DropdownMenuItem>
-                            ) : null}
+                            )}
                             <DropdownMenuItem
                               className="text-red-600"
                               onClick={() => {
@@ -574,7 +351,6 @@ export default function RestaurantsPage() {
                   onClick={() => {
                     setSearchQuery("")
                     setCuisineFilter("all")
-                    setStatusFilter("all")
                   }}
                 >
                   Reset Filters
@@ -584,7 +360,6 @@ export default function RestaurantsPage() {
           </CardContent>
         </Card>
       </Tabs>
-
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
@@ -599,14 +374,15 @@ export default function RestaurantsPage() {
               <div className="flex items-center gap-3 p-3 border rounded-md">
                 <div className="h-10 w-10 rounded-md overflow-hidden">
                   <img
-                    src={selectedRestaurant.image || "/placeholder.svg"}
+                    src={selectedRestaurant.image || "https://via.placeholder.com/40x40?text=No+Image"}
                     alt={selectedRestaurant.name}
                     className="h-full w-full object-cover"
+                    onError={handleImgError}
                   />
                 </div>
                 <div>
                   <div className="font-medium">{selectedRestaurant.name}</div>
-                  <div className="text-sm text-muted-foreground">{selectedRestaurant.address}</div>
+                  <div className="text-sm text-muted-foreground">{selectedRestaurant.location.tag}</div>
                 </div>
               </div>
             )}
@@ -624,4 +400,3 @@ export default function RestaurantsPage() {
     </div>
   )
 }
-
