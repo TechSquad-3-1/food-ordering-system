@@ -86,7 +86,19 @@ export default function MenuPage() {
     is_active: true,
   });
 
+  // Menu item dialog state
+  const initialItemForm = {
+    name: "",
+    description: "",
+    price: "",
+    category_id: "",
+    is_available: true,
+    is_veg: false,
+    image_url: "",
+  };
+  const [itemForm, setItemForm] = useState(initialItemForm);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
 
@@ -215,9 +227,58 @@ export default function MenuPage() {
   };
 
   // Menu item handlers
+
+  // Only ONE handleEditItem function, used for both add/edit
+  const openAddItemDialog = () => {
+    setSelectedItem(null);
+    setItemForm(initialItemForm);
+    setIsAddItemOpen(true);
+  };
+
   const handleEditItem = (item: MenuItem) => {
     setSelectedItem(item);
+    setItemForm({
+      name: item.name || "",
+      description: item.description || "",
+      price: item.price?.toString() || "",
+      category_id: item.category_id || "",
+      is_available: item.is_available ?? true,
+      is_veg: item.is_veg ?? false,
+      image_url: item.image_url || "",
+    });
     setIsAddItemOpen(true);
+  };
+
+  const handleAddItem = async (newItem: Omit<MenuItem, "id">) => {
+    try {
+      const response = await fetch("http://localhost:3001/api/menu-items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newItem),
+      });
+      if (!response.ok) throw new Error("Failed to add menu item");
+      const created: MenuItem = await response.json();
+      setMenuItems((prev) => [...prev, created]);
+    } catch (error) {
+      console.error("Error adding menu item:", error);
+    }
+  };
+
+  const handleUpdateItem = async (updatedItem: MenuItem) => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/menu-items/${updatedItem.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedItem),
+      });
+      if (!response.ok) throw new Error("Failed to update menu item");
+      const updatedData: MenuItem = await response.json();
+      setMenuItems((prevItems) =>
+        prevItems.map((item) => (item.id === updatedData.id ? updatedData : item))
+      );
+    } catch (error) {
+      console.error("Error updating menu item:", error);
+    }
   };
 
   const handleToggleAvailability = async (id: string) => {
@@ -248,38 +309,6 @@ export default function MenuPage() {
     }
   };
 
-  const handleAddItem = async (newItem: Omit<MenuItem, "id">) => {
-    try {
-      const response = await fetch("http://localhost:3001/api/menu-items", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newItem),
-      });
-      if (!response.ok) throw new Error("Failed to add menu item");
-      const addedItem: MenuItem = await response.json();
-      setMenuItems((prevItems) => [...prevItems, addedItem]);
-    } catch (error) {
-      console.error("Error adding menu item:", error);
-    }
-  };
-
-  const handleUpdateItem = async (updatedItem: MenuItem) => {
-    try {
-      const response = await fetch(`http://localhost:3001/api/menu-items/${updatedItem.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedItem),
-      });
-      if (!response.ok) throw new Error("Failed to update menu item");
-      const updatedData: MenuItem = await response.json();
-      setMenuItems((prevItems) =>
-        prevItems.map((item) => (item.id === updatedData.id ? updatedData : item))
-      );
-    } catch (error) {
-      console.error("Error updating menu item:", error);
-    }
-  };
-
   // --- RENDER ---
   return (
     <div className="space-y-6">
@@ -293,7 +322,7 @@ export default function MenuPage() {
           <Button variant="outline" onClick={openAddCategoryDialog}>
             Manage Categories
           </Button>
-          <Button onClick={() => setIsAddItemOpen(true)}>
+          <Button onClick={openAddItemDialog}>
             <Plus className="mr-2 h-4 w-4" /> Add Item
           </Button>
         </div>
@@ -584,11 +613,11 @@ export default function MenuPage() {
               <div className="space-y-2">
                 <Label htmlFor="item-image">Item Image</Label>
                 <div className="flex items-center justify-center border-2 border-dashed rounded-md p-4">
-                  {selectedItem?.image_url ? (
+                  {itemForm.image_url ? (
                     <div className="text-center">
                       <img
-                        src={selectedItem.image_url}
-                        alt={selectedItem.name}
+                        src={itemForm.image_url}
+                        alt={itemForm.name}
                         className="mx-auto h-32 w-32 rounded-md object-cover"
                       />
                       <Button variant="outline" size="sm" className="mt-2" disabled>
@@ -607,6 +636,12 @@ export default function MenuPage() {
                     </div>
                   )}
                 </div>
+                <Input
+                  id="item-image"
+                  placeholder="Image URL"
+                  value={itemForm.image_url}
+                  onChange={(e) => setItemForm((f) => ({ ...f, image_url: e.target.value }))}
+                />
               </div>
               {/* Name */}
               <div className="space-y-2">
@@ -614,7 +649,8 @@ export default function MenuPage() {
                 <Input
                   id="item-name"
                   placeholder="Enter item name"
-                  defaultValue={selectedItem?.name || ""}
+                  value={itemForm.name}
+                  onChange={(e) => setItemForm((f) => ({ ...f, name: e.target.value }))}
                 />
               </div>
               {/* Description */}
@@ -623,7 +659,8 @@ export default function MenuPage() {
                 <Textarea
                   id="item-description"
                   placeholder="Enter item description"
-                  defaultValue={selectedItem?.description || ""}
+                  value={itemForm.description}
+                  onChange={(e) => setItemForm((f) => ({ ...f, description: e.target.value }))}
                   rows={3}
                 />
               </div>
@@ -634,7 +671,9 @@ export default function MenuPage() {
                   <Input
                     id="item-price"
                     placeholder="$0.00"
-                    defaultValue={selectedItem?.price || ""}
+                    type="number"
+                    value={itemForm.price}
+                    onChange={(e) => setItemForm((f) => ({ ...f, price: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
@@ -642,7 +681,8 @@ export default function MenuPage() {
                   <select
                     id="item-category"
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    defaultValue={selectedItem?.category_id || ""}
+                    value={itemForm.category_id}
+                    onChange={(e) => setItemForm((f) => ({ ...f, category_id: e.target.value }))}
                   >
                     <option value="" disabled>
                       Select a category
@@ -660,14 +700,20 @@ export default function MenuPage() {
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="item-available"
-                    defaultChecked={selectedItem?.is_available ?? true}
+                    checked={itemForm.is_available}
+                    onCheckedChange={(checked) =>
+                      setItemForm((f) => ({ ...f, is_available: checked }))
+                    }
                   />
                   <Label htmlFor="item-available">Available</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="item-veg"
-                    defaultChecked={selectedItem?.is_veg ?? false}
+                    checked={itemForm.is_veg}
+                    onCheckedChange={(checked) =>
+                      setItemForm((f) => ({ ...f, is_veg: checked }))
+                    }
                   />
                   <Label htmlFor="item-veg">Vegetarian</Label>
                 </div>
@@ -675,31 +721,21 @@ export default function MenuPage() {
             </div>
           </ScrollArea>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddItemOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setIsAddItemOpen(false);
+              setSelectedItem(null);
+              setItemForm(initialItemForm);
+            }}>
               Cancel
             </Button>
             <Button
               onClick={async () => {
-                const name = (document.getElementById("item-name") as HTMLInputElement).value;
-                const description = (document.getElementById("item-description") as HTMLTextAreaElement).value;
-                const price = (document.getElementById("item-price") as HTMLInputElement).value;
-                const category_id = (document.getElementById("item-category") as HTMLSelectElement).value;
-                const is_available = (document.getElementById("item-available") as HTMLInputElement).checked;
-                const is_veg = (document.getElementById("item-veg") as HTMLInputElement).checked;
-                const image_url = selectedItem?.image_url || ""; // You can extend to allow upload
-
-                if (!name || !category_id || !price) return;
-
+                // Validate required fields
+                if (!itemForm.name || !itemForm.category_id || !itemForm.price) return;
                 const newItem = {
-                  name,
-                  description,
-                  price,
-                  category_id,
-                  is_available,
-                  is_veg,
-                  image_url,
+                  ...itemForm,
+                  price: itemForm.price,
                 };
-
                 if (selectedItem) {
                   await handleUpdateItem({ ...selectedItem, ...newItem });
                 } else {
@@ -707,6 +743,7 @@ export default function MenuPage() {
                 }
                 setIsAddItemOpen(false);
                 setSelectedItem(null);
+                setItemForm(initialItemForm);
               }}
             >
               {selectedItem ? "Update Item" : "Add Item"}
