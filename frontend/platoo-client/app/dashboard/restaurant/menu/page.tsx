@@ -45,86 +45,90 @@ import {
   ImagePlus,
 } from "lucide-react";
 
-// Define TypeScript interfaces for menu items and categories
+// Interfaces
 interface MenuItem {
   id: string;
-  category_id: string; // Matches backend model (reference to Category)
+  category_id: string;
   name: string;
   description: string;
   price: string;
-  image_url?: string; // Matches backend model
-  is_available: boolean; // Matches backend model
-  is_veg: boolean; // Matches backend model
+  image_url?: string;
+  is_available: boolean;
+  is_veg: boolean;
 }
 
 interface Category {
   id: string;
-  restaurant_id: string; // Matches backend model (reference to Restaurant)
+  restaurant_id: string;
   name: string;
   description: string;
   image_url: string;
   is_active: boolean;
-  itemCount: number; // Derived field for frontend display
+  itemCount: number;
 }
 
+const RESTAURANT_ID = "67ea74b67ec2521671a97f93";
+
 export default function MenuPage() {
+  // State
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isAddItemOpen, setIsAddItemOpen] = useState(false);
-  const [isEditCategoryOpen, setIsEditCategoryOpen] = useState(false);
+
+  // Category dialog state
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [categoryForm, setCategoryForm] = useState<Omit<Category, "id" | "itemCount">>({
+    restaurant_id: RESTAURANT_ID,
+    name: "",
+    description: "",
+    image_url: "",
+    is_active: true,
+  });
+
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
 
-  // Fetch menu items for a specific restaurant on component load
- useEffect(() => {
-  const fetchMenuItems = async () => {
-    try {
-      const restaurantId = "67ea74b67ec2521671a97f93"; // Replace with dynamic restaurant ID if needed
-      const response = await fetch(`http://localhost:3001/api/menu-items/restaurant/${restaurantId}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch menu items");
+  // Fetch menu items and categories
+  useEffect(() => {
+    const fetchMenuItems = async () => {
+      try {
+        const response = await fetch(`http://localhost:3001/api/menu-items/restaurant/${RESTAURANT_ID}`);
+        if (!response.ok) throw new Error("Failed to fetch menu items");
+        const data = await response.json();
+        const normalized = data.map((item: any) => ({
+          ...item,
+          id: item._id || item.id,
+        }));
+        setMenuItems(normalized);
+      } catch (error) {
+        console.error("Error fetching menu items:", error);
       }
-      const data = await response.json();
-      const normalized = data.map((item: any) => ({
-        ...item,
-        id: item._id || item.id, // Normalize MongoDB _id
-      }));
-      setMenuItems(normalized);
-    } catch (error) {
-      console.error("Error fetching menu items:", error);
-    }
-  };
+    };
 
-  const fetchCategories = async () => {
-    try {
-      const restaurantId = "67ea74b67ec2521671a97f93"; // Replace with dynamic restaurant ID if needed
-      const response = await fetch(`http://localhost:3001/api/category/${restaurantId}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch categories");
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch(`http://localhost:3001/api/category/${RESTAURANT_ID}`);
+        if (!response.ok) throw new Error("Failed to fetch categories");
+        const data = await response.json();
+        const normalized = data.map((category: any) => ({
+          ...category,
+          id: category._id || category.id,
+        }));
+        setCategories(normalized);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
       }
-      const data = await response.json();
-      const normalized = data.map((category: any) => ({
-        ...category,
-        id: category._id || category.id, // Normalize MongoDB _id
-      }));
-      setCategories(normalized);
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-    }
-  };
+    };
 
-  fetchMenuItems();
-  fetchCategories();
-}, []);
+    fetchMenuItems();
+    fetchCategories();
+  }, []);
 
-  
-
-  // Filter menu items based on search query and selected category
+  // Filtering
   const filteredItems = menuItems.filter((item) => {
-    if (selectedCategory !== "all" && item.category_id !== selectedCategory) {
-      return false;
-    }
+    if (selectedCategory !== "all" && item.category_id !== selectedCategory) return false;
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       return (
@@ -135,6 +139,82 @@ export default function MenuPage() {
     return true;
   });
 
+  // Category CRUD handlers
+  const openAddCategoryDialog = () => {
+    setEditingCategory(null);
+    setCategoryForm({
+      restaurant_id: RESTAURANT_ID,
+      name: "",
+      description: "",
+      image_url: "",
+      is_active: true,
+    });
+    setIsCategoryDialogOpen(true);
+  };
+
+  const openEditCategoryDialog = (category: Category) => {
+    setEditingCategory(category);
+    setCategoryForm({
+      restaurant_id: category.restaurant_id,
+      name: category.name,
+      description: category.description,
+      image_url: category.image_url,
+      is_active: category.is_active,
+    });
+    setIsCategoryDialogOpen(true);
+  };
+
+  const handleCategoryFormChange = (field: keyof Omit<Category, "id" | "itemCount">, value: any) => {
+    setCategoryForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleAddCategory = async () => {
+    try {
+      const response = await fetch("http://localhost:3001/api/category", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(categoryForm),
+      });
+      if (!response.ok) throw new Error("Failed to add category");
+      const newCategory: Category = await response.json();
+      setCategories((prev) => [...prev, newCategory]);
+      setIsCategoryDialogOpen(false);
+    } catch (error) {
+      console.error("Error adding category:", error);
+    }
+  };
+
+  const handleUpdateCategory = async () => {
+    if (!editingCategory) return;
+    try {
+      const response = await fetch(`http://localhost:3001/api/category/${editingCategory.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...editingCategory, ...categoryForm }),
+      });
+      if (!response.ok) throw new Error("Failed to update category");
+      const updated: Category = await response.json();
+      setCategories((prev) =>
+        prev.map((cat) => (cat.id === updated.id ? updated : cat))
+      );
+      setIsCategoryDialogOpen(false);
+      setEditingCategory(null);
+    } catch (error) {
+      console.error("Error updating category:", error);
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/category/${id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Failed to delete category");
+      setCategories((prevCategories) => prevCategories.filter((category) => category.id !== id));
+    } catch (error) {
+      console.error("Error deleting category:", error);
+    }
+  };
+
+  // Menu item handlers
   const handleEditItem = (item: MenuItem) => {
     setSelectedItem(item);
     setIsAddItemOpen(true);
@@ -200,16 +280,7 @@ export default function MenuPage() {
     }
   };
 
-  const handleDeleteCategory = async (id: string) => {
-    try {
-      const response = await fetch(`http://localhost:3001/api/category/${id}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Failed to delete category");
-      setCategories((prevCategories) => prevCategories.filter((category) => category.id !== id));
-    } catch (error) {
-      console.error("Error deleting category:", error);
-    }
-  };
-
+  // --- RENDER ---
   return (
     <div className="space-y-6">
       {/* Header Section */}
@@ -219,7 +290,7 @@ export default function MenuPage() {
           <p className="text-muted-foreground">Create and manage your restaurant menu items</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setIsEditCategoryOpen(true)}>
+          <Button variant="outline" onClick={openAddCategoryDialog}>
             Manage Categories
           </Button>
           <Button onClick={() => setIsAddItemOpen(true)}>
@@ -377,13 +448,32 @@ export default function MenuPage() {
                 {categories.map((category) => (
                   <Card key={category.id}>
                     <CardHeader className="p-4">
-                      <CardTitle className="text-lg">{category.name}</CardTitle>
-                      <CardDescription>{category.itemCount} items</CardDescription>
+                      <div className="flex items-center gap-4">
+                        {category.image_url && (
+                          <img
+                            src={category.image_url}
+                            alt={category.name}
+                            className="h-16 w-16 rounded-lg object-cover border"
+                          />
+                        )}
+                        <div>
+                          <CardTitle className="text-lg">{category.name}</CardTitle>
+                          <CardDescription>{category.description}</CardDescription>
+                        </div>
+                      </div>
                     </CardHeader>
                     <CardContent className="p-4 pt-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge variant={category.is_active ? "default" : "secondary"}>
+                          {category.is_active ? "Active" : "Inactive"}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {category.itemCount} items
+                        </span>
+                      </div>
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm">
-                          Edit
+                        <Button variant="outline" size="sm" onClick={() => openEditCategoryDialog(category)}>
+                          <Edit className="mr-2 h-4 w-4" /> Edit
                         </Button>
                         <Button
                           variant="outline"
@@ -391,7 +481,7 @@ export default function MenuPage() {
                           className="text-red-600"
                           onClick={() => handleDeleteCategory(category.id)}
                         >
-                          Delete
+                          <Trash2 className="mr-2 h-4 w-4" /> Delete
                         </Button>
                       </div>
                     </CardContent>
@@ -399,7 +489,11 @@ export default function MenuPage() {
                 ))}
                 <Card className="border-dashed">
                   <CardContent className="p-6">
-                    <Button variant="ghost" className="w-full h-24" onClick={() => setIsEditCategoryOpen(true)}>
+                    <Button
+                      variant="ghost"
+                      className="w-full h-24"
+                      onClick={openAddCategoryDialog}
+                    >
                       <Plus className="mr-2 h-5 w-5" />
                       Add New Category
                     </Button>
@@ -411,29 +505,93 @@ export default function MenuPage() {
         </TabsContent>
       </Tabs>
 
+      {/* Add/Edit Category Dialog */}
+      <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{editingCategory ? "Edit Category" : "Add New Category"}</DialogTitle>
+            <DialogDescription>
+              {editingCategory
+                ? "Update the details of your category"
+                : "Add a new category to your restaurant"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="category-name">Category Name</Label>
+              <Input
+                id="category-name"
+                placeholder="Category name"
+                value={categoryForm.name}
+                onChange={(e) => handleCategoryFormChange("name", e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="category-description">Description</Label>
+              <Textarea
+                id="category-description"
+                placeholder="Category description"
+                value={categoryForm.description}
+                onChange={(e) => handleCategoryFormChange("description", e.target.value)}
+                rows={2}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="category-image">Image URL</Label>
+              <Input
+                id="category-image"
+                placeholder="https://example.com/image.jpg"
+                value={categoryForm.image_url}
+                onChange={(e) => handleCategoryFormChange("image_url", e.target.value)}
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="category-active"
+                checked={categoryForm.is_active}
+                onCheckedChange={(checked) => handleCategoryFormChange("is_active", checked)}
+              />
+              <Label htmlFor="category-active">Active</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCategoryDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={editingCategory ? handleUpdateCategory : handleAddCategory}
+            >
+              {editingCategory ? "Update Category" : "Add Category"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Add/Edit Menu Item Dialog */}
       <Dialog open={isAddItemOpen} onOpenChange={setIsAddItemOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>{selectedItem ? "Edit Menu Item" : "Add New Menu Item"}</DialogTitle>
             <DialogDescription>
-              {selectedItem ? "Update the details of your menu item" : "Add a new item to your restaurant menu"}
+              {selectedItem
+                ? "Update the details of your menu item"
+                : "Add a new item to your restaurant menu"}
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[70vh]">
             <div className="space-y-6 p-1">
-              {/* Form fields for adding/editing menu item */}
+              {/* Image Upload/Preview */}
               <div className="space-y-2">
                 <Label htmlFor="item-image">Item Image</Label>
                 <div className="flex items-center justify-center border-2 border-dashed rounded-md p-4">
-                  {selectedItem ? (
+                  {selectedItem?.image_url ? (
                     <div className="text-center">
                       <img
-                        src={selectedItem.image_url || "/placeholder.svg"}
+                        src={selectedItem.image_url}
                         alt={selectedItem.name}
                         className="mx-auto h-32 w-32 rounded-md object-cover"
                       />
-                      <Button variant="outline" size="sm" className="mt-2">
+                      <Button variant="outline" size="sm" className="mt-2" disabled>
                         <ImagePlus className="mr-2 h-4 w-4" /> Change Image
                       </Button>
                     </div>
@@ -441,7 +599,7 @@ export default function MenuPage() {
                     <div className="text-center">
                       <ImagePlus className="mx-auto h-12 w-12 text-muted-foreground" />
                       <div className="mt-2">
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" disabled>
                           Upload Image
                         </Button>
                       </div>
@@ -450,10 +608,16 @@ export default function MenuPage() {
                   )}
                 </div>
               </div>
+              {/* Name */}
               <div className="space-y-2">
                 <Label htmlFor="item-name">Item Name</Label>
-                <Input id="item-name" placeholder="Enter item name" defaultValue={selectedItem?.name || ""} />
+                <Input
+                  id="item-name"
+                  placeholder="Enter item name"
+                  defaultValue={selectedItem?.name || ""}
+                />
               </div>
+              {/* Description */}
               <div className="space-y-2">
                 <Label htmlFor="item-description">Description</Label>
                 <Textarea
@@ -463,10 +627,15 @@ export default function MenuPage() {
                   rows={3}
                 />
               </div>
+              {/* Price and Category */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="item-price">Price</Label>
-                  <Input id="item-price" placeholder="$0.00" defaultValue={selectedItem?.price || ""} />
+                  <Input
+                    id="item-price"
+                    placeholder="$0.00"
+                    defaultValue={selectedItem?.price || ""}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="item-category">Category</Label>
@@ -486,13 +655,20 @@ export default function MenuPage() {
                   </select>
                 </div>
               </div>
+              {/* Availability and Veg Switches */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <Switch id="item-available" defaultChecked={selectedItem?.is_available ?? true} />
+                  <Switch
+                    id="item-available"
+                    defaultChecked={selectedItem?.is_available ?? true}
+                  />
                   <Label htmlFor="item-available">Available</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Switch id="item-veg" defaultChecked={selectedItem?.is_veg ?? false} />
+                  <Switch
+                    id="item-veg"
+                    defaultChecked={selectedItem?.is_veg ?? false}
+                  />
                   <Label htmlFor="item-veg">Vegetarian</Label>
                 </div>
               </div>
@@ -504,93 +680,36 @@ export default function MenuPage() {
             </Button>
             <Button
               onClick={async () => {
+                const name = (document.getElementById("item-name") as HTMLInputElement).value;
+                const description = (document.getElementById("item-description") as HTMLTextAreaElement).value;
+                const price = (document.getElementById("item-price") as HTMLInputElement).value;
+                const category_id = (document.getElementById("item-category") as HTMLSelectElement).value;
+                const is_available = (document.getElementById("item-available") as HTMLInputElement).checked;
+                const is_veg = (document.getElementById("item-veg") as HTMLInputElement).checked;
+                const image_url = selectedItem?.image_url || ""; // You can extend to allow upload
+
+                if (!name || !category_id || !price) return;
+
                 const newItem = {
-                  name: (document.getElementById("item-name") as HTMLInputElement).value,
-                  description: (document.getElementById("item-description") as HTMLTextAreaElement).value,
-                  price: (document.getElementById("item-price") as HTMLInputElement).value,
-                  category_id: (document.getElementById("item-category") as HTMLSelectElement).value,
-                  is_available: true,
-                  is_veg: false,
+                  name,
+                  description,
+                  price,
+                  category_id,
+                  is_available,
+                  is_veg,
+                  image_url,
                 };
+
                 if (selectedItem) {
                   await handleUpdateItem({ ...selectedItem, ...newItem });
                 } else {
-                  await handleAddItem(newItem);
+                  await handleAddItem(newItem as any);
                 }
                 setIsAddItemOpen(false);
+                setSelectedItem(null);
               }}
             >
               {selectedItem ? "Update Item" : "Add Item"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Manage Categories Dialog */}
-      <Dialog open={isEditCategoryOpen} onOpenChange={setIsEditCategoryOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Manage Categories</DialogTitle>
-            <DialogDescription>Create and organize your menu categories</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="new-category">Add New Category</Label>
-              <div className="flex gap-2">
-                <Input id="new-category" placeholder="Category name" />
-                <Button
-                  onClick={async () => {
-                    const categoryName = (document.getElementById("new-category") as HTMLInputElement).value;
-                    if (!categoryName) return;
-                    try {
-                      const response = await fetch("http://localhost:3001/api/category", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ name: categoryName }),
-                      });
-                      if (!response.ok) throw new Error("Failed to add category");
-                      const newCategory: Category = await response.json();
-                      setCategories((prevCategories) => [...prevCategories, newCategory]);
-                      (document.getElementById("new-category") as HTMLInputElement).value = "";
-                    } catch (error) {
-                      console.error("Error adding category:", error);
-                    }
-                  }}
-                >
-                  Add
-                </Button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Existing Categories</Label>
-              <div className="border rounded-md divide-y">
-                {categories.map((category) => (
-                  <div key={category.id} className="flex items-center justify-between p-3">
-                    <div>
-                      <span className="font-medium">{category.name}</span>
-                      <span className="text-sm text-muted-foreground ml-2">({category.itemCount} items)</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="icon">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-red-600"
-                        onClick={() => handleDeleteCategory(category.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditCategoryOpen(false)}>
-              Close
             </Button>
           </DialogFooter>
         </DialogContent>
