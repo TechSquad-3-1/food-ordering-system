@@ -74,6 +74,10 @@ export default function RestaurantsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null)
 
+  // NEW: Modal state for restaurant details
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [detailsRestaurant, setDetailsRestaurant] = useState<Restaurant | null>(null)
+
   useEffect(() => {
     const fetchRestaurants = async () => {
       setIsLoading(true)
@@ -146,6 +150,12 @@ export default function RestaurantsPage() {
   // Helper: fallback to placeholder if image fails
   const handleImgError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     e.currentTarget.src = "https://via.placeholder.com/40x40?text=No+Image"
+  }
+
+  // NEW: Open details modal
+  const handleViewDetails = (restaurant: Restaurant) => {
+    setDetailsRestaurant(restaurant)
+    setShowDetailsModal(true)
   }
 
   return (
@@ -257,9 +267,7 @@ export default function RestaurantsPage() {
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {restaurant.cuisines.map((type, idx) => (
-                            <Badge key={idx} variant="outline" className="bg-muted/50">
-                              {type}
-                            </Badge>
+                            <Badge key={idx} variant="outline" className="bg-muted/50">{type}</Badge>
                           ))}
                         </div>
                       </TableCell>
@@ -301,7 +309,7 @@ export default function RestaurantsPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuItem
-                              onClick={() => router.push(`/dashboard/admin/restaurants/${restaurant._id}`)}
+                              onClick={() => handleViewDetails(restaurant)}
                             >
                               <Eye className="mr-2 h-4 w-4" />
                               View Details
@@ -397,6 +405,103 @@ export default function RestaurantsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* View Details Dialog */}
+      <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
+  <DialogContent className="sm:max-w-xl bg-white rounded-2xl shadow-2xl p-6">
+    <DialogHeader>
+      <DialogTitle className="text-2xl font-bold mb-2 text-blue-700">Restaurant Details</DialogTitle>
+      <DialogDescription className="mb-4 text-gray-500">
+        All information about this restaurant.
+      </DialogDescription>
+    </DialogHeader>
+    {detailsRestaurant && (
+      <div className="space-y-6">
+        <div className="flex items-center gap-6 border-b pb-4">
+          <img
+            src={detailsRestaurant.image || "https://via.placeholder.com/80x80?text=No+Image"}
+            alt={detailsRestaurant.name}
+            className="w-24 h-24 rounded-lg object-cover border shadow"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src =
+                "https://via.placeholder.com/80x80?text=No+Image";
+            }}
+          />
+          <div>
+            <div className="font-bold text-xl text-gray-800">{detailsRestaurant.name}</div>
+            <div className="text-xs text-gray-400 mb-2">ID: {detailsRestaurant._id}</div>
+            <div className="flex flex-wrap gap-2">
+              {detailsRestaurant.cuisines.map((c, i) => (
+                <Badge key={i} variant="outline" className="bg-blue-50 border-blue-200 text-blue-700">
+                  {c}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <div className="font-semibold text-gray-700">Location</div>
+            <div className="text-gray-800">{detailsRestaurant.location.tag}</div>
+            <div className="text-xs text-gray-400">
+              [{detailsRestaurant.location.coordinates.join(", ")}]
+            </div>
+          </div>
+          <div>
+            <div className="font-semibold text-gray-700">Status</div>
+            <Badge className={detailsRestaurant.is_active
+              ? "bg-green-500 text-white px-2 py-1"
+              : "bg-gray-400 text-white px-2 py-1"}>
+              {detailsRestaurant.is_active ? "Active" : "Inactive"}
+            </Badge>
+          </div>
+          <div>
+            <div className="font-semibold text-gray-700">Rating</div>
+            <div className="flex items-center gap-1 text-yellow-600 font-semibold">
+              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+              <span>{detailsRestaurant.rating}</span>
+            </div>
+          </div>
+          <div>
+            <div className="font-semibold text-gray-700">Price Level</div>
+            <span className="text-green-700 text-lg tracking-wide">{getPriceLevel(detailsRestaurant.priceLevel)}</span>
+          </div>
+          <div>
+            <div className="font-semibold text-gray-700">Delivery Time</div>
+            <span className="text-gray-800">{detailsRestaurant.deliveryTime}</span>
+          </div>
+          <div>
+            <div className="font-semibold text-gray-700">Delivery Fee</div>
+            <span className="text-gray-800">{detailsRestaurant.deliveryFee}</span>
+          </div>
+          <div>
+            <div className="font-semibold text-gray-700">Min Order</div>
+            <span className="text-gray-800">{detailsRestaurant.minOrder}</span>
+          </div>
+          <div>
+            <div className="font-semibold text-gray-700">Distance</div>
+            <span className="text-gray-800">{detailsRestaurant.distance}</span>
+          </div>
+          <div>
+            <div className="font-semibold text-gray-700">Open Hours</div>
+            <span className="text-gray-800">
+              {detailsRestaurant.open_time} - {detailsRestaurant.closed_time}
+            </span>
+          </div>
+        </div>
+        <div className="text-xs text-gray-400 border-t pt-4">
+          Created: {new Date(detailsRestaurant.createdAt).toLocaleString()}<br />
+          Updated: {new Date(detailsRestaurant.updatedAt).toLocaleString()}
+        </div>
+      </div>
+    )}
+    <DialogFooter>
+      <Button variant="outline" onClick={() => setShowDetailsModal(false)}>
+        Close
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
     </div>
   )
 }
