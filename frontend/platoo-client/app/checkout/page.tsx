@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { MapPin, AlertCircle, Plus, Minus } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { useCart } from "@/hooks/useCart";
 
 interface MenuItem {
   _id: string;

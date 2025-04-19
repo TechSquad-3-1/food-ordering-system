@@ -1,15 +1,22 @@
-import { Card, CardContent } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
-import { UtensilsCrossed, Users, Clock, Award, MapPin, Phone, Mail, Globe } from "lucide-react"
-import Image from "next/image"
-import Header from "@/components/Header"
-import Footer from "@/components/Footer"
+"use client";
+
+import { useCart } from "@/hooks/useCart"; // Import the useCart hook
+import { UtensilsCrossed, Users, Clock, Award, MapPin, Phone, Mail, Globe } from "lucide-react";
+import Image from "next/image";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 export default function AboutPage() {
+  // Use the useCart hook to get cart items and cart count
+  const { cartItems } = useCart(); // You can access cartItems, subtotal, etc.
+  const cartCount = cartItems.length; // Get the count of items in the cart
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Add the Header */}
-      <Header cartCount={1} />
+      <Header cartCount={cartCount} />
 
       <div className="container py-8">
         <div className="flex flex-col gap-8">

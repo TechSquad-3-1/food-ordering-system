@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import Header from "@/components/Header"
 import Footer from "@/components/Footer"
+import { useCart } from "@/hooks/useCart"; 
 import { Search, MapPin, Star, Clock, Filter } from "lucide-react"
 
 interface Restaurant {
@@ -27,7 +28,7 @@ interface Restaurant {
   cuisines: string[]
   priceLevel: number
 }
-
+  
 export default function RestaurantsPage() {
   const router = useRouter()
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
@@ -51,6 +52,9 @@ export default function RestaurantsPage() {
     "Mediterranean",
     "Fast Food",
   ]
+
+  const { cartItems } = useCart(); // You can access cartItems, subtotal, etc.
+  const cartCount = cartItems.length;
 
   useEffect(() => {
     const fetchRestaurants = async () => {
@@ -124,7 +128,7 @@ export default function RestaurantsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header cartCount={2} />
+      <Header cartCount={cartCount} />
 
       <main className="max-w-[1400px] mx-auto px-6 py-8">
         {/* Hero Section */}
