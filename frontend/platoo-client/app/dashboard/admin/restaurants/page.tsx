@@ -29,7 +29,6 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Search,
   MoreHorizontal,
-  Edit,
   Trash2,
   Download,
   CheckCircle,
@@ -74,6 +73,13 @@ export default function RestaurantsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null)
 
+  // Status filter: "all", "active", "inactive"
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all")
+
+  // Modal state for restaurant details
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [detailsRestaurant, setDetailsRestaurant] = useState<Restaurant | null>(null)
+
   useEffect(() => {
     const fetchRestaurants = async () => {
       setIsLoading(true)
@@ -96,7 +102,7 @@ export default function RestaurantsPage() {
 
   useEffect(() => {
     applyFilters()
-  }, [searchQuery, cuisineFilter, restaurants])
+  }, [searchQuery, cuisineFilter, statusFilter, restaurants])
 
   const applyFilters = () => {
     let filtered = [...restaurants]
@@ -114,6 +120,11 @@ export default function RestaurantsPage() {
       filtered = filtered.filter((restaurant) =>
         restaurant.cuisines.some((cuisine) => cuisine.toLowerCase() === cuisineFilter.toLowerCase())
       )
+    }
+    if (statusFilter === "active") {
+      filtered = filtered.filter((restaurant) => restaurant.is_active)
+    } else if (statusFilter === "inactive") {
+      filtered = filtered.filter((restaurant) => !restaurant.is_active)
     }
     setFilteredRestaurants(filtered)
   }
@@ -148,19 +159,42 @@ export default function RestaurantsPage() {
     e.currentTarget.src = "https://via.placeholder.com/40x40?text=No+Image"
   }
 
+  // Open details modal
+  const handleViewDetails = (restaurant: Restaurant) => {
+    setDetailsRestaurant(restaurant)
+    setShowDetailsModal(true)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">Restaurant Management</h1>
         <p className="text-muted-foreground">Manage all restaurants on your platform</p>
       </div>
+      {/* Status filter buttons */}
+      <div className="flex gap-2 mb-2">
+        <Button
+          variant={statusFilter === "all" ? "default" : "outline"}
+          onClick={() => setStatusFilter("all")}
+        >
+          All
+        </Button>
+        <Button
+          variant={statusFilter === "active" ? "default" : "outline"}
+          onClick={() => setStatusFilter("active")}
+        >
+          Active
+        </Button>
+        <Button
+          variant={statusFilter === "inactive" ? "default" : "outline"}
+          onClick={() => setStatusFilter("inactive")}
+        >
+          Inactive
+        </Button>
+      </div>
       <Tabs defaultValue="all" className="space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <TabsList>
-            <TabsTrigger value="all">All Restaurants</TabsTrigger>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="inactive">Inactive</TabsTrigger>
-          </TabsList>
+          
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => router.push("/dashboard/admin/restaurants/add")}>
               <Store className="mr-2 h-4 w-4" />
@@ -179,11 +213,11 @@ export default function RestaurantsPage() {
                 <form onSubmit={handleSearch} className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    type="search"
-                    placeholder="Search restaurants..."
-                    className="pl-8 w-full"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                     type="search"
+                     placeholder="Search by name, restaurant id, cuisine, or location..."
+                     className="pl-8 w-full"
+                     value={searchQuery}
+                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </form>
               </div>
@@ -257,9 +291,7 @@ export default function RestaurantsPage() {
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {restaurant.cuisines.map((type, idx) => (
-                            <Badge key={idx} variant="outline" className="bg-muted/50">
-                              {type}
-                            </Badge>
+                            <Badge key={idx} variant="outline" className="bg-muted/50">{type}</Badge>
                           ))}
                         </div>
                       </TableCell>
@@ -301,29 +333,69 @@ export default function RestaurantsPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuItem
-                              onClick={() => router.push(`/dashboard/admin/restaurants/${restaurant._id}`)}
+                              onClick={() => handleViewDetails(restaurant)}
                             >
                               <Eye className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              onClick={() => router.push(`/dashboard/admin/restaurants/${restaurant._id}/edit`)}
+                              className="text-green-600"
+                              onClick={async () => {
+                                // Approve: set is_active to true
+                                try {
+                                  await fetch(`http://localhost:3001/api/restaurants/${restaurant._id}/approve`, {
+                                    method: "PUT",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ is_active: true }),
+                                  });
+                                  setRestaurants((prev) =>
+                                    prev.map((r) =>
+                                      r._id === restaurant._id ? { ...r, is_active: true } : r
+                                    )
+                                  );
+                                  setFilteredRestaurants((prev) =>
+                                    prev.map((r) =>
+                                      r._id === restaurant._id ? { ...r, is_active: true } : r
+                                    )
+                                  );
+                                } catch (err) {
+                                  alert("Failed to approve restaurant.");
+                                }
+                              }}
                             >
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Approve
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={async () => {
+                                // Reject: set is_active to false
+                                try {
+                                  await fetch(`http://localhost:3001/api/restaurants/${restaurant._id}/reject`, {
+                                    method: "PUT",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ is_active: false }),
+                                  });
+                                  setRestaurants((prev) =>
+                                    prev.map((r) =>
+                                      r._id === restaurant._id ? { ...r, is_active: false } : r
+                                    )
+                                  );
+                                  setFilteredRestaurants((prev) =>
+                                    prev.map((r) =>
+                                      r._id === restaurant._id ? { ...r, is_active: false } : r
+                                    )
+                                  );
+                                } catch (err) {
+                                  alert("Failed to reject restaurant.");
+                                }
+                              }}
+                            >
+                              <XCircle className="mr-2 h-4 w-4" />
+                              Reject
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            {restaurant.is_active ? (
-                              <DropdownMenuItem className="text-amber-600">
-                                <XCircle className="mr-2 h-4 w-4" />
-                                Suspend
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem className="text-green-600">
-                                <CheckCircle className="mr-2 h-4 w-4" />
-                                Reactivate
-                              </DropdownMenuItem>
-                            )}
                             <DropdownMenuItem
                               className="text-red-600"
                               onClick={() => {
@@ -393,6 +465,102 @@ export default function RestaurantsPage() {
             </Button>
             <Button type="button" variant="destructive" onClick={handleDeleteRestaurant}>
               Delete Restaurant
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* View Details Dialog */}
+      <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
+        <DialogContent className="sm:max-w-xl bg-white rounded-2xl shadow-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold mb-2 text-blue-700">Restaurant Details</DialogTitle>
+            <DialogDescription className="mb-4 text-gray-500">
+              All information about this restaurant.
+            </DialogDescription>
+          </DialogHeader>
+          {detailsRestaurant && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-6 border-b pb-4">
+                <img
+                  src={detailsRestaurant.image || "https://via.placeholder.com/80x80?text=No+Image"}
+                  alt={detailsRestaurant.name}
+                  className="w-24 h-24 rounded-lg object-cover border shadow"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src =
+                      "https://via.placeholder.com/80x80?text=No+Image";
+                  }}
+                />
+                <div>
+                  <div className="font-bold text-xl text-gray-800">{detailsRestaurant.name}</div>
+                  <div className="text-xs text-gray-400 mb-2">ID: {detailsRestaurant._id}</div>
+                  <div className="flex flex-wrap gap-2">
+                    {detailsRestaurant.cuisines.map((c, i) => (
+                      <Badge key={i} variant="outline" className="bg-blue-50 border-blue-200 text-blue-700">
+                        {c}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="font-semibold text-gray-700">Location</div>
+                  <div className="text-gray-800">{detailsRestaurant.location.tag}</div>
+                  <div className="text-xs text-gray-400">
+                    [{detailsRestaurant.location.coordinates.join(", ")}]
+                  </div>
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-700">Status</div>
+                  <Badge className={detailsRestaurant.is_active
+                    ? "bg-green-500 text-white px-2 py-1"
+                    : "bg-gray-400 text-white px-2 py-1"}>
+                    {detailsRestaurant.is_active ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-700">Rating</div>
+                  <div className="flex items-center gap-1 text-yellow-600 font-semibold">
+                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                    <span>{detailsRestaurant.rating}</span>
+                  </div>
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-700">Price Level</div>
+                  <span className="text-green-700 text-lg tracking-wide">{getPriceLevel(detailsRestaurant.priceLevel)}</span>
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-700">Delivery Time</div>
+                  <span className="text-gray-800">{detailsRestaurant.deliveryTime}</span>
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-700">Delivery Fee</div>
+                  <span className="text-gray-800">{detailsRestaurant.deliveryFee}</span>
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-700">Min Order</div>
+                  <span className="text-gray-800">{detailsRestaurant.minOrder}</span>
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-700">Distance</div>
+                  <span className="text-gray-800">{detailsRestaurant.distance}</span>
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-700">Open Hours</div>
+                  <span className="text-gray-800">
+                    {detailsRestaurant.open_time} - {detailsRestaurant.closed_time}
+                  </span>
+                </div>
+              </div>
+              <div className="text-xs text-gray-400 border-t pt-4">
+                Created: {new Date(detailsRestaurant.createdAt).toLocaleString()}<br />
+                Updated: {new Date(detailsRestaurant.updatedAt).toLocaleString()}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDetailsModal(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
