@@ -277,15 +277,23 @@ export default function OrdersPage() {
               <div>
                 <span className="font-medium">Status: </span>
                 <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                  <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
-                  <SelectContent>
-                    {["pending", "preparing", "ready", "delivered", "cancelled"].map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {status.charAt(0) + status.slice(1)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+  <SelectTrigger>
+    <SelectValue placeholder="Select status" />
+  </SelectTrigger>
+  <SelectContent>
+    {(selectedOrder?.status === "preparing"
+      ? ["ready"]
+      : selectedOrder?.status === "pending"
+        ? ["preparing"]
+        : ["pending", "preparing", "ready", "delivered", "cancelled"]
+    ).map((status) => (
+      <SelectItem key={status} value={status}>
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
+
               </div>
             </div>
           )}
