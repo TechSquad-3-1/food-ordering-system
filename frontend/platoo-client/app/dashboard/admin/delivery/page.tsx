@@ -17,6 +17,9 @@ import { Progress } from "@/components/ui/progress"
 import { Search, Plus, MapPin, Truck, User, Phone, Mail, Calendar, Star, Bike, Car, MoreHorizontal, Edit, XCircle, CheckCircle, RefreshCw, ShoppingBag } from 'lucide-react'
 
 interface DeliveryPerson {
+  address: string
+  createdAt: any
+  vehicleNumber: string
   id: string
   name?: string
   email?: string
@@ -48,39 +51,136 @@ interface Delivery {
 }
 
 export default function AdminDeliveryDashboard() {
+  // ======================== EXISTING STATE ========================
   const [isLoading, setIsLoading] = useState(true)
   const [deliveryPersonnel, setDeliveryPersonnel] = useState<DeliveryPerson[]>([])
   const [activeDeliveries, setActiveDeliveries] = useState<Delivery[]>([])
   const [selectedDeliveryPerson, setSelectedDeliveryPerson] = useState<DeliveryPerson | null>(null)
-  const [showAddDeliveryPersonDialog, setShowAddDeliveryPersonDialog] = useState(false)
   const [deliveryPersonnelFilter, setDeliveryPersonnelFilter] = useState("all")
   const [deliveriesFilter, setDeliveriesFilter] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
 
-  // Fetch delivery personnel from backend
+  const [isEditing, setIsEditing] = useState(false)
+  const [editForm, setEditForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    vehicleNumber: "",
+    status: "inactive" as "active" | "inactive" | "on_delivery",
+  })
+  const [editLoading, setEditLoading] = useState(false)
+  const [editError, setEditError] = useState("")
+
+  // ...existing useEffect hooks and other logic remain unchanged...
+
+  // ======================== EDIT HANDLERS ========================
+  const openEdit = (person: DeliveryPerson) => {
+    setEditForm({
+      name: person.name || "",
+      email: person.email || "",
+      phone: person.phone || "",
+      address: person.address || "",
+      vehicleNumber: person.vehicleNumber || "",
+      status: person.status,
+    })
+    setIsEditing(true)
+  }
+
+  const handleEditChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target
+    setEditForm((prev) => ({
+      ...prev,
+      [name]: name === "status" 
+        ? value as "active" | "inactive" | "on_delivery" 
+        : value,
+    }))
+  }
+
+  const handleEditSubmit = async () => {
+    if (!selectedDeliveryPerson) return
+    setEditLoading(true)
+    setEditError("")
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch(
+        `http://localhost:4000/api/auth/update/${selectedDeliveryPerson.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(editForm),
+        }
+      )
+      if (!res.ok) throw new Error("Failed to update user")
+      
+      // Update local state
+      setSelectedDeliveryPerson((prev) =>
+        prev ? { ...prev, ...editForm } : prev
+      )
+      setDeliveryPersonnel((prev) =>
+        prev.map((p) =>
+          p.id === selectedDeliveryPerson.id ? { ...p, ...editForm } : p
+        )
+      )
+      setIsEditing(false)
+    } catch (e) {
+      setEditError("Update failed. Please try again.")
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  // Fetch delivery personnel from backend (UPDATED TO MATCH NEW DATA FORMAT)
   useEffect(() => {
     async function fetchDeliveryPersonnel() {
+      setIsLoading(true)
       try {
-        const res = await fetch("http://localhost:3003/api/delivery")
-        const data = await res.json()
-        setDeliveryPersonnel(data.map((item: any) => ({
-          id: item._id || item.id,
-          name: item.name || "",
-          email: item.email || "",
-          phone: item.phone || "",
-          status: item.status || "inactive",
-          rating: item.rating ?? 4.5,
-          totalDeliveries: item.totalDeliveries ?? 0,
-          vehicleType: item.vehicleType || "bike",
-          location: item.location,
-          avatar: item.avatar
-        })))
+        const token = localStorage.getItem("token")
+        const res = await fetch("http://localhost:4000/api/auth/users", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        if (!res.ok) throw new Error("Failed to fetch users")
+        const users = await res.json()
+        // Only include users with role "delivery_man"
+        const deliveryPersons = users.filter(
+          (user: any) => user.role === "delivery_man"
+        )
+        setDeliveryPersonnel(
+          deliveryPersons.map((item: any) => ({
+            id: item._id,
+            name: item.name || "",
+            email: item.email || "",
+            phone: item.phone || "",
+            status: item.status || "inactive",
+            rating: item.rating ?? 4.5,
+            totalDeliveries: item.totalDeliveries ?? 0,
+            vehicleType: item.vehicleNumber ? "bike" : "bike", // Default to "bike" if not specified
+            vehicleNumber: item.vehicleNumber || "",
+            address: item.address || "",
+            restaurantName: item.restaurantName || "",
+            createdAt: item.createdAt || "",
+            location: item.location,
+            avatar: item.avatar,
+          }))
+        )
       } catch (e) {
         setDeliveryPersonnel([])
+      } finally {
+        setIsLoading(false)
       }
     }
     fetchDeliveryPersonnel()
   }, [])
+  
 
   // Fetch deliveries from backend and map to UI format
   useEffect(() => {
@@ -182,6 +282,10 @@ export default function AdminDeliveryDashboard() {
     )
   }
 
+  function setShowAddDeliveryPersonDialog(arg0: boolean): void {
+    throw new Error("Function not implemented.")
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
@@ -251,91 +355,78 @@ export default function AdminDeliveryDashboard() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={() => setShowAddDeliveryPersonDialog(true)}>
-              <Plus className="mr-2 h-4 w-4" /> Add Delivery Person
-            </Button>
+            
           </div>
           <Card>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Vehicle</TableHead>
-                    <TableHead>Rating</TableHead>
-                    <TableHead>Deliveries</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredDeliveryPersonnel.map((person) => (
-                    <TableRow key={person.id}>
-                      <TableCell className="font-medium">{person.id}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={person.avatar || "/placeholder.svg?height=32&width=32"} alt={person.name || "?"} />
-                            <AvatarFallback>{person?.name?.charAt(0)?.toUpperCase() || "?"}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">{person.name || "Unnamed"}</div>
-                            <div className="text-xs text-muted-foreground">{person.email || "No email"}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-1">
-                            <Phone className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-sm">{person.phone || "-"}</span>
-                          </div>
-                          {person.location && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <MapPin className="h-3 w-3" />
-                              <span>Updated {new Date(person.location.lastUpdated).toLocaleTimeString()}</span>
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={`${getStatusColor(person.status)} text-white`}>
-                          {person.status === "active"
-                            ? "Active"
-                            : person.status === "inactive"
-                            ? "Inactive"
-                            : "On Delivery"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          {getVehicleIcon(person.vehicleType)}
-                          <span className="capitalize">{person.vehicleType}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                          <span>{person.rating}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{person.totalDeliveries}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" onClick={() => setSelectedDeliveryPerson(person)}>
-                            View Details
-                          </Button>
-                          <Button variant="outline" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <Table>
+  <TableHeader>
+    <TableRow>
+      <TableHead>ID</TableHead>
+      <TableHead>Name</TableHead>
+      <TableHead>Contact</TableHead>
+      <TableHead>Status</TableHead>
+      <TableHead>Vehicle No</TableHead>
+      <TableHead>Address</TableHead>
+      <TableHead>Joined</TableHead>
+      <TableHead>Actions</TableHead>
+    </TableRow>
+  </TableHeader>
+  <TableBody>
+    {filteredDeliveryPersonnel.map((person) => (
+      <TableRow key={person.id}>
+        <TableCell className="font-medium">{person.id}</TableCell>
+        <TableCell>
+          <div className="flex items-center gap-2">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={person.avatar || "/placeholder.svg?height=32&width=32"} alt={person.name || "?"} />
+              <AvatarFallback>{person?.name?.charAt(0)?.toUpperCase() || "?"}</AvatarFallback>
+            </Avatar>
+            <div>
+              <div className="font-medium">{person.name || "Unnamed"}</div>
+              <div className="text-xs text-muted-foreground">{person.email || "No email"}</div>
+            </div>
+          </div>
+        </TableCell>
+        <TableCell>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-1">
+              <Phone className="h-3 w-3 text-muted-foreground" />
+              <span className="text-sm">{person.phone || "-"}</span>
+            </div>
+          </div>
+        </TableCell>
+        <TableCell>
+          <Badge className={`${getStatusColor(person.status)} text-white`}>
+            {person.status === "active"
+              ? "Active"
+              : person.status === "inactive"
+              ? "Inactive"
+              : "On Delivery"}
+          </Badge>
+        </TableCell>
+        <TableCell>
+          {person.vehicleNumber || "-"}
+        </TableCell>
+        <TableCell>
+          {person.address || "-"}
+        </TableCell>
+        <TableCell>
+          {person.createdAt ? new Date(person.createdAt).toLocaleDateString() : "-"}
+        </TableCell>
+        <TableCell>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setSelectedDeliveryPerson(person)}>
+              View Details
+            </Button>
+          </div>
+        </TableCell>
+      </TableRow>
+    ))}
+  </TableBody>
+</Table>
+
+
             </CardContent>
           </Card>
         </TabsContent>
@@ -382,7 +473,6 @@ export default function AdminDeliveryDashboard() {
                     <TableHead>Pickup Time</TableHead>
                     <TableHead>Delivery Time</TableHead>
                     <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -428,13 +518,9 @@ export default function AdminDeliveryDashboard() {
                           {delivery.createdAt ? new Date(delivery.createdAt).toLocaleTimeString() : "-"}
                         </TableCell>
                         <TableCell>
+                          {/* View Details button removed as requested */}
                           <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm">
-                              View Details
-                            </Button>
-                            {delivery.deliveryStatus === "pending" && (
-                              <Button size="sm">Assign</Button>
-                            )}
+                            {/* Other action buttons can go here if needed */}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -447,200 +533,199 @@ export default function AdminDeliveryDashboard() {
         </TabsContent>
       </Tabs>
 
-      {/* Add Delivery Person Dialog */}
-      <Dialog open={showAddDeliveryPersonDialog} onOpenChange={setShowAddDeliveryPersonDialog}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Add Delivery Person</DialogTitle>
-            <DialogDescription>
-              Add a new delivery person to the system. They will be able to accept and deliver orders.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Name
-              </Label>
-              <Input id="name" placeholder="Full name" className="col-span-3" />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
-                Email
-              </Label>
-              <Input id="email" type="email" placeholder="Email address" className="col-span-3" />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="phone" className="text-right">
-                Phone
-              </Label>
-              <Input id="phone" placeholder="Phone number" className="col-span-3" />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="vehicle" className="text-right">
-                Vehicle
-              </Label>
-              <Select defaultValue="bike">
-                <SelectTrigger className="col-span-3" id="vehicle">
-                  <SelectValue placeholder="Select vehicle type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="bike">Bike</SelectItem>
-                  <SelectItem value="scooter">Scooter</SelectItem>
-                  <SelectItem value="car">Car</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Status</Label>
-              <div className="flex items-center space-x-2 col-span-3">
-                <Checkbox id="active" defaultChecked />
-                <label
-                  htmlFor="active"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Active
-                </label>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDeliveryPersonDialog(false)}>
-              Cancel
-            </Button>
-            <Button type="submit">Add Delivery Person</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+     
 
       {/* Delivery Person Details Dialog */}
       {selectedDeliveryPerson && (
-        <Dialog open={!!selectedDeliveryPerson} onOpenChange={() => setSelectedDeliveryPerson(null)}>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>Delivery Person Details</DialogTitle>
-              <DialogDescription>
-                View and manage details for {selectedDeliveryPerson.name || "Unnamed"}.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-6 py-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16">
-                  <AvatarImage
-                    src={selectedDeliveryPerson.avatar || "/placeholder.svg?height=64&width=64"}
-                    alt={selectedDeliveryPerson.name || "?"}
-                  />
-                  <AvatarFallback>{selectedDeliveryPerson?.name?.charAt(0)?.toUpperCase() || "?"}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="text-lg font-semibold">{selectedDeliveryPerson.name || "Unnamed"}</h3>
-                  <p className="text-sm text-muted-foreground">{selectedDeliveryPerson.id}</p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <Badge className={`${getStatusColor(selectedDeliveryPerson.status)} text-white`}>
-                      {selectedDeliveryPerson.status === "active"
-                        ? "Active"
-                        : selectedDeliveryPerson.status === "inactive"
-                        ? "Inactive"
-                        : "On Delivery"}
-                    </Badge>
-                    <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <span>{selectedDeliveryPerson.rating}</span>
-                    </div>
+  <Dialog open={!!selectedDeliveryPerson} onOpenChange={() => { setSelectedDeliveryPerson(null); setIsEditing(false); }}>
+    <DialogContent className="sm:max-w-[500px] rounded-xl shadow-xl border-0 p-0">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-400 rounded-t-xl px-6 py-5 flex items-center gap-4">
+        <Avatar className="h-16 w-16 border-4 border-white shadow-lg">
+          <AvatarImage
+            src={selectedDeliveryPerson.avatar || "/placeholder.svg?height=64&width=64"}
+            alt={selectedDeliveryPerson.name || "?"}
+          />
+          <AvatarFallback>
+            {selectedDeliveryPerson?.name?.charAt(0)?.toUpperCase() || "?"}
+          </AvatarFallback>
+        </Avatar>
+        <div>
+          <h2 className="text-2xl font-bold text-white mb-1">
+            {selectedDeliveryPerson.name || "Unnamed"}
+          </h2>
+          <div className="flex items-center gap-2">
+            <Badge className={`${getStatusColor(selectedDeliveryPerson.status)} text-white text-xs px-2 py-0.5 rounded`}>
+              {selectedDeliveryPerson.status === "active"
+                ? "Active"
+                : selectedDeliveryPerson.status === "inactive"
+                ? "Inactive"
+                : "On Delivery"}
+            </Badge>
+            <span className="text-xs text-blue-100">
+              ID: {selectedDeliveryPerson.id}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div className="px-6 py-6 bg-white rounded-b-xl">
+        {!isEditing ? (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="font-semibold text-gray-700 mb-2">Contact</h4>
+                <div className="space-y-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-blue-500" />
+                    <span>{selectedDeliveryPerson.email || "No email"}</span>
                   </div>
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <h4 className="mb-2 font-medium">Contact Information</h4>
-                  <div className="space-y-2 rounded-md border p-3">
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <span>{selectedDeliveryPerson.email || "No email"}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span>{selectedDeliveryPerson.phone || "-"}</span>
-                    </div>
-                    {selectedDeliveryPerson.location && (
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                        <span>
-                          Last updated: {new Date(selectedDeliveryPerson.location.lastUpdated).toLocaleString()}
-                        </span>
-                      </div>
-                    )}
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-blue-500" />
+                    <span>{selectedDeliveryPerson.phone || "-"}</span>
                   </div>
-                </div>
-                <div>
-                  <h4 className="mb-2 font-medium">Delivery Information</h4>
-                  <div className="space-y-2 rounded-md border p-3">
-                    <div className="flex items-center gap-2">
-                      <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-                      <span>Total Deliveries: {selectedDeliveryPerson.totalDeliveries}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {getVehicleIcon(selectedDeliveryPerson.vehicleType)}
-                      <span>
-                        Vehicle: {selectedDeliveryPerson.vehicleType?.charAt(0).toUpperCase() + selectedDeliveryPerson.vehicleType?.slice(1)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span>Joined: January 15, 2023</span>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-blue-500" />
+                    <span>{selectedDeliveryPerson.address || "-"}</span>
                   </div>
                 </div>
               </div>
               <div>
-                <h4 className="mb-2 font-medium">Performance Metrics</h4>
-                <div className="space-y-4 rounded-md border p-3">
-                  <div>
-                    <div className="mb-1 flex items-center justify-between">
-                      <span className="text-sm">On-time Delivery Rate</span>
-                      <span className="text-sm font-medium">92%</span>
-                    </div>
-                    <Progress value={92} className="h-2" />
+                <h4 className="font-semibold text-gray-700 mb-2">Delivery Info</h4>
+                <div className="space-y-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-blue-500" />
+                    <span>Vehicle No: {selectedDeliveryPerson.vehicleNumber || "-"}</span>
                   </div>
-                  <div>
-                    <div className="mb-1 flex items-center justify-between">
-                      <span className="text-sm">Customer Satisfaction</span>
-                      <span className="text-sm font-medium">4.8/5.0</span>
-                    </div>
-                    <Progress value={96} className="h-2" />
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-blue-500" />
+                    <span>
+                      Joined: {selectedDeliveryPerson.createdAt
+                        ? new Date(selectedDeliveryPerson.createdAt).toLocaleDateString()
+                        : "-"}
+                    </span>
                   </div>
-                  <div>
-                    <div className="mb-1 flex items-center justify-between">
-                      <span className="text-sm">Order Acceptance Rate</span>
-                      <span className="text-sm font-medium">88%</span>
-                    </div>
-                    <Progress value={88} className="h-2" />
+                  <div className="flex items-center gap-2">
+                    {getVehicleIcon(selectedDeliveryPerson.vehicleType)}
+                    <span>Vehicle Type: {selectedDeliveryPerson.vehicleType}</span>
                   </div>
+                  {selectedDeliveryPerson.location && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-blue-500" />
+                      <span>
+                        Location: {selectedDeliveryPerson.location.lat}, {selectedDeliveryPerson.location.lng}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-            <DialogFooter className="flex items-center justify-between sm:justify-between">
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <Edit className="mr-2 h-4 w-4" /> Edit
-                </Button>
-                {selectedDeliveryPerson.status === "active" ? (
-                  <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600">
-                    <XCircle className="mr-2 h-4 w-4" /> Deactivate
-                  </Button>
-                ) : (
-                  <Button variant="outline" size="sm" className="text-green-500 hover:text-green-600">
-                    <CheckCircle className="mr-2 h-4 w-4" /> Activate
-                  </Button>
-                )}
-              </div>
+            <div className="mt-8 flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => openEdit(selectedDeliveryPerson)}
+              >
+                <Edit className="mr-2 h-4 w-4" /> Edit
+              </Button>
               <Button variant="outline" onClick={() => setSelectedDeliveryPerson(null)}>
                 Close
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+            </div>
+          </>
+        ) : (
+          // ... keep your existing edit form code here, unchanged ...
+          <form
+            onSubmit={e => {
+              e.preventDefault()
+              handleEditSubmit()
+            }}
+            className="space-y-6"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <div className="space-y-4">
+    <div>
+      <Label className="block text-sm font-medium text-gray-700 mb-1">Name</Label>
+      <Input
+        name="name"
+        value={editForm.name}
+        onChange={handleEditChange}
+        required
+      />
+    </div>
+    <div>
+      <Label className="block text-sm font-medium text-gray-700 mb-1">Email</Label>
+      <Input
+        name="email"
+        type="email"
+        value={editForm.email}
+        onChange={handleEditChange}
+        required
+      />
+    </div>
+    <div>
+      <Label className="block text-sm font-medium text-gray-700 mb-1">Phone</Label>
+      <Input
+        name="phone"
+        value={editForm.phone}
+        onChange={handleEditChange}
+        required
+      />
+    </div>
+  </div>
+  <div className="space-y-4">
+    <div>
+      <Label className="block text-sm font-medium text-gray-700 mb-1">Address</Label>
+      <Input
+        name="address"
+        value={editForm.address}
+        onChange={handleEditChange}
+      />
+    </div>
+    <div>
+      <Label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Number</Label>
+      <Input
+        name="vehicleNumber"
+        value={editForm.vehicleNumber}
+        onChange={handleEditChange}
+      />
+    </div>
+    <div>
+      <Label className="block text-sm font-medium text-gray-700 mb-1">Status</Label>
+      <select
+        name="status"
+        value={editForm.status}
+        onChange={handleEditChange}
+        className="w-full border rounded px-2 py-1"
+      >
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+        <option value="on_delivery">On Delivery</option>
+      </select>
+    </div>
+  </div>
+</div>
+{editError && <div className="text-red-500 text-sm">{editError}</div>}
+<div className="flex justify-end gap-2">
+  <Button
+    variant="outline"
+    type="button"
+    onClick={() => setIsEditing(false)}
+    disabled={editLoading}
+  >
+    Cancel
+  </Button>
+  <Button type="submit" disabled={editLoading}>
+    {editLoading ? "Saving..." : "Save"}
+  </Button>
+</div>
+
+          </form>
+        )}
+      </div>
+    </DialogContent>
+  </Dialog>
+)}
+
+
     </div>
   )
 }
