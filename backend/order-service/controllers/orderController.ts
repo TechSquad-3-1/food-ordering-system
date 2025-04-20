@@ -85,7 +85,7 @@ export const updateOrder = async (req: Request, res: Response): Promise<Response
 // Update only the status of an order
 export const updateOrderStatus = async (orderId: string, status: string, res: Response) => {
   // Validate the provided status
-  const validStatuses = ['pending', 'delivered', 'shipped', 'cancelled'];
+  const validStatuses = ['pending', 'delivered', 'preparing', 'ready', 'cancelled'];
   
   if (!status || !validStatuses.includes(status)) {
     return res.status(400).json({ message: 'Invalid status provided' });
