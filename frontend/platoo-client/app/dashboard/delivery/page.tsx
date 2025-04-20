@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Edit, Loader2 } from "lucide-react";
+import { DashboardLayout } from "@/components/layout/dashboard-layout";
 
 export default function DeliveryPersonProfile() {
   const router = useRouter();
@@ -104,109 +105,132 @@ export default function DeliveryPersonProfile() {
     }
   };
 
+  const navItems = [
+    { title: "Dashboard", href: "/dashboard", icon: "home" },
+    { title: "Deliveries", href: "/dashboard/deliveries", icon: "truck" },
+    { title: "Earnings", href: "/dashboard/earnings", icon: "dollar-sign" },
+    { title: "Profile", href: "/dashboard/delivery", icon: "user" },
+    { title: "Settings", href: "/dashboard/settings", icon: "settings" },
+  ];
+
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-100">
-        <Loader2 className="h-8 w-8 text-gray-600 animate-spin" />
-      </div>
+      <DashboardLayout navItems={navItems}>
+        <div className="flex h-full items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+          <span className="ml-2 text-lg">Loading your profile...</span>
+        </div>
+      </DashboardLayout>
     );
   }
 
   if (!user) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-100">
-        <p className="text-gray-600">User not found.</p>
-      </div>
+      <DashboardLayout navItems={navItems}>
+        <div className="flex justify-center items-center min-h-screen">
+          <p className="text-gray-600">User not found.</p>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-white to-gray-100 p-6">
-      <Card className="w-full max-w-3xl shadow-xl rounded-2xl border-none">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-2xl font-bold">Delivery Person Profile</CardTitle>
-            <CardDescription className="text-gray-500">Manage your personal details</CardDescription>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsEditing(!isEditing)}
-            className="flex items-center gap-2"
-          >
-            {isEditing ? "Cancel" : (<><Edit className="h-4 w-4" /> Edit</>)}
-          </Button>
-        </CardHeader>
-
-        <CardContent className="p-8">
-          <div className="flex flex-col items-center mb-8">
-            <Avatar className="h-28 w-28 shadow-md">
-              <AvatarImage src="https://github.com/shadcn.png" alt={user.name} />
-              <AvatarFallback className="bg-red-500 text-white">{user.name.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <h2 className="mt-4 text-xl font-semibold">{user.name}</h2>
-            <p className="text-gray-500">{user.email}</p>
-          </div>
-
-          <form onSubmit={handleSave} className="space-y-6 bg-gray-50 p-6 rounded-xl">
-            {/* Full Name */}
-            <div>
-              <label className="block mb-2 text-sm font-medium text-gray-700">Full Name</label>
-              <Input
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                disabled={!isEditing}
-                required
-              />
-            </div>
-
-            {/* Email */}
-            <div>
-              <label className="block mb-2 text-sm font-medium text-gray-700">Email Address</label>
-              <Input
-                name="email"
-                value={formData.email}
-                disabled
-              />
-            </div>
-
-            {/* Phone */}
-            <div>
-              <label className="block mb-2 text-sm font-medium text-gray-700">Phone Number</label>
-              <Input
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                disabled={!isEditing}
-              />
-            </div>
-
-            {/* Vehicle */}
-            <div>
-              <label className="block mb-2 text-sm font-medium text-gray-700">Vehicle Number</label>
-              <Input
-                name="vehicleNumber"
-                value={formData.vehicleNumber}
-                onChange={handleChange}
-                disabled={!isEditing}
-              />
-            </div>
-
-            {/* Save Button */}
-            {isEditing && (
-              <div className="flex justify-end pt-4">
-                <Button
-                  type="submit"
-                  className="bg-red-500 hover:bg-red-600 transition-all duration-200 rounded-full px-6"
-                >
-                  Save Changes
-                </Button>
+    <DashboardLayout navItems={navItems}>
+      {/* Center the card horizontally */}
+      <div className="min-h-screen p-6 md:p-10 bg-gray-50 flex items-center justify-center">
+        <div className="w-full max-w-5xl">
+          <Card className="shadow-lg rounded-2xl">
+            {/* Header */}
+            <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <CardTitle className="text-3xl font-bold">Delivery Person Profile</CardTitle>
+                <CardDescription className="text-gray-500">
+                  Manage your personal details
+                </CardDescription>
               </div>
-            )}
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditing(!isEditing)}
+                className="flex items-center gap-2"
+              >
+                {isEditing ? "Cancel" : (<><Edit className="h-4 w-4" /> Edit</>)}
+              </Button>
+            </CardHeader>
+
+            {/* Content */}
+            <CardContent className="p-8 grid grid-cols-1 md:grid-cols-2 gap-10">
+              {/* Avatar + Name */}
+              <div className="flex flex-col items-center md:items-start gap-4">
+                <Avatar className="h-32 w-32">
+                  <AvatarImage src="https://github.com/shadcn.png" alt={user.name} />
+                  <AvatarFallback className="bg-primary text-white text-4xl">{user.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="text-center md:text-left">
+                  <h2 className="text-2xl font-semibold">{user.name}</h2>
+                  <p className="text-gray-500">{user.email}</p>
+                </div>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleSave} className="space-y-6">
+                {/* Full Name */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Full Name</label>
+                  <Input
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    disabled={!isEditing}
+                    required
+                  />
+                </div>
+
+                {/* Email */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Email Address</label>
+                  <Input
+                    name="email"
+                    value={formData.email}
+                    disabled
+                  />
+                </div>
+
+                {/* Phone */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Phone Number</label>
+                  <Input
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    disabled={!isEditing}
+                  />
+                </div>
+
+                {/* Vehicle */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Vehicle Number</label>
+                  <Input
+                    name="vehicleNumber"
+                    value={formData.vehicleNumber}
+                    onChange={handleChange}
+                    disabled={!isEditing}
+                  />
+                </div>
+
+                {/* Save Button */}
+                {isEditing && (
+                  <div className="flex justify-end">
+                    <Button type="submit" className="rounded-full px-6 bg-green-600 hover:bg-green-700">
+                      Save Changes
+                    </Button>
+                  </div>
+                )}
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </DashboardLayout>
   );
 }
