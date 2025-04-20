@@ -109,7 +109,7 @@ export default function DeliveryPersonProfile() {
     { title: "Dashboard", href: "/dashboard", icon: "home" },
     { title: "Deliveries", href: "/dashboard/deliveries", icon: "truck" },
     { title: "Earnings", href: "/dashboard/earnings", icon: "dollar-sign" },
-    { title: "Profile", href: "/dashboard/delivery", icon: "user" },
+    { title: "Profile", href: "/dashboard/profile", icon: "user" },
     { title: "Settings", href: "/dashboard/settings", icon: "settings" },
   ];
 

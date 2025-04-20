@@ -51,8 +51,6 @@ export default function DeliveryDashboard({ userId }: DeliveryDashboardProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [activeDelivery, setActiveDelivery] = useState<Delivery | null>(null)
 
-
-  
   useEffect(() => {
     // In a real app, fetch delivery person profile and deliveries from API
     // For demo purposes, we'll use mock data
@@ -222,7 +220,7 @@ export default function DeliveryDashboard({ userId }: DeliveryDashboardProps) {
     { title: "Dashboard", href: "/dashboard", icon: "home" },
     { title: "Deliveries", href: "/dashboard/deliveries", icon: "truck" },
     { title: "Earnings", href: "/dashboard/earnings", icon: "dollar-sign" },
-    { title: "Profile", href: "dashboard/delivery", icon: "user"  },
+    { title: "Profile", href: "/dashboard/delivery", icon: "user" },
     { title: "Settings", href: "/dashboard/settings", icon: "settings" },
   ]
 
