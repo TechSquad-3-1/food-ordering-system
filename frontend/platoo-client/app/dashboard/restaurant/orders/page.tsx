@@ -149,6 +149,31 @@ export default function OrdersPage() {
       console.error("Error updating status", err);
     }
   };
+
+  const handleSend = async (order: { id: string }) => {
+    try {
+      // Example: Change status to "delivered" or "out_for_delivery"
+      const res = await fetch(`http://localhost:3008/api/orders/${order.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "delivered" }) // or "out_for_delivery" if that's your workflow
+      });
+      if (!res.ok) throw new Error("Failed to send order to delivery man");
+  
+      // Optionally update the local state to reflect the change in the UI
+      setOrders((prevOrders) =>
+        prevOrders.map((o) =>
+          o.id === order.id ? { ...o, status: "delivered" } : o
+        )
+      );
+      // Optionally show a success message
+      alert(`Order ${order.id} sent to delivery man!`);
+    } catch (err) {
+      console.error(err);
+      alert("Could not send order to delivery man.");
+    }
+  };
+  
   
   
 
@@ -161,6 +186,8 @@ export default function OrdersPage() {
 
   if (loading) return <div className="p-6 text-center">Loading orders...</div>
   if (error) return <div className="p-6 text-center text-red-600">Error: {error}</div>
+
+  
 
   return (
     <div className="space-y-6">
@@ -215,9 +242,14 @@ export default function OrdersPage() {
                     <TableHead>Status</TableHead>
                     <TableHead>Time</TableHead>
                     <TableHead>Type</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
+                    {selectedTab === "ready" ? (
+                      
+      <TableHead className="text-right">Actions</TableHead>
+    ) : (
+      <TableHead className="text-right">Actions</TableHead>
+    )}
+  </TableRow>
+</TableHeader>
                 <TableBody>
                   {filteredOrders.map((order) => (
                     <TableRow key={order.id}>
@@ -227,20 +259,27 @@ export default function OrdersPage() {
                       <TableCell>{getStatusBadge(order.status)}</TableCell>
                       <TableCell>{order.time}</TableCell>
                       <TableCell>{order.payment}</TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleViewDetails(order)}>
-                              View details
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+                      {selectedTab === "ready" ? (
+  <TableCell className="text-right">
+    <Button onClick={() => handleSend(order)}>Send</Button>
+  </TableCell>
+) : (
+  <TableCell className="text-right">
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => handleViewDetails(order)}>
+          View details
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  </TableCell>
+)}
+
                     </TableRow>
                   ))}
                 </TableBody>
