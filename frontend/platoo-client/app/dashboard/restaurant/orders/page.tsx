@@ -136,27 +136,21 @@ export default function OrdersPage() {
     setIsDetailsOpen(true)
   }
 
-
   const handleUpdateStatus = async (orderId: string, newStatus: string) => {
     try {
-      const res = await fetch("http://localhost:3008/api/orders/${orderId}/status", {
-        method: "PUT",
+      const res = await fetch(`http://localhost:3008/api/orders/${orderId}/status`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
-      })
-      if (!res.ok) throw new Error("Failed to update status")
-      setOrders((prev) =>
-        prev.map((order) =>
-          order.id === orderId ? { ...order, status: newStatus } : order
-        )
-      )
-      if (selectedOrder?.id === orderId) {
-        setSelectedOrder({ ...selectedOrder, status: newStatus })
-      }
+      });
+      if (!res.ok) throw new Error("Failed to update status");
+      // ... update state
     } catch (err) {
-      console.error("Error updating status", err)
+      console.error("Error updating status", err);
     }
-  }
+  };
+  
+  
 
   const handleSaveChanges = () => {
     if (selectedOrder && selectedStatus) {
@@ -287,7 +281,7 @@ export default function OrdersPage() {
                   <SelectContent>
                     {["pending", "preparing", "ready", "delivered", "cancelled"].map((status) => (
                       <SelectItem key={status} value={status}>
-                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                        {status.charAt(0) + status.slice(1)}
                       </SelectItem>
                     ))}
                   </SelectContent>
