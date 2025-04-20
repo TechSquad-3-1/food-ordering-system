@@ -2,40 +2,7 @@
 import type React from "react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Search,
-  MoreHorizontal,
-  Download,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Eye,
-  Calendar,
-  User,
-  Store,
-  Truck,
-  FileText,
-  Printer,
-  MapPin,
-} from "lucide-react";
 
-// This matches your backend order format
 interface Order {
   _id: string;
   order_id?: string;
@@ -92,21 +59,17 @@ export default function OrdersPage() {
   }, []);
 
   useEffect(() => {
-    applyFilters();
-  }, [searchQuery, statusFilter, orders]);
-
-  const applyFilters = () => {
     let filtered = [...orders];
 
-    if (searchQuery) {
+    if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (order) =>
-          (order.order_id || order._id).toLowerCase().includes(query) ||
-          order.user_id.toLowerCase().includes(query) ||
-          order.restaurant_id.toLowerCase().includes(query) ||
-          order.email.toLowerCase().includes(query) ||
-          order.phone.toLowerCase().includes(query)
+          ((order.order_id || order._id || "") as string).toLowerCase().includes(query) ||
+          (order.user_id || "").toLowerCase().includes(query) ||
+          (order.restaurant_id || "").toLowerCase().includes(query) ||
+          (order.email || "").toLowerCase().includes(query) ||
+          (order.phone || "").toLowerCase().includes(query)
       );
     }
 
@@ -115,29 +78,17 @@ export default function OrdersPage() {
     }
 
     setFilteredOrders(filtered);
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    applyFilters();
-  };
+  }, [searchQuery, statusFilter, orders]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "pending":
-        return "bg-yellow-500";
-      case "preparing":
-        return "bg-blue-500";
-      case "ready":
-        return "bg-purple-500";
-      case "out_for_delivery":
-        return "bg-indigo-500";
-      case "delivered":
-        return "bg-green-500";
-      case "cancelled":
-        return "bg-red-500";
-      default:
-        return "bg-gray-500";
+      case "pending": return "bg-yellow-500";
+      case "preparing": return "bg-blue-500";
+      case "ready": return "bg-purple-500";
+      case "out_for_delivery": return "bg-indigo-500";
+      case "delivered": return "bg-green-500";
+      case "cancelled": return "bg-red-500";
+      default: return "bg-gray-500";
     }
   };
 
@@ -151,24 +102,25 @@ export default function OrdersPage() {
   };
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-1">Order Management</h1>
-        <p className="text-gray-600">Track and manage all orders across your platform</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 p-6 md:p-10">
+      <div className="mb-8">
+        <h1 className="text-4xl font-extrabold text-gray-800 mb-1 tracking-tight">Order Management</h1>
+        <p className="text-gray-500 text-lg">Track and manage all orders across your platform</p>
       </div>
+
       {/* Filters */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <input
           type="text"
           placeholder="Search by Order ID, User ID, Restaurant ID, Email, Phone"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="border border-gray-300 rounded-md px-3 py-2 w-full md:w-80 focus:outline-none focus:ring-2 focus:ring-blue-300"
+          className="border border-gray-300 rounded-lg px-4 py-2 w-full md:w-96 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
         />
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="border border-gray-300 rounded-md px-3 py-2 w-full md:w-56 focus:outline-none focus:ring-2 focus:ring-blue-300"
+          className="border border-gray-300 rounded-lg px-4 py-2 w-full md:w-60 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
         >
           <option value="all">All Statuses</option>
           <option value="pending">Pending</option>
@@ -179,11 +131,12 @@ export default function OrdersPage() {
           <option value="cancelled">Cancelled</option>
         </select>
       </div>
+
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg shadow bg-white">
+      <div className="overflow-x-auto rounded-xl shadow-lg bg-white">
         <table className="min-w-full table-auto text-left">
           <thead>
-            <tr className="bg-gray-100">
+            <tr className="bg-gradient-to-r from-blue-100 to-gray-100">
               <th className="px-4 py-3 font-semibold text-gray-700">Order ID</th>
               <th className="px-4 py-3 font-semibold text-gray-700">User ID</th>
               <th className="px-4 py-3 font-semibold text-gray-700">Restaurant ID</th>
@@ -213,12 +166,16 @@ export default function OrdersPage() {
               filteredOrders.map((order, idx) => (
                 <tr
                   key={order._id}
-                  className={idx % 2 === 0 ? "bg-white hover:bg-blue-50" : "bg-gray-50 hover:bg-blue-50"}
+                  className={
+                    idx % 2 === 0
+                      ? "bg-white hover:bg-blue-50 transition"
+                      : "bg-gray-50 hover:bg-blue-100 transition"
+                  }
                 >
-                  <td className="px-4 py-3 font-mono">{order.order_id || order._id}</td>
-                  <td className="px-4 py-3">{order.user_id}</td>
-                  <td className="px-4 py-3">{order.restaurant_id}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 font-mono text-sm">{order.order_id || order._id}</td>
+                  <td className="px-4 py-3 text-sm">{order.user_id}</td>
+                  <td className="px-4 py-3 text-sm">{order.restaurant_id}</td>
+                  <td className="px-4 py-3 text-xs">
                     {order.items
                       .map(
                         (item) =>
@@ -226,20 +183,20 @@ export default function OrdersPage() {
                       )
                       .join(", ")}
                   </td>
-                  <td className="px-4 py-3 font-semibold">{formatCurrency(order.total_amount)}</td>
+                  <td className="px-4 py-3 font-semibold text-blue-700">{formatCurrency(order.total_amount)}</td>
                   <td className="px-4 py-3">
                     <span
-                      className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(
+                      className={`inline-block px-3 py-1 rounded-full text-xs font-bold shadow-sm ${getStatusColor(
                         order.status
                       )}`}
                     >
                       {order.status.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
                     </span>
                   </td>
-                  <td className="px-4 py-3">{order.delivery_address}</td>
-                  <td className="px-4 py-3">{order.phone}</td>
-                  <td className="px-4 py-3">{order.email}</td>
-                  <td className="px-4 py-3">{formatDate(order.createdAt)}</td>
+                  <td className="px-4 py-3 text-xs">{order.delivery_address}</td>
+                  <td className="px-4 py-3 text-xs">{order.phone}</td>
+                  <td className="px-4 py-3 text-xs">{order.email}</td>
+                  <td className="px-4 py-3 text-xs">{formatDate(order.createdAt)}</td>
                 </tr>
               ))
             )}

@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { createOrder, getAllOrders, getOrderById, updateOrder, deleteOrder, getOrdersByUserId } from '../controllers/orderController';
+import { createOrder, getAllOrders, getOrderById, updateOrder, deleteOrder, getOrdersByUserId, updateOrderStatus } from '../controllers/orderController';
 
 const router = express.Router();
 
@@ -81,5 +81,23 @@ router.get('/orders/user/:userId', async (req: Request, res: Response) => {
       }
     }
   });
+// Update only the status of an order
+router.patch('/orders/:orderId/status', async (req: Request, res: Response) => {
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body;
+
+    // Call the controller function to update the order status
+    await updateOrderStatus(orderId, status, res);
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      res.status(500).json({ message: 'Error updating order status', error: error.message });
+    } else {
+      res.status(500).json({ message: 'Unknown error occurred' });
+    }
+  }
+});
+;
+  
   
 export default router;

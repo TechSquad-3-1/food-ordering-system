@@ -105,12 +105,21 @@ export default function AdminDashboardPage() {
     const fetchDashboardData = async () => {
       setIsLoading(true)
       try {
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        // Fetch orders and restaurants from endpoints
+        const [ordersRes, restaurantsRes] = await Promise.all([
+          fetch("http://localhost:3008/api/orders"),
+          fetch("http://localhost:3001/api/restaurants"),
+        ])
 
-        setDashboardData({
+        const ordersData = await ordersRes.json()
+        const restaurantsData = await restaurantsRes.json()
+
+        setDashboardData((prev) => ({
+          ...prev,
+          totalOrders: Array.isArray(ordersData) ? ordersData.length : 0,
+          totalRestaurants: Array.isArray(restaurantsData) ? restaurantsData.length : 0,
+          // The following fields remain as placeholders or static
           totalUsers: 3248,
-          totalRestaurants: 164,
-          totalOrders: 12892,
           totalRevenue: 328945.75,
           activeDeliveries: 87,
           recentOrders: [
@@ -191,7 +200,7 @@ export default function AdminDashboardPage() {
               date: "2023-04-13",
             },
           ],
-        })
+        }))
       } catch (error) {
         console.error("Error fetching dashboard data:", error)
       } finally {
@@ -258,7 +267,6 @@ export default function AdminDashboardPage() {
             </p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Restaurants</CardTitle>
@@ -351,17 +359,7 @@ export default function AdminDashboardPage() {
         </Card>
       </div>
 
-      {/* Tabs Content */}
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="orders">Recent Orders</TabsTrigger>
-          <TabsTrigger value="users">Recent Users</TabsTrigger>
-          <TabsTrigger value="restaurants">Pending Restaurants</TabsTrigger>
-        </TabsList>
-
-        {/* Orders, Users, Restaurants Tabs Content */}
-      </Tabs>
+    
     </div>
   )
 }
