@@ -49,7 +49,7 @@ export default function CartPage() {
           `http://localhost:3005/api/cart/${storedUserId}`
         );
 
-        const items = response.data.items.map((item) => ({
+        const items = response.data.items.map((item: { _id: any; productId: any; name: any; price: any; quantity: any; }) => ({
           id: item._id,
           menuItemId: item.productId, // ✅ used in downstream processing
           name: item.name,
