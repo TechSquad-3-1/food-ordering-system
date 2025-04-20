@@ -136,10 +136,11 @@ export default function OrdersPage() {
     setIsDetailsOpen(true)
   }
 
+
   const handleUpdateStatus = async (orderId: string, newStatus: string) => {
     try {
-      const res = await fetch(`http://localhost:3008/api/orders/${orderId}`, {
-        method: "PATCH",
+      const res = await fetch("http://localhost:3008/api/orders/${orderId}/status", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       })
