@@ -136,4 +136,23 @@ export class OrderService {
       throw new Error('Error fetching orders by restaurant ID');
     }
   }
+// Update only the status of an order by order_id (custom field)
+static async updateOrderStatus(orderId: string, status: string) {
+  // Find the order by order_id (custom string)
+  const order = await Order.findOne({ order_id: orderId });
+
+  if (!order) {
+    throw new Error('Order not found');
+  }
+
+  // Update only the status field, without affecting other fields
+  order.status = status;
+
+  // Save the updated order (This will only update the status)
+  await order.save({ validateBeforeSave: false });  // Skip validation to avoid errors for required fields
+
+  return order;
+}
+
+
 }

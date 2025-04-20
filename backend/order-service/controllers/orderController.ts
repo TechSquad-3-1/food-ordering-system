@@ -82,6 +82,32 @@ export const updateOrder = async (req: Request, res: Response): Promise<Response
   }
 };
 
+// Update only the status of an order
+export const updateOrderStatus = async (orderId: string, status: string, res: Response) => {
+  // Validate the provided status
+  const validStatuses = ['pending', 'delivered', 'shipped', 'cancelled'];
+  
+  if (!status || !validStatuses.includes(status)) {
+    return res.status(400).json({ message: 'Invalid status provided' });
+  }
+
+  try {
+    // Call the service method to update the order status
+    const updatedOrder = await OrderService.updateOrderStatus(orderId, status);
+
+    // Respond with the updated order
+    return res.status(200).json({
+      message: 'Order status updated successfully',
+      order: updatedOrder,
+    });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      res.status(500).json({ message: 'Error updating order status', error: error.message });
+    } else {
+      res.status(500).json({ message: 'Unknown error occurred' });
+    }
+  }
+};
 // Delete Order Handler
 export const deleteOrder = async (req: Request, res: Response): Promise<Response> => {
   try {
