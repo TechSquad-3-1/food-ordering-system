@@ -25,7 +25,7 @@ import {
   Legend,
 } from "recharts";
 
-// Replace with your actual restaurant ID
+// TODO: Replace with the actual restaurant ID from the logged-in user/session
 const RESTAURANT_ID = "67ea74b67ec2521671a97f93";
 
 type Order = {
@@ -82,14 +82,19 @@ export default function RestaurantAnalytics() {
       );
       const allMenuItems: MenuItem[] = await menuRes.json();
 
-      setOrders(allOrders);
+      // Extra frontend filtering by restaurant_id for safety
+      const filteredOrders = allOrders.filter(
+        (order) => order.restaurant_id === RESTAURANT_ID
+      );
+
+      setOrders(filteredOrders);
       setMenuItems(allMenuItems);
       setLoading(false);
     }
     fetchData();
   }, [dateRange]);
 
-  // Total orders
+  // Total orders for this restaurant only
   const totalOrders = orders.length;
 
   // Menu item order counts
@@ -107,7 +112,7 @@ export default function RestaurantAnalytics() {
   }));
   menuItemStats.sort((a, b) => b.orders - a.orders);
 
-  // --- Pie Chart: Order status breakdown ---
+  // Pie Chart: Order status breakdown
   const statusCount: Record<string, number> = {};
   orders.forEach((order) => {
     statusCount[order.status] = (statusCount[order.status] || 0) + 1;
@@ -118,7 +123,7 @@ export default function RestaurantAnalytics() {
     color: STATUS_COLORS[status] || "#a3a3a3",
   }));
 
-  // --- Line Chart: Orders per day ---
+  // Line Chart: Orders per day
   const ordersByDay: Record<string, number> = {};
   orders.forEach((order) => {
     const day = new Date(order.createdAt).toLocaleDateString();
@@ -258,7 +263,7 @@ export default function RestaurantAnalytics() {
                           outerRadius={120}
                           label
                         >
-                          {statusData.map((entry, index) => (
+                          {statusData.map((entry) => (
                             <Cell key={entry.name} fill={entry.color} />
                           ))}
                         </Pie>
