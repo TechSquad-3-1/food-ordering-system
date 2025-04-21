@@ -1,6 +1,6 @@
 "use client"
 
-import { JSX, useEffect, useState } from "react"
+import { JSX, useEffect, useState, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -8,12 +8,6 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -24,13 +18,12 @@ import {
 } from "@/components/ui/dialog"
 import {
   ChefHat,
-  Package,
   CheckCircle,
   XCircle,
   Clock,
-  MoreVertical,
   Search,
   Filter,
+  MoreVertical,
 } from "lucide-react"
 
 interface Order {
@@ -48,7 +41,7 @@ interface Order {
   restaurant_id: string
 }
 
-const RESTAURANT_ID = "67ea74b67ec2521671a97f93"
+const RESTAURANT_ID = "67ea74a07ec2521671a97f91"
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
@@ -60,18 +53,38 @@ export default function OrdersPage() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState("")
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
+
+  // Close dropdown on outside click
+  const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (openDropdownId && dropdownRefs.current[openDropdownId]) {
+        if (
+          dropdownRefs.current[openDropdownId] &&
+          !dropdownRefs.current[openDropdownId]!.contains(event.target as Node)
+        ) {
+          setOpenDropdownId(null)
+        }
+      }
+    }
+    if (openDropdownId) {
+      document.addEventListener("mousedown", handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [openDropdownId])
 
   useEffect(() => {
     const fetchOrders = async () => {
       setLoading(true)
       setError(null)
       try {
-        // Fetch all orders, then filter by restaurantId
         const res = await fetch("http://localhost:3008/api/orders")
         if (!res.ok) throw new Error("Failed to fetch orders")
         const data = await res.json()
-
-        // Only include orders for the given restaurantId
         const mappedOrders: Order[] = data
           .filter((order: any) => order.restaurant_id === RESTAURANT_ID)
           .map((order: any) => ({
@@ -92,7 +105,6 @@ export default function OrdersPage() {
             delivery: "Delivery",
             restaurant_id: order.restaurant_id,
           }))
-
         setOrders(mappedOrders)
       } catch (err) {
         setError((err as Error).message)
@@ -127,7 +139,6 @@ export default function OrdersPage() {
     const commonProps = "mr-1 h-3 w-3"
     const badgeMap: Record<string, JSX.Element> = {
       preparing: <Badge variant="outline" className="bg-yellow-100 text-yellow-800"><ChefHat className={commonProps} /> Preparing</Badge>,
-      ready: <Badge variant="outline" className="bg-green-100 text-green-800"><Package className={commonProps} /> Ready</Badge>,
       delivered: <Badge variant="outline" className="bg-blue-100 text-blue-800"><CheckCircle className={commonProps} /> Delivered</Badge>,
       cancelled: <Badge variant="outline" className="bg-red-100 text-red-800"><XCircle className={commonProps} /> Cancelled</Badge>,
     }
@@ -138,6 +149,7 @@ export default function OrdersPage() {
     setSelectedOrder(order)
     setSelectedStatus(order.status)
     setIsDetailsOpen(true)
+    setOpenDropdownId(null)
   }
 
   const handleUpdateStatus = async (orderId: string, newStatus: string) => {
@@ -158,23 +170,23 @@ export default function OrdersPage() {
     }
   }
 
-  const handleSend = async (order: { id: string }) => {
+  // Sent Delivery handler for Preparing tab
+  const handleSentDelivery = async (order: Order) => {
     try {
       const res = await fetch(`http://localhost:3008/api/orders/${order.id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "delivered" })
       })
-      if (!res.ok) throw new Error("Failed to send order to delivery man")
+      if (!res.ok) throw new Error("Failed to update order status")
       setOrders((prevOrders) =>
         prevOrders.map((o) =>
           o.id === order.id ? { ...o, status: "delivered" } : o
         )
       )
-      alert(`Order ${order.id} sent to delivery man!`)
     } catch (err) {
       console.error(err)
-      alert("Could not send order to delivery man.")
+      alert("Could not send order to delivered.")
     }
   }
 
@@ -187,6 +199,9 @@ export default function OrdersPage() {
 
   if (loading) return <div className="p-6 text-center">Loading orders...</div>
   if (error) return <div className="p-6 text-center text-red-600">Error: {error}</div>
+
+  // Tabs without "ready"
+  const tabs = ["all", "pending", "preparing", "delivered", "cancelled"]
 
   return (
     <div className="space-y-6">
@@ -204,7 +219,7 @@ export default function OrdersPage() {
       <Tabs defaultValue="all" className="space-y-4" onValueChange={setSelectedTab}>
         <div className="flex flex-col sm:flex-row justify-between gap-4">
           <TabsList>
-            {["all", "pending", "preparing", "ready", "delivered", "cancelled"].map((status) => (
+            {tabs.map((status) => (
               <TabsTrigger key={status} value={status}>
                 {status.charAt(0).toUpperCase() + status.slice(1)}
               </TabsTrigger>
@@ -253,24 +268,34 @@ export default function OrdersPage() {
                       <TableCell>{getStatusBadge(order.status)}</TableCell>
                       <TableCell>{order.time}</TableCell>
                       <TableCell>{order.payment}</TableCell>
-                      {selectedTab === "ready" ? (
+                      {selectedTab === "preparing" ? (
                         <TableCell className="text-right">
-                          <Button onClick={() => handleSend(order)}>Send</Button>
+                          <Button onClick={() => handleSentDelivery(order)}>Sent Delivery</Button>
                         </TableCell>
                       ) : (
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleViewDetails(order)}>
+                        <TableCell className="text-right" style={{ position: "relative" }}>
+                          <button
+                            className="p-2 rounded-full hover:bg-gray-100"
+                            onClick={() => setOpenDropdownId(openDropdownId === order.id ? null : order.id)}
+                            aria-label="More"
+                          >
+                            <MoreVertical size={20} />
+                          </button>
+                          {openDropdownId === order.id && (
+                            <div
+                              ref={el => {
+                                dropdownRefs.current[order.id] = el
+                              }}
+                              className="absolute right-0 z-10 mt-2 w-32 bg-white border border-gray-200 rounded shadow-lg"
+                            >
+                              <button
+                                className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                                onClick={() => handleViewDetails(order)}
+                              >
                                 View details
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                              </button>
+                            </div>
+                          )}
                         </TableCell>
                       )}
                     </TableRow>
@@ -314,13 +339,13 @@ export default function OrdersPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {(selectedOrder?.status === "preparing"
-                      ? ["ready"]
+                      ? ["delivered"]
                       : selectedOrder?.status === "pending"
                         ? ["preparing"]
-                        : ["pending", "preparing", "ready", "delivered", "cancelled"]
+                        : ["pending", "preparing", "delivered", "cancelled"]
                     ).map((status) => (
                       <SelectItem key={status} value={status}>
-                        {status.charAt(0) + status.slice(1)}
+                        {status.charAt(0).toUpperCase() + status.slice(1)}
                       </SelectItem>
                     ))}
                   </SelectContent>
