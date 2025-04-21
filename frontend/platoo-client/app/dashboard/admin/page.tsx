@@ -101,6 +101,36 @@ export default function AdminDashboardPage() {
     pendingRestaurants: [],
   })
 
+  // Fetch total users from backend
+  useEffect(() => {
+    const fetchTotalUsers = async () => {
+      try {
+        const token = localStorage.getItem("token"); // get JWT from storage
+        const res = await fetch("http://localhost:4000/api/auth/users", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`, // send JWT in Authorization header
+          },
+        });
+        if (!res.ok) throw new Error("Failed to fetch users");
+        const data = await res.json();
+        setDashboardData((prev) => ({
+          ...prev,
+          totalUsers: Array.isArray(data) ? data.length : 0,
+        }));
+      } catch (error) {
+        console.error("Error fetching total users:", error);
+        setDashboardData((prev) => ({
+          ...prev,
+          totalUsers: 0,
+        }));
+      }
+    };
+    fetchTotalUsers();
+  }, []);
+  
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       setIsLoading(true)
@@ -119,7 +149,6 @@ export default function AdminDashboardPage() {
           totalOrders: Array.isArray(ordersData) ? ordersData.length : 0,
           totalRestaurants: Array.isArray(restaurantsData) ? restaurantsData.length : 0,
           // The following fields remain as placeholders or static
-          totalUsers: 3248,
           totalRevenue: 328945.75,
           activeDeliveries: 87,
           recentOrders: [
@@ -249,7 +278,6 @@ export default function AdminDashboardPage() {
         <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
         <p className="text-muted-foreground">Welcome to the Platoo admin dashboard. Here's what's happening today.</p>
       </div>
-
       {/* Key Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -358,8 +386,6 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
       </div>
-
-    
     </div>
   )
 }

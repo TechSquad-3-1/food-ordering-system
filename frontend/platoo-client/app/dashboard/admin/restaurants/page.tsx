@@ -25,17 +25,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs } from "@/components/ui/tabs"
 import {
   Search,
   MoreHorizontal,
   Trash2,
-  Download,
   CheckCircle,
   XCircle,
   AlertCircle,
   Eye,
-  Store,
   Star,
 } from "lucide-react"
 
@@ -55,7 +53,7 @@ interface Restaurant {
   distance: string
   cuisines: string[]
   priceLevel: number
-  is_active: boolean
+  status: "approved" | "rejected" | "pending"
   open_time: string
   closed_time: string
   createdAt: string
@@ -73,8 +71,8 @@ export default function RestaurantsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null)
 
-  // Status filter: "all", "active", "inactive"
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all")
+  // Status filter: "all", "approved", "rejected"
+  const [statusFilter, setStatusFilter] = useState<"all" | "approved" | "rejected">("all")
 
   // Modal state for restaurant details
   const [showDetailsModal, setShowDetailsModal] = useState(false)
@@ -88,7 +86,17 @@ export default function RestaurantsPage() {
         if (!response.ok) {
           throw new Error(`Failed to fetch restaurants: ${response.statusText}`)
         }
-        const data: Restaurant[] = await response.json()
+        // Convert is_active to status for compatibility
+        const data = (await response.json()).map((r: any) => ({
+          ...r,
+          status: r.status
+            ? r.status
+            : r.is_active === true
+            ? "approved"
+            : r.is_active === false
+            ? "rejected"
+            : "pending",
+        }))
         setRestaurants(data)
         setFilteredRestaurants(data)
       } catch (error) {
@@ -121,10 +129,10 @@ export default function RestaurantsPage() {
         restaurant.cuisines.some((cuisine) => cuisine.toLowerCase() === cuisineFilter.toLowerCase())
       )
     }
-    if (statusFilter === "active") {
-      filtered = filtered.filter((restaurant) => restaurant.is_active)
-    } else if (statusFilter === "inactive") {
-      filtered = filtered.filter((restaurant) => !restaurant.is_active)
+    if (statusFilter === "approved") {
+      filtered = filtered.filter((restaurant) => restaurant.status === "approved")
+    } else if (statusFilter === "rejected") {
+      filtered = filtered.filter((restaurant) => restaurant.status === "rejected")
     }
     setFilteredRestaurants(filtered)
   }
@@ -152,8 +160,6 @@ export default function RestaurantsPage() {
     ),
   ]
 
-  const getPriceLevel = (level: number) => "$".repeat(level)
-
   // Helper: fallback to placeholder if image fails
   const handleImgError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     e.currentTarget.src = "https://via.placeholder.com/40x40?text=No+Image"
@@ -163,6 +169,60 @@ export default function RestaurantsPage() {
   const handleViewDetails = (restaurant: Restaurant) => {
     setDetailsRestaurant(restaurant)
     setShowDetailsModal(true)
+  }
+
+  // Approve/Reject handlers
+  const handleApprove = async (restaurant: Restaurant) => {
+    try {
+      await fetch(`http://localhost:3001/api/restaurants/${restaurant._id}/approve`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "approved" }),
+      })
+      setRestaurants((prev) =>
+        prev.map((r) =>
+          r._id === restaurant._id ? { ...r, status: "approved" } : r
+        )
+      )
+      setFilteredRestaurants((prev) =>
+        prev.map((r) =>
+          r._id === restaurant._id ? { ...r, status: "approved" } : r
+        )
+      )
+    } catch (err) {
+      alert("Failed to approve restaurant.")
+    }
+  }
+
+  const handleReject = async (restaurant: Restaurant) => {
+    try {
+      await fetch(`http://localhost:3001/api/restaurants/${restaurant._id}/reject`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "rejected" }),
+      })
+      setRestaurants((prev) =>
+        prev.map((r) =>
+          r._id === restaurant._id ? { ...r, status: "rejected" } : r
+        )
+      )
+      setFilteredRestaurants((prev) =>
+        prev.map((r) =>
+          r._id === restaurant._id ? { ...r, status: "rejected" } : r
+        )
+      )
+    } catch (err) {
+      alert("Failed to reject restaurant.")
+    }
+  }
+
+  // Status badge color and label
+  const getStatusBadge = (status: string) => {
+    if (status === "approved")
+      return <Badge className="bg-green-500 text-white">Approved</Badge>
+    if (status === "rejected")
+      return <Badge className="bg-red-500 text-white">Rejected</Badge>
+    return <Badge className="bg-gray-400 text-white">Pending</Badge>
   }
 
   return (
@@ -180,32 +240,19 @@ export default function RestaurantsPage() {
           All
         </Button>
         <Button
-          variant={statusFilter === "active" ? "default" : "outline"}
-          onClick={() => setStatusFilter("active")}
+          variant={statusFilter === "approved" ? "default" : "outline"}
+          onClick={() => setStatusFilter("approved")}
         >
-          Active
+          Approved
         </Button>
         <Button
-          variant={statusFilter === "inactive" ? "default" : "outline"}
-          onClick={() => setStatusFilter("inactive")}
+          variant={statusFilter === "rejected" ? "default" : "outline"}
+          onClick={() => setStatusFilter("rejected")}
         >
-          Inactive
+          Rejected
         </Button>
       </div>
       <Tabs defaultValue="all" className="space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push("/dashboard/admin/restaurants/add")}>
-              <Store className="mr-2 h-4 w-4" />
-              Add Restaurant
-            </Button>
-            <Button variant="outline">
-              <Download className="mr-2 h-4 w-4" />
-              Export
-            </Button>
-          </div>
-        </div>
         <Card>
           <CardHeader className="pb-3">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -254,7 +301,6 @@ export default function RestaurantsPage() {
                     <TableHead>Cuisines</TableHead>
                     <TableHead>Rating</TableHead>
                     <TableHead>Delivery</TableHead>
-                    <TableHead>Price</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -315,12 +361,7 @@ export default function RestaurantsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span>{getPriceLevel(restaurant.priceLevel)}</span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={restaurant.is_active ? "bg-green-500 text-white" : "bg-gray-500 text-white"}>
-                          {restaurant.is_active ? "Active" : "Inactive"}
-                        </Badge>
+                        {getStatusBadge(restaurant.status)}
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
@@ -341,56 +382,14 @@ export default function RestaurantsPage() {
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="text-green-600"
-                              onClick={async () => {
-                                // Approve: set is_active to true
-                                try {
-                                  await fetch(`http://localhost:3001/api/restaurants/${restaurant._id}/approve`, {
-                                    method: "PUT",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ is_active: true }),
-                                  });
-                                  setRestaurants((prev) =>
-                                    prev.map((r) =>
-                                      r._id === restaurant._id ? { ...r, is_active: true } : r
-                                    )
-                                  );
-                                  setFilteredRestaurants((prev) =>
-                                    prev.map((r) =>
-                                      r._id === restaurant._id ? { ...r, is_active: true } : r
-                                    )
-                                  );
-                                } catch (err) {
-                                  alert("Failed to approve restaurant.");
-                                }
-                              }}
+                              onClick={() => handleApprove(restaurant)}
                             >
                               <CheckCircle className="mr-2 h-4 w-4" />
                               Approve
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-red-600"
-                              onClick={async () => {
-                                // Reject: set is_active to false
-                                try {
-                                  await fetch(`http://localhost:3001/api/restaurants/${restaurant._id}/reject`, {
-                                    method: "PUT",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ is_active: false }),
-                                  });
-                                  setRestaurants((prev) =>
-                                    prev.map((r) =>
-                                      r._id === restaurant._id ? { ...r, is_active: false } : r
-                                    )
-                                  );
-                                  setFilteredRestaurants((prev) =>
-                                    prev.map((r) =>
-                                      r._id === restaurant._id ? { ...r, is_active: false } : r
-                                    )
-                                  );
-                                } catch (err) {
-                                  alert("Failed to reject restaurant.");
-                                }
-                              }}
+                              onClick={() => handleReject(restaurant)}
                             >
                               <XCircle className="mr-2 h-4 w-4" />
                               Reject
@@ -512,11 +511,7 @@ export default function RestaurantsPage() {
                 </div>
                 <div>
                   <div className="font-semibold text-gray-700">Status</div>
-                  <Badge className={detailsRestaurant.is_active
-                    ? "bg-green-500 text-white px-2 py-1"
-                    : "bg-gray-400 text-white px-2 py-1"}>
-                    {detailsRestaurant.is_active ? "Active" : "Inactive"}
-                  </Badge>
+                  {getStatusBadge(detailsRestaurant.status)}
                 </div>
                 <div>
                   <div className="font-semibold text-gray-700">Rating</div>
@@ -524,10 +519,6 @@ export default function RestaurantsPage() {
                     <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                     <span>{detailsRestaurant.rating}</span>
                   </div>
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-700">Price Level</div>
-                  <span className="text-green-700 text-lg tracking-wide">{getPriceLevel(detailsRestaurant.priceLevel)}</span>
                 </div>
                 <div>
                   <div className="font-semibold text-gray-700">Delivery Time</div>
