@@ -15,6 +15,7 @@ import {
   Legend,
 } from "chart.js"
 
+// Register chart.js components
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 interface OrderItem {
@@ -40,13 +41,12 @@ interface Order {
   updatedAt: string
 }
 
+// Helper functions
 function getDateString(date: Date) {
-  // Returns YYYY-MM-DD
   return date.toISOString().slice(0, 10)
 }
 
 function getDateRange(start: Date, end: Date) {
-  // Returns array of Date objects from start to end (inclusive)
   const range = []
   let current = new Date(start)
   while (current <= end) {
@@ -56,31 +56,47 @@ function getDateRange(start: Date, end: Date) {
   return range
 }
 
+// Replace this with your actual logic to get the logged-in restaurant's ID
+// For example, from session, context, or props
+function useRestaurantId() {
+  // Example: fetch from localStorage, context, or API
+  // return localStorage.getItem("restaurantId") || ""
+  // For now, hardcoded for demonstration:
+  return "67ea74b67ec2521671a97f93"
+}
+
 export default function OrderHistoryPage() {
-  const restaurantId = "68035d30a05864216cc9dd25"
+  const restaurantId = useRestaurantId()
   const [orders, setOrders] = useState<Order[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [dailyCounts, setDailyCounts] = useState<{labels: string[], data: number[]}>({labels: [], data: []})
+  const [dailyCounts, setDailyCounts] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] })
+  const [orderCount, setOrderCount] = useState(0)
 
   useEffect(() => {
+    if (!restaurantId) return
+
     const fetchOrders = async () => {
       setIsLoading(true)
       try {
         const response = await fetch(`http://localhost:3008/api/orders?restaurant_id=${restaurantId}`)
         if (!response.ok) throw new Error("Failed to fetch orders")
         const data = await response.json()
-        setOrders(data)
+
+        // Filter orders by restaurant_id as a safety net
+        const filteredOrders = data.filter((order: Order) => order.restaurant_id === restaurantId)
+        setOrders(filteredOrders)
+        setOrderCount(filteredOrders.length)
 
         // Parse all order dates
-        const dates = data.map((order: Order) => new Date(order.createdAt))
+        const dates = filteredOrders.map((order: Order) => new Date(order.createdAt))
         if (dates.length === 0) {
-          setDailyCounts({labels: [], data: []})
+          setDailyCounts({ labels: [], data: [] })
           return
         }
 
         // Find first and last date
         dates.sort((a: { getTime: () => number }, b: { getTime: () => number }) => a.getTime() - b.getTime())
-        const startDate = new Date(dates[0].toISOString().slice(0, 10)) // midnight
+        const startDate = new Date(dates[0].toISOString().slice(0, 10))
         const endDate = new Date() // today
 
         // Build date range
@@ -88,9 +104,9 @@ export default function OrderHistoryPage() {
         const dateLabels = dateRange.map(getDateString)
 
         // Count orders per day
-        const counts: {[date: string]: number} = {}
+        const counts: { [date: string]: number } = {}
         dateLabels.forEach(date => { counts[date] = 0 })
-        data.forEach((order: Order) => {
+        filteredOrders.forEach((order: Order) => {
           const dateStr = getDateString(new Date(order.createdAt))
           if (counts[dateStr] !== undefined) counts[dateStr] += 1
         })
@@ -102,7 +118,8 @@ export default function OrderHistoryPage() {
       } catch (error) {
         console.error("Error fetching orders:", error)
         setOrders([])
-        setDailyCounts({labels: [], data: []})
+        setOrderCount(0)
+        setDailyCounts({ labels: [], data: [] })
       } finally {
         setIsLoading(false)
       }
@@ -153,7 +170,7 @@ export default function OrderHistoryPage() {
           maxRotation: 45,
           minRotation: 45,
           autoSkip: true,
-          maxTicksLimit: 15, // Adjust for readability
+          maxTicksLimit: 15,
         }
       },
       y: { beginAtZero: true, precision: 0 },
@@ -167,6 +184,9 @@ export default function OrderHistoryPage() {
         <p className="text-muted-foreground">
           All orders placed for this restaurant.
         </p>
+        <div className="text-lg font-semibold mt-2">
+          Total Orders: <span className="text-primary">{orderCount}</span>
+        </div>
       </div>
 
       <Card>

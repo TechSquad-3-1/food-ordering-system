@@ -7,14 +7,11 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -26,17 +23,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
-  ChevronLeft,
-  ChevronRight,
+  ChefHat,
+  Package,
+  CheckCircle,
+  XCircle,
   Clock,
   MoreVertical,
   Search,
   Filter,
-  CheckCircle,
-  XCircle,
-  ChefHat,
-  Package,
-  Truck,
 } from "lucide-react"
 
 interface Order {
@@ -51,7 +45,10 @@ interface Order {
   time: string
   payment: string
   delivery: string
+  restaurant_id: string
 }
+
+const RESTAURANT_ID = "67ea74b67ec2521671a97f93"
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
@@ -66,28 +63,35 @@ export default function OrdersPage() {
 
   useEffect(() => {
     const fetchOrders = async () => {
+      setLoading(true)
+      setError(null)
       try {
+        // Fetch all orders, then filter by restaurantId
         const res = await fetch("http://localhost:3008/api/orders")
         if (!res.ok) throw new Error("Failed to fetch orders")
         const data = await res.json()
 
-        const mappedOrders: Order[] = data.map((order: any) => ({
-          id: order.order_id,
-          customer: {
-            name: order.email?.split("@")[0] || "Customer",
-            address: order.delivery_address || "N/A",
-          },
-          items: order.items.map((item: any) => ({
-            name: item.menu_item_id || "Item", // You can replace with actual menu item name if available
-            quantity: item.quantity,
-            price: item.price.toFixed(2),
-          })),
-          total: order.total_amount.toFixed(2),
-          status: order.status,
-          time: new Date(order.createdAt).toLocaleString(),
-          payment: "Online", // Placeholder, update if actual payment info available
-          delivery: "Delivery", // Placeholder, update if actual delivery info available
-        }))
+        // Only include orders for the given restaurantId
+        const mappedOrders: Order[] = data
+          .filter((order: any) => order.restaurant_id === RESTAURANT_ID)
+          .map((order: any) => ({
+            id: order.order_id,
+            customer: {
+              name: order.email?.split("@")[0] || "Customer",
+              address: order.delivery_address || "N/A",
+            },
+            items: order.items.map((item: any) => ({
+              name: item.menu_item_id || "Item",
+              quantity: item.quantity,
+              price: item.price.toFixed(2),
+            })),
+            total: order.total_amount.toFixed(2),
+            status: order.status,
+            time: new Date(order.createdAt).toLocaleString(),
+            payment: "Online",
+            delivery: "Delivery",
+            restaurant_id: order.restaurant_id,
+          }))
 
         setOrders(mappedOrders)
       } catch (err) {
@@ -142,40 +146,37 @@ export default function OrdersPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
-      });
-      if (!res.ok) throw new Error("Failed to update status");
-      // ... update state
+      })
+      if (!res.ok) throw new Error("Failed to update status")
+      setOrders((prevOrders) =>
+        prevOrders.map((o) =>
+          o.id === orderId ? { ...o, status: newStatus } : o
+        )
+      )
     } catch (err) {
-      console.error("Error updating status", err);
+      console.error("Error updating status", err)
     }
-  };
+  }
 
   const handleSend = async (order: { id: string }) => {
     try {
-      // Example: Change status to "delivered" or "out_for_delivery"
       const res = await fetch(`http://localhost:3008/api/orders/${order.id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "delivered" }) // or "out_for_delivery" if that's your workflow
-      });
-      if (!res.ok) throw new Error("Failed to send order to delivery man");
-  
-      // Optionally update the local state to reflect the change in the UI
+        body: JSON.stringify({ status: "delivered" })
+      })
+      if (!res.ok) throw new Error("Failed to send order to delivery man")
       setOrders((prevOrders) =>
         prevOrders.map((o) =>
           o.id === order.id ? { ...o, status: "delivered" } : o
         )
-      );
-      // Optionally show a success message
-      alert(`Order ${order.id} sent to delivery man!`);
+      )
+      alert(`Order ${order.id} sent to delivery man!`)
     } catch (err) {
-      console.error(err);
-      alert("Could not send order to delivery man.");
+      console.error(err)
+      alert("Could not send order to delivery man.")
     }
-  };
-  
-  
-  
+  }
 
   const handleSaveChanges = () => {
     if (selectedOrder && selectedStatus) {
@@ -186,8 +187,6 @@ export default function OrdersPage() {
 
   if (loading) return <div className="p-6 text-center">Loading orders...</div>
   if (error) return <div className="p-6 text-center text-red-600">Error: {error}</div>
-
-  
 
   return (
     <div className="space-y-6">
@@ -242,14 +241,9 @@ export default function OrdersPage() {
                     <TableHead>Status</TableHead>
                     <TableHead>Time</TableHead>
                     <TableHead>Type</TableHead>
-                    {selectedTab === "ready" ? (
-                      
-      <TableHead className="text-right">Actions</TableHead>
-    ) : (
-      <TableHead className="text-right">Actions</TableHead>
-    )}
-  </TableRow>
-</TableHeader>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
                   {filteredOrders.map((order) => (
                     <TableRow key={order.id}>
@@ -260,26 +254,25 @@ export default function OrdersPage() {
                       <TableCell>{order.time}</TableCell>
                       <TableCell>{order.payment}</TableCell>
                       {selectedTab === "ready" ? (
-  <TableCell className="text-right">
-    <Button onClick={() => handleSend(order)}>Send</Button>
-  </TableCell>
-) : (
-  <TableCell className="text-right">
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
-          <MoreVertical className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => handleViewDetails(order)}>
-          View details
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  </TableCell>
-)}
-
+                        <TableCell className="text-right">
+                          <Button onClick={() => handleSend(order)}>Send</Button>
+                        </TableCell>
+                      ) : (
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleViewDetails(order)}>
+                                View details
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -316,23 +309,22 @@ export default function OrdersPage() {
               <div>
                 <span className="font-medium">Status: </span>
                 <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-  <SelectTrigger>
-    <SelectValue placeholder="Select status" />
-  </SelectTrigger>
-  <SelectContent>
-    {(selectedOrder?.status === "preparing"
-      ? ["ready"]
-      : selectedOrder?.status === "pending"
-        ? ["preparing"]
-        : ["pending", "preparing", "ready", "delivered", "cancelled"]
-    ).map((status) => (
-      <SelectItem key={status} value={status}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </SelectItem>
-    ))}
-  </SelectContent>
-</Select>
-
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(selectedOrder?.status === "preparing"
+                      ? ["ready"]
+                      : selectedOrder?.status === "pending"
+                        ? ["preparing"]
+                        : ["pending", "preparing", "ready", "delivered", "cancelled"]
+                    ).map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status.charAt(0) + status.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}
