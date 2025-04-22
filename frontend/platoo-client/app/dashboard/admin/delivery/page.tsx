@@ -303,10 +303,7 @@ export default function AdminDeliveryDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{deliveryPersonnel.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {deliveryPersonnel.filter((p) => p.status === "active").length} active,{" "}
-              {deliveryPersonnel.filter((p) => p.status === "on_delivery").length} on delivery
-            </p>
+            
           </CardContent>
         </Card>
 
@@ -365,7 +362,6 @@ export default function AdminDeliveryDashboard() {
       <TableHead>ID</TableHead>
       <TableHead>Name</TableHead>
       <TableHead>Contact</TableHead>
-      {/* Status column removed */}
       <TableHead>Vehicle No</TableHead>
       <TableHead>Address</TableHead>
       <TableHead>Joined</TableHead>
