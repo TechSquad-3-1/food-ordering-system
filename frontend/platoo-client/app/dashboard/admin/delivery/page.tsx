@@ -365,7 +365,7 @@ export default function AdminDeliveryDashboard() {
       <TableHead>ID</TableHead>
       <TableHead>Name</TableHead>
       <TableHead>Contact</TableHead>
-      <TableHead>Status</TableHead>
+      {/* Status column removed */}
       <TableHead>Vehicle No</TableHead>
       <TableHead>Address</TableHead>
       <TableHead>Joined</TableHead>
@@ -396,15 +396,7 @@ export default function AdminDeliveryDashboard() {
             </div>
           </div>
         </TableCell>
-        <TableCell>
-          <Badge className={`${getStatusColor(person.status)} text-white`}>
-            {person.status === "active"
-              ? "Active"
-              : person.status === "inactive"
-              ? "Inactive"
-              : "On Delivery"}
-          </Badge>
-        </TableCell>
+        {/* Status cell removed */}
         <TableCell>
           {person.vehicleNumber || "-"}
         </TableCell>
@@ -425,6 +417,7 @@ export default function AdminDeliveryDashboard() {
     ))}
   </TableBody>
 </Table>
+
 
 
             </CardContent>
@@ -687,19 +680,6 @@ export default function AdminDeliveryDashboard() {
         value={editForm.vehicleNumber}
         onChange={handleEditChange}
       />
-    </div>
-    <div>
-      <Label className="block text-sm font-medium text-gray-700 mb-1">Status</Label>
-      <select
-        name="status"
-        value={editForm.status}
-        onChange={handleEditChange}
-        className="w-full border rounded px-2 py-1"
-      >
-        <option value="active">Active</option>
-        <option value="inactive">Inactive</option>
-        <option value="on_delivery">On Delivery</option>
-      </select>
     </div>
   </div>
 </div>
