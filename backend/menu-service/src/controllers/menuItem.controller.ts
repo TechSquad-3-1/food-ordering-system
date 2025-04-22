@@ -11,6 +11,15 @@ import {
 // Create a new menu item (now associated with a category)
 export const createMenuItemHandler = async (req: Request, res: Response): Promise<void> => {
   try {
+    // Format price as "LKR <amount>" if present
+    if (req.body.price) {
+      if (typeof req.body.price === 'number') {
+        req.body.price = `LKR ${req.body.price}`;
+      } else if (typeof req.body.price === 'string' && !req.body.price.startsWith('LKR')) {
+        req.body.price = `LKR ${req.body.price}`;
+      }
+    }
+
     const menuItem = await createMenuItem(req.body);
     res.status(201).json(menuItem);
   } catch (error) {
@@ -43,10 +52,21 @@ export const updateMenuItemHandler = async (req: Request, res: Response): Promis
   try {
     const { menuItemId } = req.params;
     const updatedData = req.body;
+
+    // Format price as "LKR <amount>" if present
+    if (updatedData.price) {
+      if (typeof updatedData.price === 'number') {
+        updatedData.price = `LKR ${updatedData.price}`;
+      } else if (typeof updatedData.price === 'string' && !updatedData.price.startsWith('LKR')) {
+        updatedData.price = `LKR ${updatedData.price}`;
+      }
+    }
+
     const updatedMenuItem = await updateMenuItem(menuItemId, updatedData);
 
     if (!updatedMenuItem) {
-       res.status(404).json({ error: 'Menu item not found' });
+      res.status(404).json({ error: 'Menu item not found' });
+      return;
     }
 
     res.status(200).json(updatedMenuItem);

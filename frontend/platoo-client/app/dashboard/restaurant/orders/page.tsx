@@ -176,12 +176,12 @@ export default function OrdersPage() {
       const res = await fetch(`http://localhost:3008/api/orders/${order.id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "delivered" })
+        body: JSON.stringify({ status: "ready" })
       })
       if (!res.ok) throw new Error("Failed to update order status")
       setOrders((prevOrders) =>
         prevOrders.map((o) =>
-          o.id === order.id ? { ...o, status: "delivered" } : o
+          o.id === order.id ? { ...o, status: "ready" } : o
         )
       )
     } catch (err) {
