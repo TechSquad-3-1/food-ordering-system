@@ -1,68 +1,74 @@
-"use client"
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search, ChevronRight } from "lucide-react"
-import Image from "next/image"
-import Link from "next/link"
-import Header from "@/components/Header"
-import Footer from "@/components/Footer"
+"use client";
+
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Search, ChevronRight } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 interface Restaurant {
-  _id: string
-  name: string
-  image: string
-  rating: number
-  reviewCount: number
-  deliveryTime: string
-  deliveryFee: string
-  minOrder: string
-  distance: string
-  cuisines: string[]
+  _id: string;
+  name: string;
+  image: string;
+  rating: number;
+  reviewCount: number;
+  deliveryTime: string;
+  deliveryFee: string;
+  minOrder: string;
+  distance: string;
+  cuisines: string[];
 }
 
 interface Category {
-  name: string
-  slug: string
-  description: string
-  image: string
+  _id: string;
+  name: string;
+  slug: string;
+  description: string;
+  image_url: string;
+  restaurant_id: {
+    _id: string;
+    name: string;
+  };
 }
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>([])
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [isLoading, setIsLoading] = useState(true)
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Fetching categories and restaurants data
     const fetchData = async () => {
-      setIsLoading(true)
+      setIsLoading(true);
       try {
-        const categoryResponse = await fetch("http://localhost:3001/api/categories")
-        const categoryData = await categoryResponse.json()
+        const categoryResponse = await fetch("http://localhost:3001/api/category");
+        const categoryData = await categoryResponse.json();
 
-        const restaurantResponse = await fetch("http://localhost:3001/api/restaurants")
-        const restaurantData = await restaurantResponse.json()
+        const restaurantResponse = await fetch("http://localhost:3001/api/restaurants");
+        const restaurantData = await restaurantResponse.json();
 
-        setCategories(categoryData)
-        setRestaurants(restaurantData)
+        setCategories(categoryData);
+        setRestaurants(restaurantData);
       } catch (error) {
-        console.error("Error fetching data:", error)
+        console.error("Error fetching data:", error);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchData()
-  }, [])
+    fetchData();
+  }, []);
 
   // Filter categories based on search query
   const filteredCategories = categories.filter((category) =>
     category.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  );
 
   return (
     <div>
@@ -100,10 +106,13 @@ export default function CategoriesPage() {
           ) : filteredCategories.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {filteredCategories.map((category) => (
-                <Link href={`/categories/${category.slug}`} key={category.name}>
+                <Link
+                  href={`/restaurants/${category.restaurant_id._id}`} // Navigate to restaurant based on restaurant_id
+                  key={category._id}
+                >
                   <Card className="overflow-hidden h-48 relative group">
                     <Image
-                      src={category.image || "/placeholder.svg"}
+                      src={category.image_url || "/placeholder.svg"}
                       alt={category.name}
                       fill
                       className="object-cover transition-transform group-hover:scale-105"
@@ -164,5 +173,5 @@ export default function CategoriesPage() {
       </div>
       <Footer />
     </div>
-  )
+  );
 }
