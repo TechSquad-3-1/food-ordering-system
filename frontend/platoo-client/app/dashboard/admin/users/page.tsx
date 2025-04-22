@@ -33,14 +33,18 @@ import {
   Edit,
   Trash2,
   UserPlus,
-  Download,
-  Mail,
-  Ban,
-  CheckCircle,
   AlertCircle,
   Eye,
-} from "lucide-react"
-import { User, KeyRound, Phone, MapPin, Building2, Truck, UserCircle, Shield } from "lucide-react";
+  Mail,
+  User,
+  KeyRound,
+  Phone,
+  MapPin,
+  Building2,
+  Truck,
+  UserCircle,
+  Shield,
+} from "lucide-react";
 
 interface User {
   restaurantName: string
@@ -49,9 +53,6 @@ interface User {
   name: string
   email: string
   role: string
-  status: string
-  joinDate: string
-  lastActive: string
   orders?: number
   avatar?: string
   phone?: string
@@ -65,7 +66,6 @@ export default function UsersPage() {
   const [filteredUsers, setFilteredUsers] = useState<User[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
-  const [statusFilter, setStatusFilter] = useState("all")
   const [isAddUserOpen, setIsAddUserOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
@@ -83,89 +83,108 @@ export default function UsersPage() {
     address: "",
   })
 
- 
+  const fieldIcons: Record<string, JSX.Element> = {
+    _id: <KeyRound className="text-gray-400 w-4 h-4 mr-1" />,
+    name: <UserCircle className="text-blue-500 w-4 h-4 mr-1" />,
+    email: <Mail className="text-teal-500 w-4 h-4 mr-1" />,
+    password: <Shield className="text-yellow-500 w-4 h-4 mr-1" />,
+    role: <User className="text-purple-500 w-4 h-4 mr-1" />,
+    phone: <Phone className="text-green-500 w-4 h-4 mr-1" />,
+    address: <MapPin className="text-pink-500 w-4 h-4 mr-1" />,
+    restaurantName: <Building2 className="text-orange-500 w-4 h-4 mr-1" />,
+    vehicleNumber: <Truck className="text-indigo-500 w-4 h-4 mr-1" />,
+    createdAt: <KeyRound className="text-gray-500 w-4 h-4 mr-1" />,
+    __v: <Shield className="text-gray-400 w-4 h-4 mr-1" />,
+  };
 
-const fieldIcons: Record<string, JSX.Element> = {
-  _id: <KeyRound className="text-gray-400 w-4 h-4 mr-1" />,
-  name: <UserCircle className="text-blue-500 w-4 h-4 mr-1" />,
-  email: <Mail className="text-teal-500 w-4 h-4 mr-1" />,
-  password: <Shield className="text-yellow-500 w-4 h-4 mr-1" />,
-  role: <User className="text-purple-500 w-4 h-4 mr-1" />,
-  phone: <Phone className="text-green-500 w-4 h-4 mr-1" />,
-  address: <MapPin className="text-pink-500 w-4 h-4 mr-1" />,
-  restaurantName: <Building2 className="text-orange-500 w-4 h-4 mr-1" />,
-  vehicleNumber: <Truck className="text-indigo-500 w-4 h-4 mr-1" />,
-  createdAt: <KeyRound className="text-gray-500 w-4 h-4 mr-1" />,
-  __v: <Shield className="text-gray-400 w-4 h-4 mr-1" />,
-};
+  const roleColors: Record<string, string> = {
+    admin: "from-purple-100 to-purple-50 border-purple-400",
+    user: "from-blue-100 to-blue-50 border-blue-400",
+    restaurant_owner: "from-orange-100 to-orange-50 border-orange-400",
+    delivery_man: "from-green-100 to-green-50 border-green-400",
+  };
 
-const roleColors: Record<string, string> = {
-  admin: "from-purple-100 to-purple-50 border-purple-400",
-  user: "from-blue-100 to-blue-50 border-blue-400",
-  restaurant_owner: "from-orange-100 to-orange-50 border-orange-400",
-  delivery_man: "from-green-100 to-green-50 border-green-400",
-};
+  const DetailRow = ({
+    label,
+    value,
+    mono = false,
+  }: {
+    label: string;
+    value: React.ReactNode;
+    mono?: boolean;
+  }) => (
+    <div className="flex items-center py-2 px-2 rounded hover:bg-gray-50 transition-all">
+      <dt className="w-40 flex items-center font-semibold text-gray-700 capitalize">
+        {fieldIcons[label] || null}
+        <span className="ml-1">{label}:</span>
+      </dt>
+      <dd
+        className={`flex-1 text-gray-900 ${mono ? "font-mono text-xs" : "font-medium"} break-all`}
+      >
+        {value}
+      </dd>
+    </div>
+  );
 
-const DetailRow = ({
-  label,
-  value,
-  mono = false,
-}: {
-  label: string;
-  value: React.ReactNode;
-  mono?: boolean;
-}) => (
-  <div className="flex items-center py-2 px-2 rounded hover:bg-gray-50 transition-all">
-    <dt className="w-40 flex items-center font-semibold text-gray-700 capitalize">
-      {fieldIcons[label] || null}
-      <span className="ml-1">{label}:</span>
-    </dt>
-    <dd
-      className={`flex-1 text-gray-900 ${mono ? "font-mono text-xs" : "font-medium"} break-all`}
-    >
-      {value}
-    </dd>
-  </div>
-);
+  useEffect(() => {
+    const fetchUsersAndOrders = async () => {
+      setIsLoading(true)
+      try {
+        const token = localStorage.getItem("token")
+        // Fetch all users
+        const usersRes = await fetch("http://localhost:4000/api/auth/users", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        if (!usersRes.ok) throw new Error("Failed to fetch users")
+        const usersData = await usersRes.json()
+        const mappedUsers = usersData.map((user: any) => ({
+          ...user,
+          id: user._id || user.id,
+        }))
 
- // Fetch users from backend API with JWT
- useEffect(() => {
-  const fetchUsers = async () => {
-    setIsLoading(true)
-    try {
-      const token = localStorage.getItem("token")
-      const res = await fetch("http://localhost:4000/api/auth/users", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      if (!res.ok) throw new Error("Failed to fetch users")
-      const data = await res.json()
-      // Ensure each user has an 'id' property mapped from '_id'
-      const mapped = data.map((user: any) => ({
-        ...user,
-        id: user._id || user.id,
-      }));
-      setUsers(mapped)
-      setFilteredUsers(mapped)
-    } catch (error) {
-      console.error("Error fetching users:", error)
-      setUsers([])
-      setFilteredUsers([])
-    } finally {
-      setIsLoading(false)
+        // Fetch all orders
+        const ordersRes = await fetch("http://localhost:3008/api/orders", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        })
+        if (!ordersRes.ok) throw new Error("Failed to fetch orders")
+        const ordersData = await ordersRes.json()
+
+        // Only update orders field for customers (role === "user")
+        const usersWithOrders = mappedUsers.map((user: any) => {
+          if (user.role === "user") {
+            const orderCount = ordersData.filter(
+              (order: any) => order.user_id === user.id
+            ).length
+            return { ...user, orders: orderCount }
+          }
+          // Don't change others
+          return user
+        })
+
+        setUsers(usersWithOrders)
+        setFilteredUsers(usersWithOrders)
+      } catch (error) {
+        console.error("Error fetching users or orders:", error)
+        setUsers([])
+        setFilteredUsers([])
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }
 
-  fetchUsers()
-}, [])
-
+    fetchUsersAndOrders()
+  }, [])
 
   useEffect(() => {
     applyFilters()
-  }, [searchQuery, roleFilter, statusFilter, users])
+  }, [searchQuery, roleFilter, users])
 
   const applyFilters = () => {
     let filtered = [...users]
@@ -180,9 +199,6 @@ const DetailRow = ({
     }
     if (roleFilter !== "all") {
       filtered = filtered.filter((user) => user.role === roleFilter)
-    }
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((user) => user.status === statusFilter)
     }
     setFilteredUsers(filtered)
   }
@@ -224,9 +240,6 @@ const DetailRow = ({
           name: newUser.name,
           email: newUser.email,
           role: "admin",
-          status: "active",
-          joinDate: new Date().toISOString().split("T")[0],
-          lastActive: new Date().toISOString().split("T")[0],
           orders: 0,
           avatar: "/placeholder.svg?height=40&width=40",
           phone: newUser.phone,
@@ -251,7 +264,7 @@ const DetailRow = ({
       alert("Error registering admin: " + err.message);
     }
   };
-  
+
   const handleDeleteUser = async () => {
     if (!selectedUser || !selectedUser.id) {
       alert("No user selected for deletion.");
@@ -266,13 +279,10 @@ const DetailRow = ({
           Authorization: `Bearer ${token}`,
         },
       });
-      // Some backends may not return JSON for DELETE
       let result: { error?: string; message?: string } = {};
       try {
         result = await res.json();
-      } catch (e) {
-        // ignore if no JSON returned
-      }
+      } catch (e) {}
       if (!res.ok) {
         alert(result?.error || result?.message || "Failed to delete user");
         return;
@@ -285,10 +295,6 @@ const DetailRow = ({
       alert("Error deleting user: " + err.message);
     }
   };
-  
-  
-  
-  
 
   // --- Edit User Logic ---
   const openEditUser = (user: User) => {
@@ -304,7 +310,7 @@ const DetailRow = ({
   const handleEditUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editUser) return;
-  
+
     // Build payload based on role
     let payload: any = {
       name: editUser.name,
@@ -325,8 +331,7 @@ const DetailRow = ({
       payload.vehicleNumber = editUser.vehicleNumber;
     }
     payload.role = editUser.role;
-    payload.status = editUser.status;
-  
+
     try {
       const token = localStorage.getItem("token");
       if (!token) {
@@ -356,15 +361,12 @@ const DetailRow = ({
       alert("Error updating user: " + err.message);
     }
   };
-  
-  
 
   // --- View Details Logic ---
   const openViewDetails = (user: User) => {
     setViewUser(user)
     setIsViewDetailsOpen(true)
   }
-  // --------------------------
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -376,21 +378,6 @@ const DetailRow = ({
         return "bg-green-500"
       case "admin":
         return "bg-purple-500"
-      default:
-        return "bg-gray-500"
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-green-500"
-      case "inactive":
-        return "bg-gray-500"
-      case "suspended":
-        return "bg-red-500"
-      case "pending":
-        return "bg-yellow-500"
       default:
         return "bg-gray-500"
     }
@@ -419,26 +406,24 @@ const DetailRow = ({
       </div>
 
       <Tabs
-  value={roleFilter}
-  onValueChange={setRoleFilter}
-  className="space-y-4"
->
-  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-    <TabsList>
-      <TabsTrigger value="all">All Users</TabsTrigger>
-      <TabsTrigger value="user">Customers</TabsTrigger>
-      <TabsTrigger value="restaurant_owner">Restaurant Owners</TabsTrigger>
-      <TabsTrigger value="delivery_man">Delivery Personnel</TabsTrigger>
-      <TabsTrigger value="admin">Admins</TabsTrigger>
-    </TabsList>
-    <div className="flex gap-2">
-      <Button variant="outline" onClick={() => setIsAddUserOpen(true)}>
-        <UserPlus className="mr-2 h-4 w-4" />
-        Add User
-      </Button>
-    </div>
-  
-
+        value={roleFilter}
+        onValueChange={setRoleFilter}
+        className="space-y-4"
+      >
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <TabsList>
+            <TabsTrigger value="all">All Users</TabsTrigger>
+            <TabsTrigger value="user">Customers</TabsTrigger>
+            <TabsTrigger value="restaurant_owner">Restaurant Owners</TabsTrigger>
+            <TabsTrigger value="delivery_man">Delivery Personnel</TabsTrigger>
+            <TabsTrigger value="admin">Admins</TabsTrigger>
+          </TabsList>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsAddUserOpen(true)}>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Add User
+            </Button>
+          </div>
         </div>
 
         <Card>
@@ -446,17 +431,16 @@ const DetailRow = ({
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="w-full sm:max-w-sm">
                 {/* Search users by name, email, or ID */}
-<form onSubmit={handleSearch} className="relative">
-  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-  <Input
-    type="search"
-    placeholder="Search users..."
-    className="pl-8 w-full"
-    value={searchQuery}
-    onChange={(e) => setSearchQuery(e.target.value)}
-  />
-</form>
-
+                <form onSubmit={handleSearch} className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Search users..."
+                    className="pl-8 w-full"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </form>
               </div>
               <div className="flex gap-2 w-full sm:w-auto">
                 <Select value={roleFilter} onValueChange={setRoleFilter}>
@@ -469,18 +453,6 @@ const DetailRow = ({
                     <SelectItem value="restaurant_owner">Restaurant Owners</SelectItem>
                     <SelectItem value="delivery_man">Delivery Personnel</SelectItem>
                     <SelectItem value="admin">Admins</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="suspended">Suspended</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -497,9 +469,6 @@ const DetailRow = ({
                   <TableRow>
                     <TableHead>User</TableHead>
                     <TableHead>Role</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead>Last Active</TableHead>
                     <TableHead>Orders</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -522,13 +491,6 @@ const DetailRow = ({
                       <TableCell>
                         <Badge className={`${getRoleColor(user.role)} text-white`}>{getRoleName(user.role)}</Badge>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={`${getStatusColor(user.status)} text-white`}>
-                          {user.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{user.joinDate}</TableCell>
-                      <TableCell>{user.lastActive}</TableCell>
                       <TableCell>{user.orders}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
@@ -549,17 +511,6 @@ const DetailRow = ({
                               Edit
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            {user.status === "active" ? (
-                              <DropdownMenuItem className="text-amber-600">
-                                <Ban className="mr-2 h-4 w-4" />
-                                Suspend
-                              </DropdownMenuItem>
-                            ) : user.status === "suspended" ? (
-                              <DropdownMenuItem className="text-green-600">
-                                <CheckCircle className="mr-2 h-4 w-4" />
-                                Reactivate
-                              </DropdownMenuItem>
-                            ) : null}
                             <DropdownMenuItem
                               className="text-red-600"
                               onClick={() => {
@@ -587,7 +538,6 @@ const DetailRow = ({
                   onClick={() => {
                     setSearchQuery("")
                     setRoleFilter("all")
-                    setStatusFilter("all")
                   }}
                 >
                   Reset Filters
@@ -600,434 +550,356 @@ const DetailRow = ({
 
       {/* Add User Dialog */}
       <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
-  <DialogContent className="sm:max-w-[425px]">
-    <DialogHeader>
-      <DialogTitle>Add New Admin</DialogTitle>
-      <DialogDescription>
-        Create a new admin account. The admin will receive an email with login instructions.
-      </DialogDescription>
-    </DialogHeader>
-    <form onSubmit={handleAddUser}>
-      <div className="grid gap-4 py-4">
-        <div className="grid gap-2">
-          <Label htmlFor="name">Full Name</Label>
-          <Input
-            id="name"
-            value={newUser.name}
-            onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-            required
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            value={newUser.email}
-            onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-            required
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="phone">Phone</Label>
-          <Input
-            id="phone"
-            type="tel"
-            value={newUser.phone}
-            onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
-            required
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="address">Address</Label>
-          <Input
-            id="address"
-            value={newUser.address}
-            onChange={(e) => setNewUser({ ...newUser, address: e.target.value })}
-            required
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="role">Role</Label>
-          <Input
-            id="role"
-            value="admin"
-            disabled
-            className="bg-gray-100 cursor-not-allowed"
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            value={newUser.password}
-            onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-            required
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="confirmPassword">Confirm Password</Label>
-          <Input
-            id="confirmPassword"
-            type="password"
-            value={newUser.confirmPassword}
-            onChange={(e) => setNewUser({ ...newUser, confirmPassword: e.target.value })}
-            required
-          />
-        </div>
-      </div>
-      <DialogFooter>
-        <Button type="button" variant="outline" onClick={() => setIsAddUserOpen(false)}>
-          Cancel
-        </Button>
-        <Button type="submit">Create Admin</Button>
-      </DialogFooter>
-    </form>
-  </DialogContent>
-</Dialog>
-
-
-  {/* Edit User Dialog */}
-<Dialog open={isEditUserOpen} onOpenChange={setIsEditUserOpen}>
-  <DialogContent className="sm:max-w-[425px]">
-    <DialogHeader>
-      <DialogTitle>Edit User</DialogTitle>
-      <DialogDescription>
-        Update user details and save changes.
-      </DialogDescription>
-    </DialogHeader>
-    <form
-      onSubmit={async (e) => {
-        e.preventDefault();
-        if (!editUser) return;
-
-        // Build payload based on role
-        let payload: any = {
-          name: editUser.name,
-          email: editUser.email,
-        };
-        if (editUser.role === "admin") {
-          payload.phone = editUser.phone;
-          payload.address = editUser.address;
-        }
-        if (editUser.role === "restaurant_owner") {
-          payload.phone = editUser.phone;
-          payload.address = editUser.address;
-          payload.restaurantName = editUser.restaurantName;
-        }
-        if (editUser.role === "delivery_man") {
-          payload.phone = editUser.phone;
-          payload.address = editUser.address;
-          payload.vehicleNumber = editUser.vehicleNumber;
-        }
-        payload.role = editUser.role;
-        payload.status = editUser.status;
-
-        try {
-          const token = localStorage.getItem("token");
-          if (!token) {
-            alert("You are not authenticated. Please log in again.");
-            return;
-          }
-          const res = await fetch(`http://localhost:4000/api/auth/update/${editUser.id}`, {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(payload),
-          });
-          const result = await res.json();
-          if (!res.ok) {
-            alert(result?.error || result?.message || "Failed to update user");
-            return;
-          }
-          setUsers((prev) =>
-            prev.map((u) => (u.id === editUser.id ? { ...u, ...result } : u))
-          );
-          setIsEditUserOpen(false);
-          setEditUser(null);
-        } catch (err: any) {
-          alert("Error updating user: " + err.message);
-        }
-      }}
-    >
-      <div className="grid gap-4 py-4">
-        {/* Always show name and email */}
-        <div className="grid gap-2">
-          <Label htmlFor="edit-name">Full Name</Label>
-          <Input
-            id="edit-name"
-            name="name"
-            value={editUser?.name || ""}
-            onChange={handleEditUserChange}
-            required
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="edit-email">Email</Label>
-          <Input
-            id="edit-email"
-            name="email"
-            type="email"
-            value={editUser?.email || ""}
-            onChange={handleEditUserChange}
-            required
-          />
-        </div>
-
-        {/* Admin: phone, address */}
-        {editUser?.role === "admin" && (
-          <>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-phone">Phone</Label>
-              <Input
-                id="edit-phone"
-                name="phone"
-                type="tel"
-                value={editUser?.phone || ""}
-                onChange={handleEditUserChange}
-                required
-              />
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add New Admin</DialogTitle>
+            <DialogDescription>
+              Create a new admin account. The admin will receive an email with login instructions.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddUser}>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                  id="name"
+                  value={newUser.name}
+                  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={newUser.phone}
+                  onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="address">Address</Label>
+                <Input
+                  id="address"
+                  value={newUser.address}
+                  onChange={(e) => setNewUser({ ...newUser, address: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="role">Role</Label>
+                <Input
+                  id="role"
+                  value="admin"
+                  disabled
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={newUser.confirmPassword}
+                  onChange={(e) => setNewUser({ ...newUser, confirmPassword: e.target.value })}
+                  required
+                />
+              </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-address">Address</Label>
-              <Input
-                id="edit-address"
-                name="address"
-                value={editUser?.address || ""}
-                onChange={handleEditUserChange}
-                required
-              />
-            </div>
-          </>
-        )}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsAddUserOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Create Admin</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-        {/* Restaurant Owner: phone, address, restaurantName */}
-        {editUser?.role === "restaurant_owner" && (
-          <>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-phone">Phone</Label>
-              <Input
-                id="edit-phone"
-                name="phone"
-                type="tel"
-                value={editUser?.phone || ""}
-                onChange={handleEditUserChange}
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-address">Address</Label>
-              <Input
-                id="edit-address"
-                name="address"
-                value={editUser?.address || ""}
-                onChange={handleEditUserChange}
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-restaurantName">Restaurant Name</Label>
-              <Input
-                id="edit-restaurantName"
-                name="restaurantName"
-                value={editUser?.restaurantName || ""}
-                onChange={handleEditUserChange}
-                required
-              />
-            </div>
-          </>
-        )}
+      {/* Edit User Dialog */}
+      <Dialog open={isEditUserOpen} onOpenChange={setIsEditUserOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>
+              Update user details and save changes.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditUserSubmit}>
+            <div className="grid gap-4 py-4">
+              {/* Always show name and email */}
+              <div className="grid gap-2">
+                <Label htmlFor="edit-name">Full Name</Label>
+                <Input
+                  id="edit-name"
+                  name="name"
+                  value={editUser?.name || ""}
+                  onChange={handleEditUserChange}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-email">Email</Label>
+                <Input
+                  id="edit-email"
+                  name="email"
+                  type="email"
+                  value={editUser?.email || ""}
+                  onChange={handleEditUserChange}
+                  required
+                />
+              </div>
 
-        {/* Delivery Man: phone, address, vehicleNumber */}
-        {editUser?.role === "delivery_man" && (
-          <>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-phone">Phone</Label>
-              <Input
-                id="edit-phone"
-                name="phone"
-                type="tel"
-                value={editUser?.phone || ""}
-                onChange={handleEditUserChange}
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-address">Address</Label>
-              <Input
-                id="edit-address"
-                name="address"
-                value={editUser?.address || ""}
-                onChange={handleEditUserChange}
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-vehicleNumber">Vehicle Number</Label>
-              <Input
-                id="edit-vehicleNumber"
-                name="vehicleNumber"
-                value={editUser?.vehicleNumber || ""}
-                onChange={handleEditUserChange}
-                required
-              />
-            </div>
-          </>
-        )}
+              {/* Admin: phone, address */}
+              {editUser?.role === "admin" && (
+                <>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-phone">Phone</Label>
+                    <Input
+                      id="edit-phone"
+                      name="phone"
+                      type="tel"
+                      value={editUser?.phone || ""}
+                      onChange={handleEditUserChange}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-address">Address</Label>
+                    <Input
+                      id="edit-address"
+                      name="address"
+                      value={editUser?.address || ""}
+                      onChange={handleEditUserChange}
+                      required
+                    />
+                  </div>
+                </>
+              )}
 
-        {/* Role and Status (always editable) */}
-        <div className="grid gap-2">
-          <Label htmlFor="edit-role">Role</Label>
-          <Select
-            value={editUser?.role || ""}
-            onValueChange={(value) =>
-              setEditUser((prev) => prev ? { ...prev, role: value } : prev)
-            }
-          >
-            <SelectTrigger id="edit-role">
-              <SelectValue placeholder="Select role" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="admin">Admin</SelectItem>
-              <SelectItem value="user">Customer</SelectItem>
-              <SelectItem value="restaurant_owner">Restaurant Owner</SelectItem>
-              <SelectItem value="delivery_man">Delivery Person</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="edit-status">Status</Label>
-          <Select
-            value={editUser?.status || ""}
-            onValueChange={(value) =>
-              setEditUser((prev) => prev ? { ...prev, status: value } : prev)
-            }
-          >
-            <SelectTrigger id="edit-status">
-              <SelectValue placeholder="Select status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-              <SelectItem value="suspended">Suspended</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <DialogFooter>
-        <Button type="button" variant="outline" onClick={() => setIsEditUserOpen(false)}>
-          Cancel
-        </Button>
-        <Button type="submit">Save Changes</Button>
-      </DialogFooter>
-    </form>
-  </DialogContent>
-</Dialog>
+              {/* Restaurant Owner: phone, address, restaurantName */}
+              {editUser?.role === "restaurant_owner" && (
+                <>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-phone">Phone</Label>
+                    <Input
+                      id="edit-phone"
+                      name="phone"
+                      type="tel"
+                      value={editUser?.phone || ""}
+                      onChange={handleEditUserChange}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-address">Address</Label>
+                    <Input
+                      id="edit-address"
+                      name="address"
+                      value={editUser?.address || ""}
+                      onChange={handleEditUserChange}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-restaurantName">Restaurant Name</Label>
+                    <Input
+                      id="edit-restaurantName"
+                      name="restaurantName"
+                      value={editUser?.restaurantName || ""}
+                      onChange={handleEditUserChange}
+                      required
+                    />
+                  </div>
+                </>
+              )}
 
+              {/* Delivery Man: phone, address, vehicleNumber */}
+              {editUser?.role === "delivery_man" && (
+                <>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-phone">Phone</Label>
+                    <Input
+                      id="edit-phone"
+                      name="phone"
+                      type="tel"
+                      value={editUser?.phone || ""}
+                      onChange={handleEditUserChange}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-address">Address</Label>
+                    <Input
+                      id="edit-address"
+                      name="address"
+                      value={editUser?.address || ""}
+                      onChange={handleEditUserChange}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-vehicleNumber">Vehicle Number</Label>
+                    <Input
+                      id="edit-vehicleNumber"
+                      name="vehicleNumber"
+                      value={editUser?.vehicleNumber || ""}
+                      onChange={handleEditUserChange}
+                      required
+                    />
+                  </div>
+                </>
+              )}
 
+              {/* Role (always editable) */}
+              <div className="grid gap-2">
+                <Label htmlFor="edit-role">Role</Label>
+                <Select
+                  value={editUser?.role || ""}
+                  onValueChange={(value) =>
+                    setEditUser((prev) => prev ? { ...prev, role: value } : prev)
+                  }
+                >
+                  <SelectTrigger id="edit-role">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="user">Customer</SelectItem>
+                    <SelectItem value="restaurant_owner">Restaurant Owner</SelectItem>
+                    <SelectItem value="delivery_man">Delivery Person</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsEditUserOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Save Changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* View Details Dialog */}
       <Dialog open={isViewDetailsOpen} onOpenChange={setIsViewDetailsOpen}>
-  <DialogContent className="sm:max-w-[450px]">
-    <DialogHeader>
-      <DialogTitle>
-        <span
-          className={`
-            inline-block px-3 py-1 rounded-t-lg font-bold text-lg text-white
-            ${viewUser?.role === "admin" ? "bg-gradient-to-r from-purple-500 to-indigo-500" : ""}
-            ${viewUser?.role === "user" ? "bg-gradient-to-r from-blue-500 to-cyan-500" : ""}
-            ${viewUser?.role === "restaurant_owner" ? "bg-gradient-to-r from-orange-500 to-yellow-400" : ""}
-            ${viewUser?.role === "delivery_man" ? "bg-gradient-to-r from-green-500 to-teal-400" : ""}
-          `}
-        >
-          {viewUser ? viewUser.name : "User"} Details
-        </span>
-      </DialogTitle>
-      <DialogDescription>
-        All information about this user.
-      </DialogDescription>
-    </DialogHeader>
-    <div
-      className={`
-        py-4 rounded-xl border-2
-        bg-gradient-to-br
-        ${viewUser ? roleColors[viewUser.role] : "from-gray-50 to-white border-gray-200"}
-        shadow-lg
-      `}
-    >
-      {viewUser && (
-        <dl className="divide-y divide-gray-100">
-          {/* Admin format */}
-          {viewUser.role === "admin" && (
-            <>
-              <DetailRow label="_id" value={viewUser.id} mono />
-              <DetailRow label="name" value={viewUser.name} />
-              <DetailRow label="email" value={viewUser.email} />
-              <DetailRow label="password" value="***************" mono />
-              <DetailRow label="role" value={viewUser.role} />
-              <DetailRow label="phone" value={viewUser.phone || "-"} />
-              <DetailRow label="address" value={viewUser.address || "-"} />
-            </>
-          )}
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle>
+              <span
+                className={`
+                  inline-block px-3 py-1 rounded-t-lg font-bold text-lg text-white
+                  ${viewUser?.role === "admin" ? "bg-gradient-to-r from-purple-500 to-indigo-500" : ""}
+                  ${viewUser?.role === "user" ? "bg-gradient-to-r from-blue-500 to-cyan-500" : ""}
+                  ${viewUser?.role === "restaurant_owner" ? "bg-gradient-to-r from-orange-500 to-yellow-400" : ""}
+                  ${viewUser?.role === "delivery_man" ? "bg-gradient-to-r from-green-500 to-teal-400" : ""}
+                `}
+              >
+                {viewUser ? viewUser.name : "User"} Details
+              </span>
+            </DialogTitle>
+            <DialogDescription>
+              All information about this user.
+            </DialogDescription>
+          </DialogHeader>
+          <div
+            className={`
+              py-4 rounded-xl border-2
+              bg-gradient-to-br
+              ${viewUser ? roleColors[viewUser.role] : "from-gray-50 to-white border-gray-200"}
+              shadow-lg
+            `}
+          >
+            {viewUser && (
+              <dl className="divide-y divide-gray-100">
+                {/* Admin format */}
+                {viewUser.role === "admin" && (
+                  <>
+                    <DetailRow label="_id" value={viewUser.id} mono />
+                    <DetailRow label="name" value={viewUser.name} />
+                    <DetailRow label="email" value={viewUser.email} />
+                    <DetailRow label="password" value="***************" mono />
+                    <DetailRow label="role" value={viewUser.role} />
+                    <DetailRow label="phone" value={viewUser.phone || "-"} />
+                    <DetailRow label="address" value={viewUser.address || "-"} />
+                  </>
+                )}
 
-          {/* Restaurant Owner format */}
-          {viewUser.role === "restaurant_owner" && (
-            <>
-              <DetailRow label="_id" value={viewUser.id} mono />
-              <DetailRow label="name" value={viewUser.name} />
-              <DetailRow label="email" value={viewUser.email} />
-              <DetailRow label="password" value="***************" mono />
-              <DetailRow label="role" value={viewUser.role} />
-              <DetailRow label="phone" value={viewUser.phone || "-"} />
-              <DetailRow label="address" value={viewUser.address || "-"} />
-              <DetailRow label="restaurantName" value={viewUser.restaurantName || "-"} />
-            </>
-          )}
+                {/* Restaurant Owner format */}
+                {viewUser.role === "restaurant_owner" && (
+                  <>
+                    <DetailRow label="_id" value={viewUser.id} mono />
+                    <DetailRow label="name" value={viewUser.name} />
+                    <DetailRow label="email" value={viewUser.email} />
+                    <DetailRow label="password" value="***************" mono />
+                    <DetailRow label="role" value={viewUser.role} />
+                    <DetailRow label="phone" value={viewUser.phone || "-"} />
+                    <DetailRow label="address" value={viewUser.address || "-"} />
+                    <DetailRow label="restaurantName" value={viewUser.restaurantName || "-"} />
+                  </>
+                )}
 
-          {/* Delivery Personnel format */}
-          {viewUser.role === "delivery_man" && (
-            <>
-              <DetailRow label="_id" value={viewUser.id} mono />
-              <DetailRow label="name" value={viewUser.name} />
-              <DetailRow label="email" value={viewUser.email} />
-              <DetailRow label="password" value="***************" mono />
-              <DetailRow label="role" value={viewUser.role} />
-              <DetailRow label="phone" value={viewUser.phone || "-"} />
-              <DetailRow label="address" value={viewUser.address || "-"} />
-              <DetailRow label="vehicleNumber" value={viewUser.vehicleNumber || "-"} mono />
-            </>
-          )}
+                {/* Delivery Personnel format */}
+                {viewUser.role === "delivery_man" && (
+                  <>
+                    <DetailRow label="_id" value={viewUser.id} mono />
+                    <DetailRow label="name" value={viewUser.name} />
+                    <DetailRow label="email" value={viewUser.email} />
+                    <DetailRow label="password" value="***************" mono />
+                    <DetailRow label="role" value={viewUser.role} />
+                    <DetailRow label="phone" value={viewUser.phone || "-"} />
+                    <DetailRow label="address" value={viewUser.address || "-"} />
+                    <DetailRow label="vehicleNumber" value={viewUser.vehicleNumber || "-"} mono />
+                  </>
+                )}
 
-          {/* Customer/User format */}
-          {viewUser.role === "user" && (
-            <>
-              <DetailRow label="_id" value={viewUser.id} mono />
-              <DetailRow label="name" value={viewUser.name} />
-              <DetailRow label="email" value={viewUser.email} />
-              <DetailRow label="password" value="***************" mono />
-              <DetailRow label="role" value={viewUser.role} />
-            </>
-          )}
-        </dl>
-      )}
-    </div>
-    <DialogFooter>
-      <Button
-        type="button"
-        variant="outline"
-        className="bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-700 border-gray-300"
-        onClick={() => setIsViewDetailsOpen(false)}
-      >
-        Close
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
-
+                {/* Customer/User format */}
+                {viewUser.role === "user" && (
+                  <>
+                    <DetailRow label="_id" value={viewUser.id} mono />
+                    <DetailRow label="name" value={viewUser.name} />
+                    <DetailRow label="email" value={viewUser.email} />
+                    <DetailRow label="password" value="***************" mono />
+                    <DetailRow label="role" value={viewUser.role} />
+                  </>
+                )}
+              </dl>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              className="bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-700 border-gray-300"
+              onClick={() => setIsViewDetailsOpen(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

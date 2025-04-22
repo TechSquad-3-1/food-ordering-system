@@ -303,10 +303,7 @@ export default function AdminDeliveryDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{deliveryPersonnel.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {deliveryPersonnel.filter((p) => p.status === "active").length} active,{" "}
-              {deliveryPersonnel.filter((p) => p.status === "on_delivery").length} on delivery
-            </p>
+            
           </CardContent>
         </Card>
 
@@ -365,7 +362,6 @@ export default function AdminDeliveryDashboard() {
       <TableHead>ID</TableHead>
       <TableHead>Name</TableHead>
       <TableHead>Contact</TableHead>
-      <TableHead>Status</TableHead>
       <TableHead>Vehicle No</TableHead>
       <TableHead>Address</TableHead>
       <TableHead>Joined</TableHead>
@@ -396,15 +392,7 @@ export default function AdminDeliveryDashboard() {
             </div>
           </div>
         </TableCell>
-        <TableCell>
-          <Badge className={`${getStatusColor(person.status)} text-white`}>
-            {person.status === "active"
-              ? "Active"
-              : person.status === "inactive"
-              ? "Inactive"
-              : "On Delivery"}
-          </Badge>
-        </TableCell>
+        {/* Status cell removed */}
         <TableCell>
           {person.vehicleNumber || "-"}
         </TableCell>
@@ -425,6 +413,7 @@ export default function AdminDeliveryDashboard() {
     ))}
   </TableBody>
 </Table>
+
 
 
             </CardContent>
@@ -687,19 +676,6 @@ export default function AdminDeliveryDashboard() {
         value={editForm.vehicleNumber}
         onChange={handleEditChange}
       />
-    </div>
-    <div>
-      <Label className="block text-sm font-medium text-gray-700 mb-1">Status</Label>
-      <select
-        name="status"
-        value={editForm.status}
-        onChange={handleEditChange}
-        className="w-full border rounded px-2 py-1"
-      >
-        <option value="active">Active</option>
-        <option value="inactive">Inactive</option>
-        <option value="on_delivery">On Delivery</option>
-      </select>
     </div>
   </div>
 </div>
