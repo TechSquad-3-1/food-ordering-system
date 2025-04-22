@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ShoppingCart, ChevronDown, User, MapPin, CreditCard, Clock, Settings, LogOut, Edit, PlusCircleIcon, PencilIcon, HomeIcon, AlertCircleIcon, CheckCircleIcon, MapPinIcon } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { useCart } from "@/hooks/useCart";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -39,7 +40,9 @@ export default function ProfilePage() {
     role: "",
   });
   const [isLoading, setIsLoading] = useState(true);
-
+  // Use the useCart hook to get cart items and cart count
+  const { cartItems } = useCart(); 
+  const cartCount = cartItems.length; // Get the count of items in the cart
   useEffect(() => {
     const token = localStorage.getItem("token");
 
@@ -150,7 +153,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header cartCount={2} />
+      <Header cartCount={cartCount} />
 
       <main className="max-w-[1400px] mx-auto px-6 py-12">
         <div className="flex flex-col md:flex-row gap-8">

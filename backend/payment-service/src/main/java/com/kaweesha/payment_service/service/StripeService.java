@@ -23,7 +23,7 @@ public class StripeService {
         long amountInSmallestUnit = (long) (productRequest.getAmount() * 100); // Convert to cents as integer for backend use
 
         // Ensure currency is set to LKR if not provided
-        String currency = productRequest.getCurrency() != null ? productRequest.getCurrency() : "LKR";
+        //String currency = productRequest.getCurrency() != null ? productRequest.getCurrency() : "LKR";
 
         // Create a ProductData object for the Stripe session
         SessionCreateParams.LineItem.PriceData.ProductData productData =

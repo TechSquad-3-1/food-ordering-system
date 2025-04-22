@@ -1,7 +1,6 @@
 "use client"
 
-import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -11,61 +10,73 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import Header from "@/components/Header"
 import Footer from "@/components/Footer"
+import { useCart } from "@/hooks/useCart";
 
 interface UserDashboardProps {
   userId: string
 }
 
+function getRandomItems(array: any[], count: number) {
+  if (!Array.isArray(array)) return [];
+  const shuffled = [...array].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, count);
+}
+
 export default function UserDashboard({ userId }: UserDashboardProps) {
   const [address, setAddress] = useState("Sri Lanka")
   const [searchQuery, setSearchQuery] = useState("")
-  const [cartCount, setCartCount] = useState(2)
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(true)
+  const [menuItems, setMenuItems] = useState<any[]>([])
+  const [restaurants, setRestaurants] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const router = useRouter()
+  const placeholderImage = "/placeholder.svg"
+  // Use the useCart hook to get cart items and cart count
+  const { cartItems } = useCart(); 
+  const cartCount = cartItems.length; // Get the count of items in the cart
 
-  const categories = [
-    { id: "1", name: "Pizza", image: "/pizza.jpg" },
-    { id: "2", name: "Burgers", image: "/burger.jpg" },
-    { id: "3", name: "Healthy", image: "/healthy.jpg" },
-    { id: "4", name: "Desserts", image: "/deserts.jpg" },
-    { id: "5", name: "Asian", image: "/asian.png" },
-    { id: "6", name: "Italian", image: "/italian.jpg" },
-  ]
-
-  const restaurants = [
-    {
-      id: "1",
-      name: "Burger Palace",
-      image: "/r1.jpg",
-      rating: 4.7,
-      deliveryTime: "15-25 min",
-      deliveryFee: "$1.99",
-      cuisine: ["Burgers", "American", "Fast Food"],
-    },
-    {
-      id: "2",
-      name: "Pizza Heaven",
-      image: "/r2.jpg",
-      rating: 4.5,
-      deliveryTime: "20-30 min",
-      deliveryFee: "$2.49",
-      cuisine: ["Pizza", "Italian"],
-    },
-    {
-      id: "2",
-      name: "Pizza Heaven",
-      image: "/r3.jpg",
-      rating: 4.5,
-      deliveryTime: "20-30 min",
-      deliveryFee: "$2.49",
-      cuisine: ["Pizza", "Italian"],
-    },
-    // Add more restaurant items as needed
-  ]
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [menuRes, restRes] = await Promise.all([
+          fetch("http://localhost:3001/api/menu-items"),
+          fetch("http://localhost:3001/api/restaurants"),
+        ]);
+        const menuItemsData = await menuRes.json();
+        const restaurantsData = await restRes.json();
+        setMenuItems(menuItemsData);
+        setRestaurants(restaurantsData);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+  
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Searching for:", searchQuery)
+    // Implement search logic if needed
+  }
+
+  const handleMenuItemClick = (item: any) => {
+    localStorage.setItem('selectedItem', JSON.stringify(item))
+    localStorage.setItem('selectedQuantity', '1')
+    router.push('/checkout')
+  }
+
+  const handleRestaurantClick = (restaurantId: string) => {
+    localStorage.setItem('restaurantId', restaurantId)
+    router.push(`/restaurants/${restaurantId}`)
+  }
+
+  const randomMenuItems = getRandomItems(menuItems, 6)
+  const randomRestaurants = getRandomItems(restaurants, 3)
+
+  if (loading) {
+    return <div className="text-center py-20">Loading...</div>
   }
 
   return (
@@ -85,11 +96,9 @@ export default function UserDashboard({ userId }: UserDashboardProps) {
                 <MapPin className="h-5 w-5 text-red-500 mr-2" />
                 <span>{address}</span>
               </div>
-
               <h1 className="text-4xl md:text-5xl font-bold mb-8 leading-tight">
                 Discover restaurants that deliver near you.
               </h1>
-
               <form onSubmit={handleSearch} className="relative max-w-md mx-auto mb-8">
                 <Input
                   type="text"
@@ -105,7 +114,6 @@ export default function UserDashboard({ userId }: UserDashboardProps) {
                   <Search className="h-5 w-5 text-white" />
                 </Button>
               </form>
-
               {/* Call to Action */}
               <div className="flex justify-center gap-6 mb-6">
                 <Button className="bg-red-500 hover:bg-red-600 text-white py-2 px-6 rounded-full flex items-center">
@@ -117,7 +125,6 @@ export default function UserDashboard({ userId }: UserDashboardProps) {
                   Learn More
                 </Button>
               </div>
-
               {/* Icons */}
               <div className="flex justify-center gap-6 text-white">
                 <div className="flex items-center space-x-2">
@@ -134,32 +141,37 @@ export default function UserDashboard({ userId }: UserDashboardProps) {
                 </div>
               </div>
             </div>
-
           </div>
         </div>
 
-
-
-        {/* Food Categories */}
+        {/* Popular Menu Items */}
         <section className="py-10 bg-white">
           <div className="container mx-auto px-4">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Popular Categories</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Popular Menu Items</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {categories.map((category) => (
-                <Link href={`/category/${category.id}`} key={category.id}>
-                  <Card className="overflow-hidden hover:shadow-md transition-shadow">
-                    <div className="aspect-square relative">
-                      <img
-                        src={category.image || "/placeholder.svg"}
-                        alt={category.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <CardContent className="p-3 text-center">
-                      <h3 className="font-medium text-gray-900">{category.name}</h3>
-                    </CardContent>
-                  </Card>
-                </Link>
+              {randomMenuItems.map((item) => (
+                <Card
+                  className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                  key={item._id}
+                  onClick={() => handleMenuItemClick(item)}
+                >
+                  <div className="aspect-square relative">
+                    <img
+                      src={item.image_url ? item.image_url : placeholderImage}
+                      alt={item.name}
+                      className="w-full h-full object-cover"
+                      onError={e => { e.currentTarget.src = placeholderImage; }}
+                    />
+                  </div>
+                  <CardContent className="p-3 text-center">
+                    <h3 className="font-medium text-gray-900">{item.name}</h3>
+                    {item.price && (
+                      <div className="text-sm text-gray-500 mt-1">
+                        {typeof item.price === "number" ? `LKR ${item.price.toFixed(2)}` : item.price}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               ))}
             </div>
           </div>
@@ -170,39 +182,41 @@ export default function UserDashboard({ userId }: UserDashboardProps) {
           <div className="container mx-auto px-4">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Featured Restaurants</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {restaurants.map((restaurant) => (
-                <Link href={`/restaurant/${restaurant.id}`} key={restaurant.id}>
-                  <Card className="overflow-hidden hover:shadow-md transition-shadow h-full">
-                    <div className="aspect-video relative">
-                      <img
-                        src={restaurant.image || "/placeholder.svg"}
-                        alt={restaurant.name}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute top-3 right-3">
-                        <Badge className="bg-white text-gray-900">★ {restaurant.rating}</Badge>
-                      </div>
+              {randomRestaurants.map((restaurant) => (
+                <Card
+                  className="overflow-hidden hover:shadow-md transition-shadow h-full cursor-pointer"
+                  key={restaurant._id}
+                  onClick={() => handleRestaurantClick(restaurant._id)}
+                >
+                  <div className="aspect-video relative">
+                    <img
+                      src={restaurant.image || placeholderImage}
+                      alt={restaurant.name}
+                      className="w-full h-full object-cover"
+                      onError={e => { e.currentTarget.src = placeholderImage; }}
+                    />
+                    <div className="absolute top-3 right-3">
+                      <Badge className="bg-white text-gray-900">★ {restaurant.rating}</Badge>
                     </div>
-                    <CardContent className="p-4">
-                      <h3 className="font-bold text-lg text-gray-900 mb-1">{restaurant.name}</h3>
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {restaurant.cuisine.map((type, index) => (
-                          <span key={index} className="text-xs text-gray-500">
-                            {type}
-                            {index < restaurant.cuisine.length - 1 ? " • " : ""}
-                          </span>
-                        ))}
-                      </div>
-                      <div className="flex items-center justify-between text-sm text-gray-500">
-                        <span>{restaurant.deliveryTime}</span>
-                        <span>{restaurant.deliveryFee} delivery</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+                  </div>
+                  <CardContent className="p-4">
+                    <h3 className="font-bold text-lg text-gray-900 mb-1">{restaurant.name}</h3>
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {Array.isArray(restaurant.cuisines) && restaurant.cuisines.map((type: string, index: number) => (
+                        <span key={index} className="text-xs text-gray-500">
+                          {type}
+                          {index < restaurant.cuisines.length - 1 ? " • " : ""}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-gray-500">
+                      <span>{restaurant.deliveryTime}</span>
+                      <span>{restaurant.deliveryFee} delivery</span>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
-
             <div className="mt-8 text-center">
               <Button variant="outline" className="border-red-500 text-red-500 hover:bg-red-50">
                 View All Restaurants
@@ -223,7 +237,6 @@ export default function UserDashboard({ userId }: UserDashboardProps) {
                 <h3 className="text-lg font-bold mb-2">Find Food</h3>
                 <p className="text-gray-600">Browse restaurants and cuisines near you</p>
               </div>
-
               <div className="text-center">
                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <ShoppingCart className="h-8 w-8 text-red-500" />
@@ -231,7 +244,6 @@ export default function UserDashboard({ userId }: UserDashboardProps) {
                 <h3 className="text-lg font-bold mb-2">Place Order</h3>
                 <p className="text-gray-600">Choose your favorite dishes and checkout</p>
               </div>
-
               <div className="text-center">
                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <MapPin className="h-8 w-8 text-red-500" />
@@ -242,8 +254,6 @@ export default function UserDashboard({ userId }: UserDashboardProps) {
             </div>
           </div>
         </section>
-
-        
       </main>
       {/* Footer */}
       <Footer />
@@ -270,7 +280,7 @@ export default function UserDashboard({ userId }: UserDashboardProps) {
             </button>
           </div>
           <p className="text-sm text-gray-600 mb-3">
-          At Platoo, your privacy is important to us. This policy explains how we collect and use your personal information when you use our services.
+            At Platoo, your privacy is important to us. This policy explains how we collect and use your personal information when you use our services.
           </p>
           <Link href="/privacy" className="text-sm text-red-500 font-medium hover:text-red-600">
             See more
