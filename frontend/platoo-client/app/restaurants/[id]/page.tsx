@@ -323,7 +323,7 @@ const orderNow = (item: MenuItem) => {
                                           )}
                                         </div>
                                       </div>
-                                      <div className="font-bold">${item.price.toFixed(2)}</div>
+                                      <div className="font-bold">LKR {item.price.toFixed(2)}</div>
                                     </div>
                                     <p className="text-sm text-gray-500 mt-2 line-clamp-2">{item.description}</p>
                                     <div className="mt-3 flex justify-between items-center">

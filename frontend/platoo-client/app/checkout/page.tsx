@@ -61,7 +61,7 @@ export default function CheckoutPage() {
   const [selectedQuantity, setSelectedQuantity] = useState<number>(1);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [subtotal, setSubtotal] = useState<number>(0);
-  const [deliveryFee, setDeliveryFee] = useState<number>(2.99);
+  const [deliveryFee, setDeliveryFee] = useState<number>(300.00);
   const [tax, setTax] = useState<number>(0);
   const [total, setTotal] = useState<number>(0);
   const [deliveryAddress, setDeliveryAddress] = useState<string>("");
@@ -237,7 +237,7 @@ export default function CheckoutPage() {
                             <span className="font-medium">{item.name}</span>
                             <span className="text-sm text-gray-500">Qty: {item.quantity}</span>
                           </div>
-                          <div className="font-bold">${(item.price * item.quantity).toFixed(2)}</div>
+                          <div className="font-bold">LKR {(item.price * item.quantity).toFixed(2)}</div>
                         </div>
                       ))
                     ) : selectedItem ? (
@@ -254,7 +254,7 @@ export default function CheckoutPage() {
                             </Button>
                           </div>
                         </div>
-                        <div className="font-bold">${(selectedItem.price * selectedQuantity).toFixed(2)}</div>
+                        <div className="font-bold">LKR {(selectedItem.price * selectedQuantity).toFixed(2)}</div>
                       </div>
                     ) : (
                       <p>No items in cart</p>
@@ -264,19 +264,19 @@ export default function CheckoutPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Subtotal</span>
-                      <span>${cartItems.length > 0 ? subtotal.toFixed(2) : ((selectedItem?.price || 0) * selectedQuantity).toFixed(2)}</span>
+                      <span>LKR {cartItems.length > 0 ? subtotal.toFixed(2) : ((selectedItem?.price || 0) * selectedQuantity).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Delivery Fee</span>
-                      <span>${deliveryFee.toFixed(2)}</span>
+                      <span>LKR {deliveryFee.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Tax</span>
-                      <span>${cartItems.length > 0 ? tax.toFixed(2) : ((selectedItem?.price || 0) * selectedQuantity * 0.08).toFixed(2)}</span>
+                      <span>LKR {cartItems.length > 0 ? tax.toFixed(2) : ((selectedItem?.price || 0) * selectedQuantity * 0.08).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between font-bold text-lg pt-2 border-t">
                       <span>Total</span>
-                      <span>${cartItems.length > 0 ? total.toFixed(2) : ((selectedItem?.price || 0) * selectedQuantity + deliveryFee).toFixed(2)}</span>
+                      <span>LKR {cartItems.length > 0 ? total.toFixed(2) : ((selectedItem?.price || 0) * selectedQuantity + deliveryFee).toFixed(2)}</span>
                     </div>
                   </div>
                 </CardContent>
