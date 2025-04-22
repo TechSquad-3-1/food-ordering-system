@@ -4,11 +4,19 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
+import { useUser } from "@/hooks/useUserContext"; // <-- Import your user context
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -16,6 +24,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const { setUser } = useUser(); // <-- Use the context
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,18 +45,21 @@ export default function LoginPage() {
         throw new Error(data.msg || "Login failed");
       }
 
-      // Decode the token to get the user ID and role
+      // Decode the token to get the user data
       const token = data.token;
       const decodedToken = decodeToken(token);
 
-      // Store the token and user data in localStorage
+      // Store only the token in localStorage
       localStorage.setItem("token", token);
-      localStorage.setItem("userId", decodedToken.id);
-      localStorage.setItem("role", decodedToken.role);
 
-      // Inside LoginPage component
-      localStorage.setItem("adminName", decodedToken.name); // Store admin's name
-      localStorage.setItem("adminEmail", decodedToken.email); // Store admin's email
+      // Update context (this will also sync all tabs via storage event in UserProvider)
+      setUser({
+        token,
+        id: decodedToken.id,
+        role: decodedToken.role,
+        name: decodedToken.name,
+        email: decodedToken.email,
+      });
 
       toast({
         title: "Login successful",
@@ -59,7 +71,10 @@ export default function LoginPage() {
     } catch (error) {
       toast({
         title: "Login failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
+        description:
+          error instanceof Error
+            ? error.message
+            : "An unknown error occurred",
         variant: "destructive",
       });
     } finally {
@@ -69,11 +84,10 @@ export default function LoginPage() {
 
   const decodeToken = (token: string) => {
     try {
-      const decoded = JSON.parse(atob(token.split(".")[1]));
-      return decoded;
+      return JSON.parse(atob(token.split(".")[1]));
     } catch (error) {
       console.error("Error decoding token", error);
-      return null;
+      return {};
     }
   };
 
@@ -81,7 +95,8 @@ export default function LoginPage() {
     <div
       className="flex min-h-screen items-center justify-center p-4 bg-cover bg-center bg-fixed"
       style={{
-        backgroundImage: "url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070&auto=format&fit=crop')",
+        backgroundImage:
+          "url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070&auto=format&fit=crop')",
       }}
     >
       <div className="absolute inset-0 bg-black/50" />
@@ -89,7 +104,9 @@ export default function LoginPage() {
       <Card className="w-full max-w-md relative bg-white/20 backdrop-blur-md border-white/30 shadow-xl">
         <div className="absolute inset-0 bg-gradient-to-r from-orange-600/10 to-red-600/10 rounded-lg" />
         <CardHeader className="space-y-1 relative">
-          <CardTitle className="text-3xl font-bold text-center text-white">Login to Platoo</CardTitle>
+          <CardTitle className="text-3xl font-bold text-center text-white">
+            Login to Platoo
+          </CardTitle>
           <CardDescription className="text-center text-white/80">
             Enter your credentials to access your account
           </CardDescription>
@@ -150,7 +167,10 @@ export default function LoginPage() {
         <CardFooter className="flex flex-col space-y-4 relative">
           <div className="text-center text-sm text-white">
             Don&apos;t have an account?{" "}
-            <Link href="/register" className="text-orange-300 hover:text-orange-200 hover:underline font-medium">
+            <Link
+              href="/register"
+              className="text-orange-300 hover:text-orange-200 hover:underline font-medium"
+            >
               Register
             </Link>
           </div>

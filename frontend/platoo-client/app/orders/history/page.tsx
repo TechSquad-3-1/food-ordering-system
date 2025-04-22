@@ -20,7 +20,7 @@ interface OrderItem {
 interface Order {
   id: string
   date: string
-  status: "Preparing" | "On the way" | "Delivered" | "Cancelled"
+  status: "Pending" | "Preparing" | "On the way" | "Delivered" | "Cancelled" | "Ready"
   items: OrderItem[]
   address: string
   deliveryTime: string
@@ -30,45 +30,68 @@ interface Order {
   restaurantRating: number
 }
 
+interface Restaurant {
+  id: string
+  name: string
+  image: string
+  rating: number
+}
+
 export default function OrderHistoryPage() {
-  const [completedOrders, setCompletedOrders] = useState<Order[]>([])
-  const [cancelledOrders, setCancelledOrders] = useState<Order[]>([])
+  const [allOrders, setAllOrders] = useState<Order[]>([])
+  const [filteredOrders, setFilteredOrders] = useState<Order[]>([])
+  const [restaurantData, setRestaurantData] = useState<Restaurant[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
-  
+
   const loggedInUserId = localStorage.getItem("userId") // Retrieve the logged-in user's ID
 
   useEffect(() => {
+    if (!loggedInUserId) {
+      setIsLoading(false)
+      return
+    }
+
     const fetchOrders = async () => {
       try {
-        const response = await fetch(`http://localhost:3008/api/orders/user/${loggedInUserId}`)
+        const response = await fetch(`http://localhost:3008/api/orders/history/${loggedInUserId}`)
         if (!response.ok) {
           throw new Error("Failed to fetch orders")
         }
         const orders = await response.json()
 
-        // Map the fetched orders to match the expected format and filter by logged-in user ID
-        const mappedOrders: Order[] = orders.map((order: any) => ({
-          id: order.order_id,
-          date: new Date(order.createdAt).toLocaleString(), // Formatting date
-          status: order.status,
-          items: order.items.map((item: any) => ({
-            name: item.menu_item_id, // You might want to replace this with the actual item name from your database
-            quantity: item.quantity,
-            price: item.price,
-          })),
-          address: order.delivery_address,
-          deliveryTime: order.delivery_time || "TBD", // Placeholder if no delivery time available
-          total: order.total_amount + order.delivery_fee,
-          restaurantName: order.restaurant_name, // Assuming the restaurant name is part of the order data
-          restaurantImage: order.restaurant_image || "/placeholder.svg", // Fallback to placeholder
-          restaurantRating: order.restaurant_rating || 0, // Assuming restaurant rating is part of the order data
-        }))
+        // Fetch all restaurant data
+        const restaurantResponse = await fetch("http://localhost:3001/api/restaurants")
+        if (!restaurantResponse.ok) {
+          throw new Error("Failed to fetch restaurants")
+        }
+        const restaurants = await restaurantResponse.json()
 
-        // Categorize orders based on their status
-        setCompletedOrders(mappedOrders.filter((order) => order.status === "Delivered"))
-        setCancelledOrders(mappedOrders.filter((order) => order.status === "Cancelled"))
+        // Map the fetched orders to match the expected format
+        const mappedOrders: Order[] = orders.map((order: any) => {
+          const restaurant = restaurants.find((r: any) => r.id === order.restaurant_id)
+          return {
+            id: order.order_id,
+            date: new Date(order.createdAt).toLocaleString(),
+            status: order.status,
+            items: order.items.map((item: any) => ({
+              name: `Item ID: ${item.menu_item_id}`, // Placeholder for item name
+              quantity: item.quantity,
+              price: item.price,
+            })),
+            address: "Not available", // Placeholder for address
+            deliveryTime: "TBD", // Placeholder for delivery time
+            total: order.total_amount + order.delivery_fee, // Calculate total price
+            restaurantName: restaurant ? restaurant.name : "Unknown",
+            restaurantImage: restaurant ? restaurant.image : "/placeholder.svg", // Fallback image
+            restaurantRating: restaurant ? restaurant.rating : 0, // Fallback rating
+          }
+        })
+
+        setAllOrders(mappedOrders)
+        setFilteredOrders(mappedOrders) // Initially set to all orders
+
       } catch (error) {
-        console.error("Error fetching orders:", error)
+        console.error("Error fetching data:", error)
       } finally {
         setIsLoading(false)
       }
@@ -76,6 +99,14 @@ export default function OrderHistoryPage() {
 
     fetchOrders()
   }, [loggedInUserId])
+
+  const filterOrdersByStatus = (status: string) => {
+    if (status === "all") {
+      setFilteredOrders(allOrders)
+    } else {
+      setFilteredOrders(allOrders.filter((order) => order.status.toLowerCase() === status.toLowerCase()))
+    }
+  }
 
   if (isLoading) {
     return (
@@ -99,27 +130,43 @@ export default function OrderHistoryPage() {
             <p className="text-gray-500">View and manage your past orders</p>
           </div>
 
-          <Tabs defaultValue="all">
+          <Tabs defaultValue="all" onValueChange={filterOrdersByStatus}>
             <TabsList>
               <TabsTrigger value="all">All Orders</TabsTrigger>
+              <TabsTrigger value="pending">Pending</TabsTrigger>
+              <TabsTrigger value="preparing">Preparing</TabsTrigger>
+              <TabsTrigger value="ready">Ready</TabsTrigger>
               <TabsTrigger value="completed">Completed</TabsTrigger>
               <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
             </TabsList>
             <div className="mt-6">
               <TabsContent value="all" className="space-y-4">
-                {[...completedOrders, ...cancelledOrders]
-                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                  .map((order) => (
-                    <OrderCard key={order.id} order={order} />
-                  ))}
+                {filteredOrders.map((order) => (
+                  <OrderCard key={order.id} order={order} />
+                ))}
+              </TabsContent>
+              <TabsContent value="pending" className="space-y-4">
+                {filteredOrders.map((order) => (
+                  <OrderCard key={order.id} order={order} />
+                ))}
+              </TabsContent>
+              <TabsContent value="preparing" className="space-y-4">
+                {filteredOrders.map((order) => (
+                  <OrderCard key={order.id} order={order} />
+                ))}
+              </TabsContent>
+              <TabsContent value="ready" className="space-y-4">
+                {filteredOrders.map((order) => (
+                  <OrderCard key={order.id} order={order} />
+                ))}
               </TabsContent>
               <TabsContent value="completed" className="space-y-4">
-                {completedOrders.map((order) => (
+                {filteredOrders.map((order) => (
                   <OrderCard key={order.id} order={order} />
                 ))}
               </TabsContent>
               <TabsContent value="cancelled" className="space-y-4">
-                {cancelledOrders.map((order) => (
+                {filteredOrders.map((order) => (
                   <OrderCard key={order.id} order={order} />
                 ))}
               </TabsContent>
@@ -147,6 +194,8 @@ function OrderCard({ order }: { order: Order }) {
                 ? "bg-green-500"
                 : order.status === "Cancelled"
                 ? "bg-red-500"
+                : order.status === "Pending"
+                ? "bg-yellow-500"
                 : "bg-orange-500"
             }
           >
