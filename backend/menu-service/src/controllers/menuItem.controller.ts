@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { 
   createMenuItem, 
-  getMenuItemsByCategory, // Updated function name
+  getMenuItemsByCategory, 
   updateMenuItem, 
   deleteMenuItem, 
   getMenuItemsByRestaurant,
@@ -11,13 +11,9 @@ import {
 // Create a new menu item (now associated with a category)
 export const createMenuItemHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Format price as "LKR <amount>" if present
+    // Ensure price is always a number
     if (req.body.price) {
-      if (typeof req.body.price === 'number') {
-        req.body.price = `LKR ${req.body.price}`;
-      } else if (typeof req.body.price === 'string' && !req.body.price.startsWith('LKR')) {
-        req.body.price = `LKR ${req.body.price}`;
-      }
+      req.body.price = typeof req.body.price === 'number' ? req.body.price : parseFloat(req.body.price);
     }
 
     const menuItem = await createMenuItem(req.body);
@@ -53,13 +49,9 @@ export const updateMenuItemHandler = async (req: Request, res: Response): Promis
     const { menuItemId } = req.params;
     const updatedData = req.body;
 
-    // Format price as "LKR <amount>" if present
+    // Ensure price is always a number
     if (updatedData.price) {
-      if (typeof updatedData.price === 'number') {
-        updatedData.price = `LKR ${updatedData.price}`;
-      } else if (typeof updatedData.price === 'string' && !updatedData.price.startsWith('LKR')) {
-        updatedData.price = `LKR ${updatedData.price}`;
-      }
+      updatedData.price = typeof updatedData.price === 'number' ? updatedData.price : parseFloat(updatedData.price);
     }
 
     const updatedMenuItem = await updateMenuItem(menuItemId, updatedData);
@@ -129,9 +121,8 @@ export const getAllMenuItemsHandler = async (req: Request, res: Response): Promi
   }
 };
 
-import { getMenuItemImage } from '../services/menuItem.service';
-
 // Get only the image URL of a menu item by ID
+import { getMenuItemImage } from '../services/menuItem.service';
 export const getMenuItemImageHandler = async (req: Request, res: Response): Promise<void> => {
   try {
     const { menuItemId } = req.params;
