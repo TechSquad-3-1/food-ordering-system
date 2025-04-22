@@ -94,4 +94,17 @@ export class DeliveryController {
       res.status(400).json({ message: "Failed to delete delivery", error });
     }
   }
+
+  // In your DeliveryController.ts (backend)
+static async getDeliveryCount(req: Request, res: Response): Promise<void> {
+  try {
+    const { deliveryManId } = req.params;
+    const count = await DeliveryService.getDeliveryCountByDeliveryMan(deliveryManId);
+    res.status(200).json({ count });
+  } catch (error) {
+    res.status(400).json({ message: "Failed to fetch delivery count", error });
+  }
 }
+
+}
+

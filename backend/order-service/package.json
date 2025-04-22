@@ -21,7 +21,8 @@
     "mongoose": "^8.13.0",
     "pg": "^8.14.1",
     "sequelize": "^6.37.6",
-    "sequelize-cli": "^6.6.2"
+    "sequelize-cli": "^6.6.2",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/axios": "^0.9.36",

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { 
   createMenuItem, 
-  getMenuItemsByCategory, // Updated function name
+  getMenuItemsByCategory, 
   updateMenuItem, 
   deleteMenuItem, 
   getMenuItemsByRestaurant,
@@ -11,6 +11,11 @@ import {
 // Create a new menu item (now associated with a category)
 export const createMenuItemHandler = async (req: Request, res: Response): Promise<void> => {
   try {
+    // Ensure price is always a number
+    if (req.body.price) {
+      req.body.price = typeof req.body.price === 'number' ? req.body.price : parseFloat(req.body.price);
+    }
+
     const menuItem = await createMenuItem(req.body);
     res.status(201).json(menuItem);
   } catch (error) {
@@ -43,10 +48,17 @@ export const updateMenuItemHandler = async (req: Request, res: Response): Promis
   try {
     const { menuItemId } = req.params;
     const updatedData = req.body;
+
+    // Ensure price is always a number
+    if (updatedData.price) {
+      updatedData.price = typeof updatedData.price === 'number' ? updatedData.price : parseFloat(updatedData.price);
+    }
+
     const updatedMenuItem = await updateMenuItem(menuItemId, updatedData);
 
     if (!updatedMenuItem) {
-       res.status(404).json({ error: 'Menu item not found' });
+      res.status(404).json({ error: 'Menu item not found' });
+      return;
     }
 
     res.status(200).json(updatedMenuItem);
@@ -109,9 +121,8 @@ export const getAllMenuItemsHandler = async (req: Request, res: Response): Promi
   }
 };
 
-import { getMenuItemImage } from '../services/menuItem.service';
-
 // Get only the image URL of a menu item by ID
+import { getMenuItemImage } from '../services/menuItem.service';
 export const getMenuItemImageHandler = async (req: Request, res: Response): Promise<void> => {
   try {
     const { menuItemId } = req.params;

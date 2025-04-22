@@ -128,14 +128,14 @@ export default function CheckoutPage() {
           ? cartItems.map((item) => ({
               menu_item_id: item.productId,
               quantity: item.quantity,
-              price: item.price,
+              price: item.price, // Ensure it's treated as a number
               name: item.name, // Include the name
             }))
           : [
               {
                 menu_item_id: selectedItem!._id,
                 quantity: selectedQuantity,
-                price: selectedItem!.price,
+                price: selectedItem!.price, // Ensure it's treated as a number
                 name: selectedItem!.name,
               },
             ];
@@ -157,7 +157,7 @@ export default function CheckoutPage() {
       localStorage.setItem("pending_order", JSON.stringify(orderPayload));
 
       const paymentData = {
-        amount: orderTotal.toFixed(2),
+        amount: orderTotal.toFixed(2), // Ensure the total is a string with two decimal places
         quantity: itemsToSend.reduce((acc, item) => acc + item.quantity, 0),
         name: "Food Order",
         currency: "USD",
@@ -183,6 +183,7 @@ export default function CheckoutPage() {
       setIsProcessing(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-gray-50">
