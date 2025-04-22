@@ -467,71 +467,80 @@ export default function MenuPage() {
 
         {/* Categories Tab Content */}
         <TabsContent value="categories" className="space-y-4">
-          <Card>
-            <CardHeader className="p-4">
-              <CardTitle>Menu Categories</CardTitle>
-              <CardDescription>Organize your menu with categories</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {categories.map((category) => (
-                  <Card key={category.id}>
-                    <CardHeader className="p-4">
-                      <div className="flex items-center gap-4">
-                        {category.image_url && (
-                          <img
-                            src={category.image_url}
-                            alt={category.name}
-                            className="h-16 w-16 rounded-lg object-cover border"
-                          />
-                        )}
-                        <div>
-                          <CardTitle className="text-lg">{category.name}</CardTitle>
-                          <CardDescription>{category.description}</CardDescription>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                      <div className="flex items-center justify-between mb-2">
-                        <Badge variant={category.is_active ? "default" : "secondary"}>
-                          {category.is_active ? "Active" : "Inactive"}
-                        </Badge>
-                        <span className="text-sm text-muted-foreground">
-                          {category.itemCount} items
-                        </span>
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm" onClick={() => openEditCategoryDialog(category)}>
-                          <Edit className="mr-2 h-4 w-4" /> Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600"
-                          onClick={() => handleDeleteCategory(category.id)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" /> Delete
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                <Card className="border-dashed">
-                  <CardContent className="p-6">
-                    <Button
-                      variant="ghost"
-                      className="w-full h-24"
-                      onClick={openAddCategoryDialog}
-                    >
-                      <Plus className="mr-2 h-5 w-5" />
-                      Add New Category
-                    </Button>
-                  </CardContent>
-                </Card>
+  <Card>
+    <CardHeader className="p-4">
+      <CardTitle>Menu Categories</CardTitle>
+      <CardDescription>Organize your menu with categories</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {categories.map((category) => (
+          <Card key={category.id} className="overflow-hidden shadow-md group flex flex-col">
+            {/* Category Image */}
+            <div className="relative h-40 w-full bg-gray-100">
+              <img
+                src={category.image_url || "/placeholder.svg"}
+                alt={category.name}
+                className="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105"
+              />
+            </div>
+            {/* Card Content */}
+            <CardContent className="flex-1 flex flex-col justify-between p-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">{category.name}</h3>
+                  <span className="text-sm text-muted-foreground">{category.itemCount} items</span>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => openEditCategoryDialog(category)}
+                    className="hover:bg-muted"
+                  >
+                    <Edit className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="hover:bg-red-100 text-red-600"
+                    onClick={() => handleDeleteCategory(category.id)}
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </Button>
+                </div>
+              </div>
+              {/* Description below name */}
+              {category.description && (
+                <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{category.description}</p>
+              )}
+              <div className="mt-3">
+                <Badge variant={category.is_active ? "default" : "secondary"}>
+                  {category.is_active ? "Active" : "Inactive"}
+                </Badge>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        ))}
+        {/* Add New Category Card */}
+        <Card className="border-dashed flex items-center justify-center min-h-[200px]">
+          <CardContent className="flex flex-col items-center justify-center w-full h-full p-6">
+            <Button
+              variant="ghost"
+              className="w-full h-24"
+              onClick={openAddCategoryDialog}
+            >
+              <Plus className="mr-2 h-5 w-5" />
+              Add New Category
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </CardContent>
+  </Card>
+</TabsContent>
+
+
       </Tabs>
 
       {/* Add/Edit Category Dialog */}
