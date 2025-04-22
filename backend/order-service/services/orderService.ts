@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 import Order, { IOrderItem } from '../models/order';
+import OrderCounter from '../models/OrderCounter';
+import { v4 as uuidv4 } from 'uuid';
 
 export class OrderService {
   // Create a new order
@@ -8,9 +10,7 @@ export class OrderService {
     session.startTransaction();
 
     try {
-      const totalAmount = items.reduce((acc: number, item) => {
-        return acc + item.price * item.quantity;
-      }, 0);
+      const totalAmount = items.reduce((acc: number, item) => acc + item.price * item.quantity, 0);
 
       // Include delivery fee in the total amount
       const totalAmountWithDeliveryFee = totalAmount + delivery_fee;
@@ -19,9 +19,21 @@ export class OrderService {
         throw new Error("No valid menu items found for the order.");
       }
 
-      // Generate custom order_id (e.g., ORD001, ORD002, etc.)
-      const orderCount = await Order.countDocuments();
-      const orderId = `ORD${(orderCount + 1).toString().padStart(3, '0')}`;
+      // Get the current counter for order_id
+      let orderCounter = await OrderCounter.findOne({ name: 'orderId' });
+
+      if (!orderCounter) {
+        // If no counter exists, create one
+        const newCounter = new OrderCounter({ name: 'orderId', count: 1 });
+        orderCounter = await newCounter.save();
+      } else {
+        // Increment the order counter
+        orderCounter.count += 1;
+        orderCounter = await orderCounter.save();
+      }
+
+      // Generate custom order_id using the incremented counter
+      const orderId = `ORD${orderCounter.count.toString().padStart(3, '0')}`;
 
       const order = new Order({
         order_id: orderId,
@@ -52,75 +64,93 @@ export class OrderService {
     }
   }
 
+
   // Get all orders
   static async getAllOrders() {
-    return await Order.find();
+    try {
+      return await Order.find();
+    } catch (error) {
+      throw new Error('Error fetching all orders');
+    }
   }
 
   // Get an order by its ID (either Mongo ObjectId or custom order_id)
   static async getOrderById(orderId: string) {
-    let order;
+    try {
+      let order;
 
-    // Check if the orderId is a valid ObjectId
-    if (mongoose.Types.ObjectId.isValid(orderId)) {
-      // If it is a valid ObjectId, search by _id
-      order = await Order.findById(orderId);
-    } else {
-      // If it is not a valid ObjectId, search by order_id (the custom string)
-      order = await Order.findOne({ order_id: orderId });
+      // Check if the orderId is a valid ObjectId
+      if (mongoose.Types.ObjectId.isValid(orderId)) {
+        // If it is a valid ObjectId, search by _id
+        order = await Order.findById(orderId);
+      } else {
+        // If it is not a valid ObjectId, search by order_id (the custom string)
+        order = await Order.findOne({ order_id: orderId });
+      }
+
+      if (!order) {
+        throw new Error('Order not found');
+      }
+
+      return order;
+    } catch (error) {
+      throw new Error(`Error retrieving order with ID: ${orderId}`);
     }
-
-    if (!order) {
-      throw new Error('Order not found');
-    }
-
-    return order;
   }
 
   // Update an order
   static async updateOrder(orderId: string, user_id: string, items: IOrderItem[], status: string, restaurant_id: string, delivery_fee: number) {
-    const order = await Order.findById(orderId);
+    try {
+      const order = await Order.findById(orderId);
 
-    if (!order) {
-      throw new Error('Order not found');
+      if (!order) {
+        throw new Error('Order not found');
+      }
+
+      order.user_id = user_id;
+      order.items = items;
+      order.status = status;
+      order.restaurant_id = restaurant_id;
+
+      // Recalculate total_amount including delivery fee
+      const totalAmount = items.reduce((acc: number, item) => acc + item.price * item.quantity, 0);
+      order.total_amount = totalAmount + delivery_fee; // Add delivery fee to the total amount
+      order.delivery_fee = delivery_fee; // Update delivery fee
+
+      await order.save();
+      return order;
+    } catch (error) {
+      throw new Error(`Error updating order with ID: ${orderId}`);
     }
-
-    order.user_id = user_id;
-    order.items = items;
-    order.status = status;
-    order.restaurant_id = restaurant_id;
-    
-    // Recalculate total_amount including delivery fee
-    const totalAmount = items.reduce((acc: number, item) => acc + item.price * item.quantity, 0);
-    order.total_amount = totalAmount + delivery_fee; // Add delivery fee to the total amount
-    order.delivery_fee = delivery_fee; // Update delivery fee
-
-    await order.save();
-    return order;
   }
 
   // Delete an order
   static async deleteOrder(orderId: string) {
-    const order = await Order.findById(orderId);
+    try {
+      const order = await Order.findById(orderId);
 
-    if (!order) {
-      throw new Error('Order not found');
+      if (!order) {
+        throw new Error('Order not found');
+      }
+
+      if (order.status !== 'pending' && order.status !== 'delivered') {
+        throw new Error('Order cannot be deleted unless its status is "pending" or "delivered"');
+      }
+
+      await order.deleteOne();  // Use deleteOne instead of remove
+      return order;
+    } catch (error) {
+      throw new Error(`Error deleting order with ID: ${orderId}`);
     }
-
-    if (order.status !== 'pending' && order.status !== 'delivered') {
-      throw new Error('Order cannot be deleted unless its status is "pending" or "delivered"');
-    }
-
-    // Use deleteOne instead of remove
-    await order.deleteOne();  // Or use order.delete()
-
-    return order;
   }
 
   // Get orders by user_id
   static async getOrdersByUserId(userId: string) {
     try {
-      const orders = await Order.find({ user_id: userId }); // Find orders by user_id
+      const orders = await Order.find({ user_id: userId });
+      if (!orders || orders.length === 0) {
+        throw new Error('No orders found for this user');
+      }
       return orders;
     } catch (error) {
       throw new Error('Error fetching orders by user ID');
@@ -130,10 +160,39 @@ export class OrderService {
   // Get orders by restaurant_id
   static async getOrdersByRestaurantId(restaurantId: string) {
     try {
-      const orders = await Order.find({ restaurant_id: restaurantId }); // Find orders by restaurant_id
+      const orders = await Order.find({ restaurant_id: restaurantId });
+      if (!orders || orders.length === 0) {
+        throw new Error('No orders found for this restaurant');
+      }
       return orders;
     } catch (error) {
       throw new Error('Error fetching orders by restaurant ID');
+    }
+  }
+
+  // Update only the status of an order by order_id (custom field)
+  static async updateOrderStatus(orderId: string, status: string) {
+    const validStatuses = ['pending', 'delivered', 'preparing', 'ready', 'cancelled'];
+
+    if (!status || !validStatuses.includes(status)) {
+      throw new Error('Invalid status provided');
+    }
+
+    try {
+      const order = await Order.findOne({ order_id: orderId });
+
+      if (!order) {
+        throw new Error('Order not found');
+      }
+
+      order.status = status;
+
+      // Save the updated order (This will only update the status)
+      await order.save({ validateBeforeSave: false });  // Skip validation to avoid errors for required fields
+
+      return order;
+    } catch (error) {
+      throw new Error(`Error updating status of order with ID: ${orderId}`);
     }
   }
 }

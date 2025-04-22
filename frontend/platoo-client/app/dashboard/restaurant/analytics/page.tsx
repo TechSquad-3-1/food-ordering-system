@@ -1,387 +1,305 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+"use client";
+
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import type { DateRange } from "react-day-picker";
 import {
-  CalendarIcon,
-  Download,
   BarChart,
-  LineChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+  LabelList,
   PieChart,
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  ShoppingBag,
-  Users,
-  Clock,
-} from "lucide-react"
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+  Legend,
+} from "recharts";
+
+// TODO: Replace with the actual restaurant ID from the logged-in user/session
+const RESTAURANT_ID = "67ea74a07ec2521671a97f91";
+
+type Order = {
+  _id: string;
+  restaurant_id: string;
+  createdAt: string;
+  status: string;
+  items: { menu_item_id: string; quantity: number }[];
+};
+
+type MenuItem = {
+  _id: string;
+  name: string;
+  price: number;
+};
+
+type MenuItemOrderStats = {
+  _id: string;
+  name: string;
+  orders: number;
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  delivered: "#4ade80",
+  preparing: "#fbbf24",
+  cancelled: "#f87171",
+  pending: "#60a5fa",
+  // Add more statuses/colors as needed
+};
 
 export default function RestaurantAnalytics() {
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      let orderQuery = `?restaurant_id=${RESTAURANT_ID}`;
+      if (dateRange?.from) {
+        orderQuery += `&start=${dateRange.from.toISOString()}`;
+      }
+      if (dateRange?.to) {
+        orderQuery += `&end=${dateRange.to.toISOString()}`;
+      }
+      const ordersRes = await fetch(
+        `http://localhost:3008/api/orders${orderQuery}`
+      );
+      const allOrders: Order[] = await ordersRes.json();
+
+      const menuRes = await fetch(
+        `http://localhost:3001/api/menu-items/restaurant/${RESTAURANT_ID}`
+      );
+      const allMenuItems: MenuItem[] = await menuRes.json();
+
+      // Extra frontend filtering by restaurant_id for safety
+      const filteredOrders = allOrders.filter(
+        (order) => order.restaurant_id === RESTAURANT_ID
+      );
+
+      setOrders(filteredOrders);
+      setMenuItems(allMenuItems);
+      setLoading(false);
+    }
+    fetchData();
+  }, [dateRange]);
+
+  // Total orders for this restaurant only
+  const totalOrders = orders.length;
+
+  // Menu item order counts
+  const menuItemOrderCounts: Record<string, number> = {};
+  orders.forEach((order) => {
+    order.items.forEach((item) => {
+      menuItemOrderCounts[item.menu_item_id] =
+        (menuItemOrderCounts[item.menu_item_id] || 0) + item.quantity;
+    });
+  });
+  const menuItemStats: MenuItemOrderStats[] = menuItems.map((item) => ({
+    _id: item._id,
+    name: item.name,
+    orders: menuItemOrderCounts[item._id] || 0,
+  }));
+  menuItemStats.sort((a, b) => b.orders - a.orders);
+
+  // Pie Chart: Order status breakdown
+  const statusCount: Record<string, number> = {};
+  orders.forEach((order) => {
+    statusCount[order.status] = (statusCount[order.status] || 0) + 1;
+  });
+  const statusData = Object.entries(statusCount).map(([status, count]) => ({
+    name: status.charAt(0).toUpperCase() + status.slice(1),
+    value: count,
+    color: STATUS_COLORS[status] || "#a3a3a3",
+  }));
+
+  // Line Chart: Orders per day
+  const ordersByDay: Record<string, number> = {};
+  orders.forEach((order) => {
+    const day = new Date(order.createdAt).toLocaleDateString();
+    ordersByDay[day] = (ordersByDay[day] || 0) + 1;
+  });
+  const ordersByDayData = Object.entries(ordersByDay)
+    .map(([date, count]) => ({ date, orders: count }))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Analytics & Insights</h1>
-        <p className="text-muted-foreground">Track your restaurant's performance and make data-driven decisions.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Restaurant Orders Analytics</h1>
+        <p className="text-muted-foreground">
+          View total orders and menu item popularity for this restaurant.
+        </p>
       </div>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                <span>March 1, 2023 - March 31, 2023</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar mode="range" numberOfMonths={2} />
-            </PopoverContent>
-          </Popover>
-          <Select defaultValue="daily">
-            <SelectTrigger className="w-[130px]">
-              <SelectValue placeholder="Select interval" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="hourly">Hourly</SelectItem>
-              <SelectItem value="daily">Daily</SelectItem>
-              <SelectItem value="weekly">Weekly</SelectItem>
-              <SelectItem value="monthly">Monthly</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Button variant="outline">
-          <Download className="mr-2 h-4 w-4" />
-          Export Data
-        </Button>
+      <div className="flex items-center gap-2 mb-4">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              <span>
+                {dateRange?.from && dateRange?.to
+                  ? `${dateRange.from.toLocaleDateString()} - ${dateRange.to.toLocaleDateString()}`
+                  : "Select date range"}
+              </span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0">
+            <Calendar
+              mode="range"
+              numberOfMonths={2}
+              selected={dateRange}
+              onSelect={setDateRange}
+            />
+          </PopoverContent>
+        </Popover>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">$12,458.75</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-500 flex items-center">
-                <TrendingUp className="mr-1 h-3 w-3" />
-                +18.2% from last month
-              </span>
-            </p>
-            <div className="mt-4 h-1">
-              <div className="h-[4px] w-full rounded-full bg-gray-200">
-                <div className="h-[4px] w-[75%] rounded-full bg-primary"></div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">458</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-500 flex items-center">
-                <TrendingUp className="mr-1 h-3 w-3" />
-                +12.5% from last month
-              </span>
-            </p>
-            <div className="mt-4 h-1">
-              <div className="h-[4px] w-full rounded-full bg-gray-200">
-                <div className="h-[4px] w-[65%] rounded-full bg-primary"></div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Average Order Value</CardTitle>
-            <BarChart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">$27.20</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-500 flex items-center">
-                <TrendingUp className="mr-1 h-3 w-3" />
-                +5.3% from last month
-              </span>
-            </p>
-            <div className="mt-4 h-1">
-              <div className="h-[4px] w-full rounded-full bg-gray-200">
-                <div className="h-[4px] w-[55%] rounded-full bg-primary"></div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">New Customers</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">124</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-red-500 flex items-center">
-                <TrendingDown className="mr-1 h-3 w-3" />
-                -3.1% from last month
-              </span>
-            </p>
-            <div className="mt-4 h-1">
-              <div className="h-[4px] w-full rounded-full bg-gray-200">
-                <div className="h-[4px] w-[45%] rounded-full bg-primary"></div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="revenue" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
-          <TabsTrigger value="revenue">Revenue</TabsTrigger>
-          <TabsTrigger value="orders">Orders</TabsTrigger>
-          <TabsTrigger value="items">Menu Items</TabsTrigger>
-          <TabsTrigger value="customers">Customers</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="revenue" className="space-y-4 pt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Revenue Overview</CardTitle>
-              <CardDescription>Your restaurant's revenue performance over time</CardDescription>
-            </CardHeader>
-            <CardContent className="pl-2">
-              <div className="h-[350px] w-full">
-                <div className="flex h-full items-center justify-center">
-                  <div className="flex flex-col items-center gap-2">
-                    <LineChart className="h-16 w-16 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Revenue chart visualization</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid gap-4 md:grid-cols-2">
+      {loading ? (
+        <div className="p-6">Loading...</div>
+      ) : (
+        <>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader>
-                <CardTitle>Revenue by Day of Week</CardTitle>
-                <CardDescription>Which days generate the most revenue</CardDescription>
+                <CardTitle>Total Orders</CardTitle>
               </CardHeader>
-              <CardContent className="pl-2">
-                <div className="h-[200px] w-full">
-                  <div className="flex h-full items-center justify-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <BarChart className="h-12 w-12 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">Day of week chart</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Revenue by Time of Day</CardTitle>
-                <CardDescription>Peak hours for your restaurant</CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <div className="h-[200px] w-full">
-                  <div className="flex h-full items-center justify-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <BarChart className="h-12 w-12 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">Time of day chart</p>
-                    </div>
-                  </div>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalOrders}</div>
+                <div className="text-xs text-muted-foreground">
+                  Orders placed for this restaurant
                 </div>
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
 
-        <TabsContent value="orders" className="space-y-4 pt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Order Trends</CardTitle>
-              <CardDescription>Track your order volume over time</CardDescription>
-            </CardHeader>
-            <CardContent className="pl-2">
-              <div className="h-[350px] w-full">
-                <div className="flex h-full items-center justify-center">
-                  <div className="flex flex-col items-center gap-2">
-                    <LineChart className="h-16 w-16 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Order trends chart</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <Tabs defaultValue="items" className="w-full mt-6">
+            <TabsList>
+              <TabsTrigger value="items">Menu Item Orders</TabsTrigger>
+              <TabsTrigger value="barchart">Menu Bar Chart</TabsTrigger>
+              <TabsTrigger value="orderstatus">Order Status Pie</TabsTrigger>
+              <TabsTrigger value="ordertrend">Order Trend</TabsTrigger>
+            </TabsList>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Order Status Breakdown</CardTitle>
-                <CardDescription>Distribution of order statuses</CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <div className="h-[200px] w-full">
-                  <div className="flex h-full items-center justify-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <PieChart className="h-12 w-12 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">Order status chart</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Average Preparation Time</CardTitle>
-                <CardDescription>How long it takes to prepare orders</CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <div className="h-[200px] w-full">
-                  <div className="flex h-full items-center justify-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <Clock className="h-12 w-12 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">Preparation time chart</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="items" className="space-y-4 pt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Top Selling Items</CardTitle>
-              <CardDescription>Your most popular menu items by sales volume</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {["Chicken Biryani", "Butter Chicken", "Paneer Tikka", "Garlic Naan", "Mango Lassi"].map((item, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                        <span className="text-sm font-medium text-primary">{i + 1}</span>
+            <TabsContent value="items">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Orders per Menu Item</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {menuItemStats.map((item) => (
+                      <div
+                        key={item._id}
+                        className="flex items-center justify-between border-b py-2"
+                      >
+                        <span className="font-medium">{item.name}</span>
+                        <span className="text-right">{item.orders} orders</span>
                       </div>
-                      <span className="text-sm font-medium">{item}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="text-sm font-medium">{Math.floor(Math.random() * 100) + 50} orders</div>
-                      <div className="h-2 w-24 rounded-full bg-gray-200">
-                        <div className="h-2 rounded-full bg-primary" style={{ width: `${100 - i * 15}%` }}></div>
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Item Categories Performance</CardTitle>
-                <CardDescription>Sales by menu category</CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <div className="h-[200px] w-full">
-                  <div className="flex h-full items-center justify-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <PieChart className="h-12 w-12 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">Category performance chart</p>
-                    </div>
+            <TabsContent value="barchart">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Menu Item Orders Bar Chart</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div style={{ width: "100%", height: 400 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={menuItemStats}
+                        margin={{ top: 20, right: 30, left: 0, bottom: 40 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="name"
+                          angle={-30}
+                          textAnchor="end"
+                          interval={0}
+                          height={80}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis allowDecimals={false} />
+                        <Tooltip />
+                        <Bar dataKey="orders" fill="#8884d8">
+                          <LabelList dataKey="orders" position="top" />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Item Profit Margins</CardTitle>
-                <CardDescription>Which items generate the most profit</CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <div className="h-[200px] w-full">
-                  <div className="flex h-full items-center justify-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <BarChart className="h-12 w-12 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">Profit margin chart</p>
-                    </div>
+            <TabsContent value="orderstatus">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Order Status Breakdown</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div style={{ width: "100%", height: 400 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={statusData}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={120}
+                          label
+                        >
+                          {statusData.map((entry) => (
+                            <Cell key={entry.name} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-        <TabsContent value="customers" className="space-y-4 pt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Customer Growth</CardTitle>
-              <CardDescription>New vs returning customers over time</CardDescription>
-            </CardHeader>
-            <CardContent className="pl-2">
-              <div className="h-[350px] w-full">
-                <div className="flex h-full items-center justify-center">
-                  <div className="flex flex-col items-center gap-2">
-                    <LineChart className="h-16 w-16 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Customer growth chart</p>
+            <TabsContent value="ordertrend">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Orders Over Time</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div style={{ width: "100%", height: 400 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={ordersByDayData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" angle={-30} textAnchor="end" height={80} />
+                        <YAxis allowDecimals={false} />
+                        <Tooltip />
+                        <Legend />
+                        <Line type="monotone" dataKey="orders" stroke="#6366f1" strokeWidth={3} />
+                      </LineChart>
+                    </ResponsiveContainer>
                   </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Customer Retention</CardTitle>
-                <CardDescription>How many customers come back</CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <div className="h-[200px] w-full">
-                  <div className="flex h-full items-center justify-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <PieChart className="h-12 w-12 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">Retention chart</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Customer Satisfaction</CardTitle>
-                <CardDescription>Rating trends over time</CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <div className="h-[200px] w-full">
-                  <div className="flex h-full items-center justify-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <LineChart className="h-12 w-12 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">Satisfaction chart</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </>
+      )}
     </div>
-  )
+  );
 }
-

@@ -18,6 +18,11 @@ export class DeliveryService {
     return await Delivery.find({ assignedTo: null });
   }
 
+  // get delivery count by delivery man
+static async getDeliveryCountByDeliveryMan(deliveryManId: string): Promise<number> {
+  return Delivery.countDocuments({ assignedTo: deliveryManId, deliveryStatus: "delivered" });
+}
+
   // Get delivery by ID
   static async getDeliveryById(id: string): Promise<IDelivery | null> {
     return await Delivery.findById(id);

@@ -59,3 +59,13 @@ export const getAllMenuItems = async (): Promise<IMenuItem[]> => {
   }
 };
 
+// Fetch only the image URL of a menu item by ID
+export const getMenuItemImage = async (menuItemId: string): Promise<{ image_url: string } | null> => {
+  try {
+    const menuItem = await MenuItemModel.findById(menuItemId, 'image_url');
+    return menuItem ? { image_url: menuItem.image_url } : null;
+  } catch (error) {
+    throw error;
+  }
+};
+

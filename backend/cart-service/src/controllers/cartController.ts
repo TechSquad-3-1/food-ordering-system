@@ -3,7 +3,7 @@ import { CartModel, ICartItem } from '../models/cartModel';
 
 // Add item to cart
 export const addItemToCart = async (req: Request, res: Response): Promise<void> => {
-  const { userId, productId, name, price, quantity } = req.body;
+  const { userId, productId, name, price, quantity, image } = req.body;  // Accept image in the request body
 
   try {
     let cart = await CartModel.findOne({ userId });
@@ -17,21 +17,19 @@ export const addItemToCart = async (req: Request, res: Response): Promise<void> 
     if (existingItem) {
       existingItem.quantity += quantity;
     } else {
-      cart.items.push({ productId, name, price, quantity });
+      cart.items.push({ productId, name, price, quantity, image });  // Add image to the item
     }
 
     cart.updatedAt = new Date();
     await cart.save();
 
-    // Avoid implicit return
     res.status(200).json(cart);
-    return;
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error adding item to cart', error });
-    return;
   }
 };
+
 
 // Remove item from cart
 export const removeItemFromCart = async (req: Request, res: Response): Promise<void> => {
@@ -71,15 +69,13 @@ export const getCartByUserId = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    // Avoid implicit return
     res.status(200).json(cart);
-    return;
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error fetching cart', error });
-    return;
   }
 };
+
 
 // Update cart item quantity
 export const updateCartItemQuantity = async (req: Request, res: Response): Promise<void> => {

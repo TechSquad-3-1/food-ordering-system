@@ -63,7 +63,7 @@ export class DeliveryController {
       res.status(400).json({ message: "Failed to assign delivery", error });
     }
   }
-
+  
   // Update delivery status (e.g., delivered)
   static async updateDeliveryStatus(req: Request, res: Response): Promise<void> {
     try {
@@ -80,7 +80,7 @@ export class DeliveryController {
       res.status(400).json({ message: "Failed to update delivery status", error });
     }
   }
-
+  
   // Delete delivery
   static async deleteDelivery(req: Request, res: Response): Promise<void> {
     try {
@@ -94,4 +94,17 @@ export class DeliveryController {
       res.status(400).json({ message: "Failed to delete delivery", error });
     }
   }
+
+  // In your DeliveryController.ts (backend)
+static async getDeliveryCount(req: Request, res: Response): Promise<void> {
+  try {
+    const { deliveryManId } = req.params;
+    const count = await DeliveryService.getDeliveryCountByDeliveryMan(deliveryManId);
+    res.status(200).json({ count });
+  } catch (error) {
+    res.status(400).json({ message: "Failed to fetch delivery count", error });
+  }
 }
+
+}
+

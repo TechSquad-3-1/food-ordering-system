@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
+import { useState, useEffect, JSX } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -35,23 +33,30 @@ import {
   Edit,
   Trash2,
   UserPlus,
-  Download,
-  Mail,
-  Ban,
-  CheckCircle,
   AlertCircle,
-} from "lucide-react"
+  Eye,
+  Mail,
+  User,
+  KeyRound,
+  Phone,
+  MapPin,
+  Building2,
+  Truck,
+  UserCircle,
+  Shield,
+} from "lucide-react";
 
 interface User {
+  restaurantName: string
+  vehicleNumber: string
   id: string
   name: string
   email: string
   role: string
-  status: string
-  joinDate: string
-  lastActive: string
   orders?: number
   avatar?: string
+  phone?: string
+  address?: string
 }
 
 export default function UsersPage() {
@@ -61,161 +66,128 @@ export default function UsersPage() {
   const [filteredUsers, setFilteredUsers] = useState<User[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
-  const [statusFilter, setStatusFilter] = useState("all")
   const [isAddUserOpen, setIsAddUserOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [isEditUserOpen, setIsEditUserOpen] = useState(false)
+  const [editUser, setEditUser] = useState<User | null>(null)
+  const [isViewDetailsOpen, setIsViewDetailsOpen] = useState(false)
+  const [viewUser, setViewUser] = useState<User | null>(null)
   const [newUser, setNewUser] = useState({
     name: "",
     email: "",
-    role: "user",
+    role: "admin",
     password: "",
     confirmPassword: "",
+    phone: "",
+    address: "",
   })
 
+  const fieldIcons: Record<string, JSX.Element> = {
+    _id: <KeyRound className="text-gray-400 w-4 h-4 mr-1" />,
+    name: <UserCircle className="text-blue-500 w-4 h-4 mr-1" />,
+    email: <Mail className="text-teal-500 w-4 h-4 mr-1" />,
+    password: <Shield className="text-yellow-500 w-4 h-4 mr-1" />,
+    role: <User className="text-purple-500 w-4 h-4 mr-1" />,
+    phone: <Phone className="text-green-500 w-4 h-4 mr-1" />,
+    address: <MapPin className="text-pink-500 w-4 h-4 mr-1" />,
+    restaurantName: <Building2 className="text-orange-500 w-4 h-4 mr-1" />,
+    vehicleNumber: <Truck className="text-indigo-500 w-4 h-4 mr-1" />,
+    createdAt: <KeyRound className="text-gray-500 w-4 h-4 mr-1" />,
+    __v: <Shield className="text-gray-400 w-4 h-4 mr-1" />,
+  };
+
+  const roleColors: Record<string, string> = {
+    admin: "from-purple-100 to-purple-50 border-purple-400",
+    user: "from-blue-100 to-blue-50 border-blue-400",
+    restaurant_owner: "from-orange-100 to-orange-50 border-orange-400",
+    delivery_man: "from-green-100 to-green-50 border-green-400",
+  };
+
+  const DetailRow = ({
+    label,
+    value,
+    mono = false,
+  }: {
+    label: string;
+    value: React.ReactNode;
+    mono?: boolean;
+  }) => (
+    <div className="flex items-center py-2 px-2 rounded hover:bg-gray-50 transition-all">
+      <dt className="w-40 flex items-center font-semibold text-gray-700 capitalize">
+        {fieldIcons[label] || null}
+        <span className="ml-1">{label}:</span>
+      </dt>
+      <dd
+        className={`flex-1 text-gray-900 ${mono ? "font-mono text-xs" : "font-medium"} break-all`}
+      >
+        {value}
+      </dd>
+    </div>
+  );
+
   useEffect(() => {
-    // In a real app, fetch users from API
-    // For demo purposes, we'll use mock data
-    const fetchUsers = async () => {
+    const fetchUsersAndOrders = async () => {
       setIsLoading(true)
       try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        const token = localStorage.getItem("token")
+        // Fetch all users
+        const usersRes = await fetch("http://localhost:4000/api/auth/users", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        if (!usersRes.ok) throw new Error("Failed to fetch users")
+        const usersData = await usersRes.json()
+        const mappedUsers = usersData.map((user: any) => ({
+          ...user,
+          id: user._id || user.id,
+        }))
 
-        const mockUsers: User[] = [
-          {
-            id: "USR-1001",
-            name: "Sarah Johnson",
-            email: "sarah.j@example.com",
-            role: "user",
-            status: "active",
-            joinDate: "2023-04-15",
-            lastActive: "2023-04-20",
-            orders: 12,
-            avatar: "/placeholder.svg?height=40&width=40",
+        // Fetch all orders
+        const ordersRes = await fetch("http://localhost:3008/api/orders", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
           },
-          {
-            id: "USR-1002",
-            name: "Mike Chen",
-            email: "mike.c@example.com",
-            role: "restaurant_owner",
-            status: "active",
-            joinDate: "2023-04-14",
-            lastActive: "2023-04-19",
-            orders: 0,
-            avatar: "/placeholder.svg?height=40&width=40",
-          },
-          {
-            id: "USR-1003",
-            name: "Lisa Wong",
-            email: "lisa.w@example.com",
-            role: "delivery_man",
-            status: "active",
-            joinDate: "2023-04-13",
-            lastActive: "2023-04-21",
-            orders: 0,
-            avatar: "/placeholder.svg?height=40&width=40",
-          },
-          {
-            id: "USR-1004",
-            name: "David Smith",
-            email: "david.s@example.com",
-            role: "user",
-            status: "inactive",
-            joinDate: "2023-04-12",
-            lastActive: "2023-04-15",
-            orders: 5,
-            avatar: "/placeholder.svg?height=40&width=40",
-          },
-          {
-            id: "USR-1005",
-            name: "Emma Davis",
-            email: "emma.d@example.com",
-            role: "user",
-            status: "active",
-            joinDate: "2023-04-11",
-            lastActive: "2023-04-20",
-            orders: 8,
-            avatar: "/placeholder.svg?height=40&width=40",
-          },
-          {
-            id: "USR-1006",
-            name: "James Wilson",
-            email: "james.w@example.com",
-            role: "user",
-            status: "suspended",
-            joinDate: "2023-04-10",
-            lastActive: "2023-04-12",
-            orders: 3,
-            avatar: "/placeholder.svg?height=40&width=40",
-          },
-          {
-            id: "USR-1007",
-            name: "Olivia Martinez",
-            email: "olivia.m@example.com",
-            role: "restaurant_owner",
-            status: "pending",
-            joinDate: "2023-04-09",
-            lastActive: "2023-04-09",
-            orders: 0,
-            avatar: "/placeholder.svg?height=40&width=40",
-          },
-          {
-            id: "USR-1008",
-            name: "Daniel Lee",
-            email: "daniel.l@example.com",
-            role: "delivery_man",
-            status: "active",
-            joinDate: "2023-04-08",
-            lastActive: "2023-04-21",
-            orders: 0,
-            avatar: "/placeholder.svg?height=40&width=40",
-          },
-          {
-            id: "USR-1009",
-            name: "Sophia Garcia",
-            email: "sophia.g@example.com",
-            role: "user",
-            status: "active",
-            joinDate: "2023-04-07",
-            lastActive: "2023-04-19",
-            orders: 15,
-            avatar: "/placeholder.svg?height=40&width=40",
-          },
-          {
-            id: "USR-1010",
-            name: "William Brown",
-            email: "william.b@example.com",
-            role: "admin",
-            status: "active",
-            joinDate: "2023-04-06",
-            lastActive: "2023-04-21",
-            orders: 0,
-            avatar: "/placeholder.svg?height=40&width=40",
-          },
-        ]
+        })
+        if (!ordersRes.ok) throw new Error("Failed to fetch orders")
+        const ordersData = await ordersRes.json()
 
-        setUsers(mockUsers)
-        setFilteredUsers(mockUsers)
+        // Only update orders field for customers (role === "user")
+        const usersWithOrders = mappedUsers.map((user: any) => {
+          if (user.role === "user") {
+            const orderCount = ordersData.filter(
+              (order: any) => order.user_id === user.id
+            ).length
+            return { ...user, orders: orderCount }
+          }
+          // Don't change others
+          return user
+        })
+
+        setUsers(usersWithOrders)
+        setFilteredUsers(usersWithOrders)
       } catch (error) {
-        console.error("Error fetching users:", error)
+        console.error("Error fetching users or orders:", error)
+        setUsers([])
+        setFilteredUsers([])
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchUsers()
+    fetchUsersAndOrders()
   }, [])
 
   useEffect(() => {
-    // Apply filters whenever filter criteria change
     applyFilters()
-  }, [searchQuery, roleFilter, statusFilter, users])
+  }, [searchQuery, roleFilter, users])
 
   const applyFilters = () => {
     let filtered = [...users]
-
-    // Apply search query filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(
@@ -225,17 +197,9 @@ export default function UsersPage() {
           user.id.toLowerCase().includes(query),
       )
     }
-
-    // Apply role filter
     if (roleFilter !== "all") {
       filtered = filtered.filter((user) => user.role === roleFilter)
     }
-
-    // Apply status filter
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((user) => user.status === statusFilter)
-    }
-
     setFilteredUsers(filtered)
   }
 
@@ -244,50 +208,164 @@ export default function UsersPage() {
     applyFilters()
   }
 
-  const handleAddUser = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    // Validate form
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (newUser.password !== newUser.confirmPassword) {
-      alert("Passwords do not match")
-      return
+      alert("Passwords do not match");
+      return;
     }
-
-    // In a real app, this would send the data to the backend
-    const newUserData: User = {
-      id: `USR-${Math.floor(1000 + Math.random() * 9000)}`,
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
-      status: "active",
-      joinDate: new Date().toISOString().split("T")[0],
-      lastActive: new Date().toISOString().split("T")[0],
-      orders: 0,
-      avatar: "/placeholder.svg?height=40&width=40",
+    try {
+      const res = await fetch("http://localhost:4000/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: newUser.name,
+          email: newUser.email,
+          password: newUser.password,
+          phone: newUser.phone,
+          address: newUser.address,
+          role: "admin"
+        }),
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        alert(result?.error || result?.message || "Failed to register admin");
+        return;
+      }
+      setUsers((prev) => [
+        {
+          id: result.id || `USR-${Math.floor(1000 + Math.random() * 9000)}`,
+          name: newUser.name,
+          email: newUser.email,
+          role: "admin",
+          orders: 0,
+          avatar: "/placeholder.svg?height=40&width=40",
+          phone: newUser.phone,
+          address: newUser.address,
+          vehicleNumber: "",
+          restaurantName: ""
+        },
+        ...prev,
+      ]);
+      setNewUser({
+        name: "",
+        email: "",
+        role: "admin",
+        password: "",
+        confirmPassword: "",
+        phone: "",
+        address: "",
+      });
+      setIsAddUserOpen(false);
+      alert("Admin registered successfully!");
+    } catch (err: any) {
+      alert("Error registering admin: " + err.message);
     }
+  };
 
-    setUsers((prev) => [newUserData, ...prev])
+  const handleDeleteUser = async () => {
+    if (!selectedUser || !selectedUser.id) {
+      alert("No user selected for deletion.");
+      return;
+    }
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`http://localhost:4000/api/auth/delete/${selectedUser.id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      let result: { error?: string; message?: string } = {};
+      try {
+        result = await res.json();
+      } catch (e) {}
+      if (!res.ok) {
+        alert(result?.error || result?.message || "Failed to delete user");
+        return;
+      }
+      setUsers((prev) => prev.filter((user) => user.id !== selectedUser.id));
+      setIsDeleteDialogOpen(false);
+      setSelectedUser(null);
+      alert("User deleted successfully!");
+    } catch (err: any) {
+      alert("Error deleting user: " + err.message);
+    }
+  };
 
-    // Reset form and close dialog
-    setNewUser({
-      name: "",
-      email: "",
-      role: "user",
-      password: "",
-      confirmPassword: "",
-    })
-    setIsAddUserOpen(false)
+  // --- Edit User Logic ---
+  const openEditUser = (user: User) => {
+    setEditUser(user)
+    setIsEditUserOpen(true)
   }
 
-  const handleDeleteUser = () => {
-    if (!selectedUser) return
+  const handleEditUserChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    if (!editUser) return
+    setEditUser({ ...editUser, [e.target.name]: e.target.value })
+  }
 
-    // In a real app, this would send a delete request to the backend
-    setUsers((prev) => prev.filter((user) => user.id !== selectedUser.id))
+  const handleEditUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editUser) return;
 
-    // Close dialog and reset selected user
-    setIsDeleteDialogOpen(false)
-    setSelectedUser(null)
+    // Build payload based on role
+    let payload: any = {
+      name: editUser.name,
+      email: editUser.email,
+    };
+    if (editUser.role === "admin") {
+      payload.phone = editUser.phone;
+      payload.address = editUser.address;
+    }
+    if (editUser.role === "restaurant_owner") {
+      payload.phone = editUser.phone;
+      payload.address = editUser.address;
+      payload.restaurantName = editUser.restaurantName;
+    }
+    if (editUser.role === "delivery_man") {
+      payload.phone = editUser.phone;
+      payload.address = editUser.address;
+      payload.vehicleNumber = editUser.vehicleNumber;
+    }
+    payload.role = editUser.role;
+
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("You are not authenticated. Please log in again.");
+        return;
+      }
+      const res = await fetch(`http://localhost:4000/api/auth/update/${editUser.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        alert(result?.error || result?.message || "Failed to update user");
+        return;
+      }
+      const updatedUser = { ...result, id: result._id || result.id };
+      setUsers((prev) =>
+        prev.map((u) => (u.id === editUser.id ? { ...u, ...updatedUser } : u))
+      );
+      setIsEditUserOpen(false);
+      setEditUser(null);
+    } catch (err: any) {
+      alert("Error updating user: " + err.message);
+    }
+  };
+
+  // --- View Details Logic ---
+  const openViewDetails = (user: User) => {
+    setViewUser(user)
+    setIsViewDetailsOpen(true)
   }
 
   const getRoleColor = (role: string) => {
@@ -300,21 +378,6 @@ export default function UsersPage() {
         return "bg-green-500"
       case "admin":
         return "bg-purple-500"
-      default:
-        return "bg-gray-500"
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-green-500"
-      case "inactive":
-        return "bg-gray-500"
-      case "suspended":
-        return "bg-red-500"
-      case "pending":
-        return "bg-yellow-500"
       default:
         return "bg-gray-500"
     }
@@ -342,23 +405,23 @@ export default function UsersPage() {
         <p className="text-muted-foreground">Manage all users across your platform</p>
       </div>
 
-      <Tabs defaultValue="all" className="space-y-4">
+      <Tabs
+        value={roleFilter}
+        onValueChange={setRoleFilter}
+        className="space-y-4"
+      >
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <TabsList>
             <TabsTrigger value="all">All Users</TabsTrigger>
-            <TabsTrigger value="customers">Customers</TabsTrigger>
-            <TabsTrigger value="restaurants">Restaurant Owners</TabsTrigger>
-            <TabsTrigger value="delivery">Delivery Personnel</TabsTrigger>
+            <TabsTrigger value="user">Customers</TabsTrigger>
+            <TabsTrigger value="restaurant_owner">Restaurant Owners</TabsTrigger>
+            <TabsTrigger value="delivery_man">Delivery Personnel</TabsTrigger>
+            <TabsTrigger value="admin">Admins</TabsTrigger>
           </TabsList>
-
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setIsAddUserOpen(true)}>
               <UserPlus className="mr-2 h-4 w-4" />
               Add User
-            </Button>
-            <Button variant="outline">
-              <Download className="mr-2 h-4 w-4" />
-              Export
             </Button>
           </div>
         </div>
@@ -367,6 +430,7 @@ export default function UsersPage() {
           <CardHeader className="pb-3">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="w-full sm:max-w-sm">
+                {/* Search users by name, email, or ID */}
                 <form onSubmit={handleSearch} className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -378,7 +442,6 @@ export default function UsersPage() {
                   />
                 </form>
               </div>
-
               <div className="flex gap-2 w-full sm:w-auto">
                 <Select value={roleFilter} onValueChange={setRoleFilter}>
                   <SelectTrigger className="w-full sm:w-[180px]">
@@ -389,20 +452,7 @@ export default function UsersPage() {
                     <SelectItem value="user">Customers</SelectItem>
                     <SelectItem value="restaurant_owner">Restaurant Owners</SelectItem>
                     <SelectItem value="delivery_man">Delivery Personnel</SelectItem>
-                    <SelectItem value="admin">Administrators</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="suspended">Suspended</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="admin">Admins</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -419,9 +469,6 @@ export default function UsersPage() {
                   <TableRow>
                     <TableHead>User</TableHead>
                     <TableHead>Role</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead>Last Active</TableHead>
                     <TableHead>Orders</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -444,13 +491,6 @@ export default function UsersPage() {
                       <TableCell>
                         <Badge className={`${getRoleColor(user.role)} text-white`}>{getRoleName(user.role)}</Badge>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={`${getStatusColor(user.status)} text-white`}>
-                          {user.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{user.joinDate}</TableCell>
-                      <TableCell>{user.lastActive}</TableCell>
                       <TableCell>{user.orders}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
@@ -462,26 +502,15 @@ export default function UsersPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => router.push(`/dashboard/admin/users/${user.id}`)}>
+                            <DropdownMenuItem onClick={() => openViewDetails(user)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openEditUser(user)}>
                               <Edit className="mr-2 h-4 w-4" />
                               Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Mail className="mr-2 h-4 w-4" />
-                              Email User
-                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            {user.status === "active" ? (
-                              <DropdownMenuItem className="text-amber-600">
-                                <Ban className="mr-2 h-4 w-4" />
-                                Suspend
-                              </DropdownMenuItem>
-                            ) : user.status === "suspended" ? (
-                              <DropdownMenuItem className="text-green-600">
-                                <CheckCircle className="mr-2 h-4 w-4" />
-                                Reactivate
-                              </DropdownMenuItem>
-                            ) : null}
                             <DropdownMenuItem
                               className="text-red-600"
                               onClick={() => {
@@ -509,7 +538,6 @@ export default function UsersPage() {
                   onClick={() => {
                     setSearchQuery("")
                     setRoleFilter("all")
-                    setStatusFilter("all")
                   }}
                 >
                   Reset Filters
@@ -524,9 +552,9 @@ export default function UsersPage() {
       <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Add New User</DialogTitle>
+            <DialogTitle>Add New Admin</DialogTitle>
             <DialogDescription>
-              Create a new user account. The user will receive an email with login instructions.
+              Create a new admin account. The admin will receive an email with login instructions.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAddUser}>
@@ -551,18 +579,32 @@ export default function UsersPage() {
                 />
               </div>
               <div className="grid gap-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={newUser.phone}
+                  onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="address">Address</Label>
+                <Input
+                  id="address"
+                  value={newUser.address}
+                  onChange={(e) => setNewUser({ ...newUser, address: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
                 <Label htmlFor="role">Role</Label>
-                <Select value={newUser.role} onValueChange={(value) => setNewUser({ ...newUser, role: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">Customer</SelectItem>
-                    <SelectItem value="restaurant_owner">Restaurant Owner</SelectItem>
-                    <SelectItem value="delivery_man">Delivery Person</SelectItem>
-                    <SelectItem value="admin">Administrator</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Input
+                  id="role"
+                  value="admin"
+                  disabled
+                  className="bg-gray-100 cursor-not-allowed"
+                />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">Password</Label>
@@ -589,9 +631,273 @@ export default function UsersPage() {
               <Button type="button" variant="outline" onClick={() => setIsAddUserOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Create User</Button>
+              <Button type="submit">Create Admin</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={isEditUserOpen} onOpenChange={setIsEditUserOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>
+              Update user details and save changes.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditUserSubmit}>
+            <div className="grid gap-4 py-4">
+              {/* Always show name and email */}
+              <div className="grid gap-2">
+                <Label htmlFor="edit-name">Full Name</Label>
+                <Input
+                  id="edit-name"
+                  name="name"
+                  value={editUser?.name || ""}
+                  onChange={handleEditUserChange}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-email">Email</Label>
+                <Input
+                  id="edit-email"
+                  name="email"
+                  type="email"
+                  value={editUser?.email || ""}
+                  onChange={handleEditUserChange}
+                  required
+                />
+              </div>
+
+              {/* Admin: phone, address */}
+              {editUser?.role === "admin" && (
+                <>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-phone">Phone</Label>
+                    <Input
+                      id="edit-phone"
+                      name="phone"
+                      type="tel"
+                      value={editUser?.phone || ""}
+                      onChange={handleEditUserChange}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-address">Address</Label>
+                    <Input
+                      id="edit-address"
+                      name="address"
+                      value={editUser?.address || ""}
+                      onChange={handleEditUserChange}
+                      required
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Restaurant Owner: phone, address, restaurantName */}
+              {editUser?.role === "restaurant_owner" && (
+                <>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-phone">Phone</Label>
+                    <Input
+                      id="edit-phone"
+                      name="phone"
+                      type="tel"
+                      value={editUser?.phone || ""}
+                      onChange={handleEditUserChange}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-address">Address</Label>
+                    <Input
+                      id="edit-address"
+                      name="address"
+                      value={editUser?.address || ""}
+                      onChange={handleEditUserChange}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-restaurantName">Restaurant Name</Label>
+                    <Input
+                      id="edit-restaurantName"
+                      name="restaurantName"
+                      value={editUser?.restaurantName || ""}
+                      onChange={handleEditUserChange}
+                      required
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Delivery Man: phone, address, vehicleNumber */}
+              {editUser?.role === "delivery_man" && (
+                <>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-phone">Phone</Label>
+                    <Input
+                      id="edit-phone"
+                      name="phone"
+                      type="tel"
+                      value={editUser?.phone || ""}
+                      onChange={handleEditUserChange}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-address">Address</Label>
+                    <Input
+                      id="edit-address"
+                      name="address"
+                      value={editUser?.address || ""}
+                      onChange={handleEditUserChange}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-vehicleNumber">Vehicle Number</Label>
+                    <Input
+                      id="edit-vehicleNumber"
+                      name="vehicleNumber"
+                      value={editUser?.vehicleNumber || ""}
+                      onChange={handleEditUserChange}
+                      required
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Role (always editable) */}
+              <div className="grid gap-2">
+                <Label htmlFor="edit-role">Role</Label>
+                <Select
+                  value={editUser?.role || ""}
+                  onValueChange={(value) =>
+                    setEditUser((prev) => prev ? { ...prev, role: value } : prev)
+                  }
+                >
+                  <SelectTrigger id="edit-role">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="user">Customer</SelectItem>
+                    <SelectItem value="restaurant_owner">Restaurant Owner</SelectItem>
+                    <SelectItem value="delivery_man">Delivery Person</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsEditUserOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Save Changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Details Dialog */}
+      <Dialog open={isViewDetailsOpen} onOpenChange={setIsViewDetailsOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle>
+              <span
+                className={`
+                  inline-block px-3 py-1 rounded-t-lg font-bold text-lg text-white
+                  ${viewUser?.role === "admin" ? "bg-gradient-to-r from-purple-500 to-indigo-500" : ""}
+                  ${viewUser?.role === "user" ? "bg-gradient-to-r from-blue-500 to-cyan-500" : ""}
+                  ${viewUser?.role === "restaurant_owner" ? "bg-gradient-to-r from-orange-500 to-yellow-400" : ""}
+                  ${viewUser?.role === "delivery_man" ? "bg-gradient-to-r from-green-500 to-teal-400" : ""}
+                `}
+              >
+                {viewUser ? viewUser.name : "User"} Details
+              </span>
+            </DialogTitle>
+            <DialogDescription>
+              All information about this user.
+            </DialogDescription>
+          </DialogHeader>
+          <div
+            className={`
+              py-4 rounded-xl border-2
+              bg-gradient-to-br
+              ${viewUser ? roleColors[viewUser.role] : "from-gray-50 to-white border-gray-200"}
+              shadow-lg
+            `}
+          >
+            {viewUser && (
+              <dl className="divide-y divide-gray-100">
+                {/* Admin format */}
+                {viewUser.role === "admin" && (
+                  <>
+                    <DetailRow label="_id" value={viewUser.id} mono />
+                    <DetailRow label="name" value={viewUser.name} />
+                    <DetailRow label="email" value={viewUser.email} />
+                    <DetailRow label="password" value="***************" mono />
+                    <DetailRow label="role" value={viewUser.role} />
+                    <DetailRow label="phone" value={viewUser.phone || "-"} />
+                    <DetailRow label="address" value={viewUser.address || "-"} />
+                  </>
+                )}
+
+                {/* Restaurant Owner format */}
+                {viewUser.role === "restaurant_owner" && (
+                  <>
+                    <DetailRow label="_id" value={viewUser.id} mono />
+                    <DetailRow label="name" value={viewUser.name} />
+                    <DetailRow label="email" value={viewUser.email} />
+                    <DetailRow label="password" value="***************" mono />
+                    <DetailRow label="role" value={viewUser.role} />
+                    <DetailRow label="phone" value={viewUser.phone || "-"} />
+                    <DetailRow label="address" value={viewUser.address || "-"} />
+                    <DetailRow label="restaurantName" value={viewUser.restaurantName || "-"} />
+                  </>
+                )}
+
+                {/* Delivery Personnel format */}
+                {viewUser.role === "delivery_man" && (
+                  <>
+                    <DetailRow label="_id" value={viewUser.id} mono />
+                    <DetailRow label="name" value={viewUser.name} />
+                    <DetailRow label="email" value={viewUser.email} />
+                    <DetailRow label="password" value="***************" mono />
+                    <DetailRow label="role" value={viewUser.role} />
+                    <DetailRow label="phone" value={viewUser.phone || "-"} />
+                    <DetailRow label="address" value={viewUser.address || "-"} />
+                    <DetailRow label="vehicleNumber" value={viewUser.vehicleNumber || "-"} mono />
+                  </>
+                )}
+
+                {/* Customer/User format */}
+                {viewUser.role === "user" && (
+                  <>
+                    <DetailRow label="_id" value={viewUser.id} mono />
+                    <DetailRow label="name" value={viewUser.name} />
+                    <DetailRow label="email" value={viewUser.email} />
+                    <DetailRow label="password" value="***************" mono />
+                    <DetailRow label="role" value={viewUser.role} />
+                  </>
+                )}
+              </dl>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              className="bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-700 border-gray-300"
+              onClick={() => setIsViewDetailsOpen(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -631,4 +937,3 @@ export default function UsersPage() {
     </div>
   )
 }
-

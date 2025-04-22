@@ -1,22 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { JSX, useEffect, useState, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -26,203 +17,244 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  MoreVertical,
-  Search,
-  Filter,
+  ChefHat,
   CheckCircle,
   XCircle,
-  ChefHat,
-  Package,
-  Truck,
+  Clock,
+  Search,
+  Filter,
+  MoreVertical,
 } from "lucide-react"
 
-// Mock data for orders
-const orders = [
-  {
-    id: "ORD-7893",
-    customer: {
-      name: "Emma Wilson",
-      avatar: "/placeholder.svg?height=32&width=32",
-      address: "123 Main St, Apt 4B",
-    },
-    items: [
-      { name: "Margherita Pizza", quantity: 1, price: "$12.99" },
-      { name: "Caesar Salad", quantity: 1, price: "$8.99" },
-      { name: "Garlic Bread", quantity: 1, price: "$4.99" },
-      { name: "Soda", quantity: 2, price: "$3.99" },
-    ],
-    total: "$34.95",
-    status: "preparing",
-    time: "10 mins ago",
-    payment: "Credit Card",
-    delivery: "Delivery",
-  },
-  {
-    id: "ORD-7894",
-    customer: {
-      name: "Michael Brown",
-      avatar: "/placeholder.svg?height=32&width=32",
-      address: "456 Oak Ave",
-    },
-    items: [
-      { name: "Chicken Alfredo", quantity: 1, price: "$15.99" },
-      { name: "Garlic Knots", quantity: 1, price: "$5.99" },
-    ],
-    total: "$21.98",
-    status: "ready",
-    time: "15 mins ago",
-    payment: "PayPal",
-    delivery: "Pickup",
-  },
-  {
-    id: "ORD-7895",
-    customer: {
-      name: "Sophia Davis",
-      avatar: "/placeholder.svg?height=32&width=32",
-      address: "789 Pine Blvd, Suite 3C",
-    },
-    items: [
-      { name: "Vegetable Stir Fry", quantity: 1, price: "$13.99" },
-      { name: "Spring Rolls", quantity: 2, price: "$6.99" },
-      { name: "Iced Tea", quantity: 1, price: "$2.99" },
-    ],
-    total: "$30.96",
-    status: "preparing",
-    time: "20 mins ago",
-    payment: "Cash",
-    delivery: "Delivery",
-  },
-  {
-    id: "ORD-7896",
-    customer: {
-      name: "James Johnson",
-      avatar: "/placeholder.svg?height=32&width=32",
-      address: "321 Elm St",
-    },
-    items: [
-      { name: "Cheeseburger", quantity: 1, price: "$9.99" },
-      { name: "French Fries", quantity: 1, price: "$2.99" },
-    ],
-    total: "$12.98",
-    status: "ready",
-    time: "25 mins ago",
-    payment: "Credit Card",
-    delivery: "Pickup",
-  },
-  {
-    id: "ORD-7897",
-    customer: {
-      name: "Olivia Martinez",
-      avatar: "/placeholder.svg?height=32&width=32",
-      address: "567 Maple Dr",
-    },
-    items: [
-      { name: "Pepperoni Pizza", quantity: 1, price: "$14.99" },
-      { name: "Buffalo Wings", quantity: 1, price: "$10.99" },
-      { name: "Chocolate Cake", quantity: 1, price: "$6.99" },
-    ],
-    total: "$32.97",
-    status: "delivered",
-    time: "35 mins ago",
-    payment: "Credit Card",
-    delivery: "Delivery",
-  },
-  {
-    id: "ORD-7898",
-    customer: {
-      name: "Noah Taylor",
-      avatar: "/placeholder.svg?height=32&width=32",
-      address: "890 Cedar Ln",
-    },
-    items: [
-      { name: "Spaghetti Bolognese", quantity: 1, price: "$13.99" },
-      { name: "Tiramisu", quantity: 1, price: "$7.99" },
-    ],
-    total: "$21.98",
-    status: "cancelled",
-    time: "40 mins ago",
-    payment: "PayPal",
-    delivery: "Delivery",
-  },
-]
+interface Order {
+  id: string
+  customer: {
+    name: string
+    address: string
+  }
+  items: { name: string; quantity: number; price: string }[]
+  total: string
+  status: string
+  time: string
+  payment: string
+  delivery: string
+  restaurant_id: string
+}
+
+const RESTAURANT_ID = "6807d9cc27c9c304b972f912"
 
 export default function OrdersPage() {
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [selectedTab, setSelectedTab] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedOrder, setSelectedOrder] = useState<any>(null)
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const [selectedStatus, setSelectedStatus] = useState("")
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
+
+  // Close dropdown on outside click
+  const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (openDropdownId && dropdownRefs.current[openDropdownId]) {
+        if (
+          dropdownRefs.current[openDropdownId] &&
+          !dropdownRefs.current[openDropdownId]!.contains(event.target as Node)
+        ) {
+          setOpenDropdownId(null)
+        }
+      }
+    }
+    if (openDropdownId) {
+      document.addEventListener("mousedown", handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [openDropdownId])
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const res = await fetch("http://localhost:3008/api/orders")
+        if (!res.ok) throw new Error("Failed to fetch orders")
+        const data = await res.json()
+        const mappedOrders: Order[] = data
+          .filter((order: any) => order.restaurant_id === RESTAURANT_ID)
+          .map((order: any) => ({
+            id: order.order_id,
+            customer: {
+              name: order.email?.split("@")[0] || "Customer",
+              address: order.delivery_address || "N/A",
+            },
+            items: order.items.map((item: any) => ({
+              name: item.menu_item_id || "Item",
+              quantity: item.quantity,
+              price: item.price.toFixed(2),
+            })),
+            total: order.total_amount.toFixed(2),
+            status: order.status,
+            time: new Date(order.createdAt).toLocaleString(),
+            payment: "Online",
+            delivery: "Delivery",
+            restaurant_id: order.restaurant_id,
+          }))
+        setOrders(mappedOrders)
+      } catch (err) {
+        setError((err as Error).message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchOrders()
+  }, [])
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery)
+    }, 500)
+    return () => clearTimeout(timeoutId)
+  }, [searchQuery])
 
   const filteredOrders = orders.filter((order) => {
-    if (selectedTab !== "all" && order.status !== selectedTab) {
-      return false
-    }
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
+    if (selectedTab !== "all" && order.status !== selectedTab) return false
+    if (debouncedSearchQuery) {
+      const query = debouncedSearchQuery.toLowerCase()
       return (
         order.id.toLowerCase().includes(query) ||
         order.customer.name.toLowerCase().includes(query) ||
         order.total.toLowerCase().includes(query)
       )
     }
-
     return true
   })
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "preparing":
-        return (
-          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
-            <ChefHat className="mr-1 h-3 w-3" /> Preparing
-          </Badge>
+    const commonProps = "mr-1 h-3 w-3"
+    const badgeMap: Record<string, JSX.Element> = {
+      preparing: (
+        <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
+          <ChefHat className={commonProps} /> Preparing
+        </Badge>
+      ),
+      ready: (
+        <Badge variant="outline" className="bg-green-100 text-green-800">
+          <CheckCircle className={commonProps} /> Ready
+        </Badge>
+      ),
+      delivered: (
+        <Badge variant="outline" className="bg-blue-100 text-blue-800">
+          <CheckCircle className={commonProps} /> Delivered
+        </Badge>
+      ),
+      cancelled: (
+        <Badge variant="outline" className="bg-red-100 text-red-800">
+          <XCircle className={commonProps} /> Cancelled
+        </Badge>
+      ),
+    }
+    return badgeMap[status] || (
+      <Badge variant="outline">
+        <Clock className={commonProps} /> {status}
+      </Badge>
+    )
+  }
+
+  const handleViewDetails = (order: Order) => {
+    setSelectedOrder(order)
+    setSelectedStatus(order.status)
+    setIsDetailsOpen(true)
+    setOpenDropdownId(null)
+  }
+
+  const handleUpdateStatus = async (orderId: string, newStatus: string) => {
+    try {
+      const res = await fetch(`http://localhost:3008/api/orders/${orderId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (!res.ok) throw new Error("Failed to update status")
+      setOrders((prevOrders) =>
+        prevOrders.map((o) =>
+          o.id === orderId ? { ...o, status: newStatus } : o
         )
-      case "ready":
-        return (
-          <Badge variant="outline" className="bg-green-100 text-green-800 hover:bg-green-100">
-            <Package className="mr-1 h-3 w-3" /> Ready
-          </Badge>
-        )
-      case "delivered":
-        return (
-          <Badge variant="outline" className="bg-blue-100 text-blue-800 hover:bg-blue-100">
-            <CheckCircle className="mr-1 h-3 w-3" /> Delivered
-          </Badge>
-        )
-      case "cancelled":
-        return (
-          <Badge variant="outline" className="bg-red-100 text-red-800 hover:bg-red-100">
-            <XCircle className="mr-1 h-3 w-3" /> Cancelled
-          </Badge>
-        )
-      default:
-        return (
-          <Badge variant="outline">
-            <Clock className="mr-1 h-3 w-3" /> {status}
-          </Badge>
-        )
+      )
+    } catch (err) {
+      console.error("Error updating status", err)
     }
   }
 
-  const handleViewDetails = (order: any) => {
-    setSelectedOrder(order)
-    setIsDetailsOpen(true)
+  const handleSentDelivery = async (order: Order) => {
+    try {
+      const res = await fetch(
+        `http://localhost:3008/api/orders/${order.id}/status`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "ready" }),
+        }
+      )
+      if (!res.ok) throw new Error("Failed to update order status")
+      setOrders((prevOrders) =>
+        prevOrders.map((o) =>
+          o.id === order.id ? { ...o, status: "ready" } : o
+        )
+      )
+    } catch (err) {
+      console.error(err)
+      alert("Could not send order to ready.")
+    }
   }
 
-  const handleUpdateStatus = (orderId: string, newStatus: string) => {
-    // In a real app, this would update the order status in the database
-    console.log(`Updating order ${orderId} to status: ${newStatus}`)
+  const handleMarkDelivered = async (order: Order) => {
+    try {
+      const res = await fetch(
+        `http://localhost:3008/api/orders/${order.id}/status`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "delivered" }),
+        }
+      )
+      if (!res.ok) throw new Error("Failed to update order status")
+      setOrders((prevOrders) =>
+        prevOrders.map((o) =>
+          o.id === order.id ? { ...o, status: "delivered" } : o
+        )
+      )
+    } catch (err) {
+      console.error(err)
+      alert("Could not mark order as delivered.")
+    }
   }
+
+  const handleSaveChanges = () => {
+    if (selectedOrder && selectedStatus) {
+      handleUpdateStatus(selectedOrder.id, selectedStatus)
+      setIsDetailsOpen(false)
+    }
+  }
+
+  if (loading) return <div className="p-6 text-center">Loading orders...</div>
+  if (error) return <div className="p-6 text-center text-red-600">Error: {error}</div>
+
+  const tabs = ["all", "pending", "preparing", "ready", "delivered"]
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
-          <p className="text-muted-foreground">Manage and track all your restaurant orders</p>
+          <p className="text-muted-foreground">
+            Manage and track all your restaurant orders
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline">Export</Button>
@@ -230,23 +262,26 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="all" className="space-y-4" onValueChange={setSelectedTab}>
+      <Tabs
+        defaultValue="all"
+        className="space-y-4"
+        onValueChange={setSelectedTab}
+      >
         <div className="flex flex-col sm:flex-row justify-between gap-4">
           <TabsList>
-            <TabsTrigger value="all">All Orders</TabsTrigger>
-            <TabsTrigger value="preparing">Preparing</TabsTrigger>
-            <TabsTrigger value="ready">Ready</TabsTrigger>
-            <TabsTrigger value="delivered">Delivered</TabsTrigger>
-            <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+            {tabs.map((status) => (
+              <TabsTrigger key={status} value={status}>
+                {status.charAt(0).toUpperCase() + status.slice(1)}
+              </TabsTrigger>
+            ))}
           </TabsList>
-
           <div className="flex gap-2">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
                 placeholder="Search orders..."
-                className="pl-8 w-[200px] sm:w-[300px]"
+                className="pl-8 w-[300px]"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -261,7 +296,9 @@ export default function OrdersPage() {
           <Card>
             <CardHeader className="p-4">
               <CardTitle>Order List</CardTitle>
-              <CardDescription>{filteredOrders.length} orders found</CardDescription>
+              <CardDescription>
+                {filteredOrders.length} orders found
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
@@ -273,194 +310,194 @@ export default function OrdersPage() {
                     <TableHead>Status</TableHead>
                     <TableHead>Time</TableHead>
                     <TableHead>Type</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    {/* Actions column for all, pending, and preparing tabs */}
+                    {(selectedTab === "all" ||
+                      selectedTab === "pending" ||
+                      selectedTab === "preparing") && (
+                      <TableHead className="text-right">Actions</TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredOrders.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell className="font-medium">{order.id}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={order.customer.avatar} alt={order.customer.name} />
-                            <AvatarFallback>{order.customer.name.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <div className="font-medium">{order.customer.name}</div>
-                        </div>
-                      </TableCell>
+                      <TableCell>{order.customer.name}</TableCell>
                       <TableCell>{order.total}</TableCell>
                       <TableCell>{getStatusBadge(order.status)}</TableCell>
                       <TableCell>{order.time}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {order.delivery === "Delivery" ? (
-                            <Truck className="mr-1 h-3 w-3" />
+                      <TableCell>{order.payment}</TableCell>
+                      {/* Actions cell for All tab */}
+                      {selectedTab === "all" && (
+                        <TableCell className="text-right" style={{ position: "relative" }}>
+                          {order.status === "delivered" ? (
+                            <CheckCircle className="text-blue-500 mx-auto" size={20} />
+                          ) : order.status === "ready" ? (
+                            <ChefHat className="text-green-500 mx-auto" size={20} />
                           ) : (
-                            <Package className="mr-1 h-3 w-3" />
+                            <>
+                              <button
+                                className="p-2 rounded-full hover:bg-gray-100"
+                                onClick={() =>
+                                  setOpenDropdownId(
+                                    openDropdownId === order.id ? null : order.id
+                                  )
+                                }
+                                aria-label="More"
+                              >
+                                <MoreVertical size={20} />
+                              </button>
+                              {openDropdownId === order.id && (
+                                <div
+                                  ref={(el) => {
+                                    dropdownRefs.current[order.id] = el
+                                  }}
+                                  className="absolute right-0 z-10 mt-2 w-32 bg-white border border-gray-200 rounded shadow-lg"
+                                >
+                                  <button
+                                    className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                                    onClick={() => handleViewDetails(order)}
+                                  >
+                                    View details
+                                  </button>
+                                </div>
+                              )}
+                            </>
                           )}
-                          {order.delivery}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreVertical className="h-4 w-4" />
-                              <span className="sr-only">Open menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleViewDetails(order)}>View details</DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuLabel>Update Status</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, "preparing")}>
-                              Mark as Preparing
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, "ready")}>
-                              Mark as Ready
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, "delivered")}>
-                              Mark as Delivered
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, "cancelled")}>
-                              Cancel Order
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+                        </TableCell>
+                      )}
+                      {/* Actions cell for Pending tab: three dots */}
+                      {selectedTab === "pending" && (
+                        <TableCell className="text-right" style={{ position: "relative" }}>
+                          <button
+                            className="p-2 rounded-full hover:bg-gray-100"
+                            onClick={() =>
+                              setOpenDropdownId(
+                                openDropdownId === order.id ? null : order.id
+                              )
+                            }
+                            aria-label="More"
+                          >
+                            <MoreVertical size={20} />
+                          </button>
+                          {openDropdownId === order.id && (
+                            <div
+                              ref={(el) => {
+                                dropdownRefs.current[order.id] = el
+                              }}
+                              className="absolute right-0 z-10 mt-2 w-32 bg-white border border-gray-200 rounded shadow-lg"
+                            >
+                              <button
+                                className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                                onClick={() => handleViewDetails(order)}
+                              >
+                                View details
+                              </button>
+                            </div>
+                          )}
+                        </TableCell>
+                      )}
+                      {/* Actions cell for Preparing tab: Sent to Delivery button */}
+                      {selectedTab === "preparing" && (
+                        <TableCell className="text-right">
+                          <Button onClick={() => handleSentDelivery(order)}>
+                            Sent to Delivery
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-
-              {filteredOrders.length === 0 && (
-                <div className="flex flex-col items-center justify-center p-8">
-                  <div className="text-center">
-                    <h3 className="text-lg font-semibold">No orders found</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Try adjusting your search or filter to find what you're looking for.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between p-4">
-                <div className="text-sm text-muted-foreground">
-                  Showing <strong>1</strong> to <strong>{filteredOrders.length}</strong> of{" "}
-                  <strong>{filteredOrders.length}</strong> orders
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" disabled>
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-8 w-8">
-                    1
-                  </Button>
-                  <Button variant="outline" size="icon" disabled>
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      {/* Order Details Dialog */}
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Order Details - {selectedOrder?.id}</DialogTitle>
+            <DialogTitle>Order Details</DialogTitle>
             <DialogDescription>
-              {selectedOrder?.time} • {getStatusBadge(selectedOrder?.status || "")}
+              View and update the status of the order.
             </DialogDescription>
           </DialogHeader>
-
           {selectedOrder && (
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <h3 className="font-medium">Customer Information</h3>
-                <div className="flex items-center gap-3 p-3 border rounded-md">
-                  <Avatar>
-                    <AvatarImage src={selectedOrder.customer.avatar} alt={selectedOrder.customer.name} />
-                    <AvatarFallback>{selectedOrder.customer.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="font-medium">{selectedOrder.customer.name}</div>
-                    <div className="text-sm text-muted-foreground">{selectedOrder.customer.address}</div>
-                  </div>
-                </div>
+            <div className="space-y-4">
+              <div>
+                <span className="font-medium">Customer: </span>
+                {selectedOrder.customer.name}
               </div>
-
-              <div className="space-y-2">
-                <h3 className="font-medium">Order Items</h3>
-                <div className="border rounded-md overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Item</TableHead>
-                        <TableHead className="text-right">Qty</TableHead>
-                        <TableHead className="text-right">Price</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedOrder.items.map((item: any, index: number) => (
-                        <TableRow key={index}>
-                          <TableCell>{item.name}</TableCell>
-                          <TableCell className="text-right">{item.quantity}</TableCell>
-                          <TableCell className="text-right">{item.price}</TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow>
-                        <TableCell colSpan={2} className="text-right font-medium">
-                          Total
-                        </TableCell>
-                        <TableCell className="text-right font-bold">{selectedOrder.total}</TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
+              <div>
+                <span className="font-medium">Address: </span>
+                {selectedOrder.customer.address}
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <h3 className="font-medium">Payment Method</h3>
-                  <div className="p-3 border rounded-md">{selectedOrder.payment}</div>
-                </div>
-                <div className="space-y-2">
-                  <h3 className="font-medium">Delivery Method</h3>
-                  <div className="p-3 border rounded-md">{selectedOrder.delivery}</div>
-                </div>
-              </div>
-
               <div className="space-y-2">
-                <h3 className="font-medium">Update Status</h3>
-                <Select defaultValue={selectedOrder.status}>
+                <span className="font-medium">Items:</span>
+                <ul className="space-y-1">
+                  {selectedOrder.items.map((item, index) => (
+                    <li key={index}>
+                      {item.quantity} x {item.name} - {item.price}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">Total:</span>
+                <span>{selectedOrder.total}</span>
+              </div>
+              <div>
+                <span className="font-medium">Payment Type:</span>{" "}
+                {selectedOrder.payment}
+              </div>
+              <div>
+                <span className="font-medium">Delivery Method:</span>{" "}
+                {selectedOrder.delivery}
+              </div>
+              <div>
+                <span className="font-medium">Status: </span>
+                <Select
+                  value={selectedStatus}
+                  onValueChange={setSelectedStatus}
+                  disabled={selectedOrder.status === "delivered"}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="preparing">Preparing</SelectItem>
-                    <SelectItem value="ready">Ready</SelectItem>
-                    <SelectItem value="delivered">Delivered</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    {(selectedOrder?.status === "preparing"
+                      ? ["ready"]
+                      : selectedOrder?.status === "ready"
+                      ? ["delivered"]
+                      : selectedOrder?.status === "pending"
+                      ? ["preparing"]
+                      : ["pending", "preparing", "ready", "delivered"]
+                    ).map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
           )}
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsDetailsOpen(false)}
+            >
               Close
             </Button>
-            <Button>Save Changes</Button>
+            <Button
+              onClick={handleSaveChanges}
+              disabled={selectedOrder?.status === "delivered"}
+            >
+              Save Changes
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   )
 }
-

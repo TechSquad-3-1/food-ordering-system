@@ -24,4 +24,6 @@ router.put("/:id/status", DeliveryController.updateDeliveryStatus);
 // Delete delivery
 router.delete("/:id", DeliveryController.deleteDelivery);
 
+router.get("/count/:deliveryManId", DeliveryController.getDeliveryCount);
+
 export default router;
