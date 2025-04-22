@@ -5,7 +5,9 @@ export interface ICartItem {
   name: string;
   price: number;
   quantity: number;
+  image?: string;  // New field for image URL
 }
+
 
 export interface ICart extends Document {
   userId: string;
@@ -22,10 +24,12 @@ const cartSchema = new Schema<ICart>({
       name: { type: String, required: true },
       price: { type: Number, required: true },
       quantity: { type: Number, required: true, min: 1 },
+      image: { type: String, required: false },  // New field for image URL
     },
   ],
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
+
 
 export const CartModel = mongoose.model<ICart>('Cart', cartSchema);

@@ -24,6 +24,7 @@ type CartAPIResponse = {
   _id: string;
   userId: string;
   items: {
+    image: string;
     _id: string;
     productId: string;
     name: string;
@@ -44,28 +45,29 @@ export default function CartPage() {
           console.warn("No userId in localStorage");
           return;
         }
-
+  
         const response = await axios.get<CartAPIResponse>(
           `http://localhost:3005/api/cart/${storedUserId}`
         );
-
-        const items = response.data.items.map((item: { _id: any; productId: any; name: any; price: any; quantity: any; }) => ({
+  
+        const items = response.data.items.map((item) => ({
           id: item._id,
-          menuItemId: item.productId, // ✅ used in downstream processing
+          menuItemId: item.productId, // used in downstream processing
           name: item.name,
           price: item.price,
           quantity: item.quantity,
-          image: "/placeholder.svg",
+          image: item.image || "/placeholder.svg", // Fetch the image from the backend or use a placeholder
         }));
-
+  
         setCartItems(items);
       } catch (error) {
         console.error("Failed to fetch cart data:", error);
       }
     };
-
+  
     fetchCart();
   }, []);
+  
 
   const updateQuantity = async (id: string, change: number) => {
     const item = cartItems.find((item) => item.id === id);
@@ -107,7 +109,7 @@ export default function CartPage() {
   };
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const deliveryFee = 2.99;
+  const deliveryFee = 300;
   const tax = subtotal * 0.08;
   const total = subtotal + deliveryFee + tax;
 
@@ -161,12 +163,13 @@ export default function CartPage() {
                       <CardContent className="p-4">
                         <div className="flex gap-4">
                           <div className="relative h-24 w-24 rounded-md overflow-hidden flex-shrink-0">
-                            <Image
-                              src={item.image || "/placeholder.svg"}
-                              alt={item.name}
-                              fill
-                              className="object-cover"
-                            />
+                          <Image
+                            src={item.image || "/placeholder.svg"}
+                            alt={item.name}
+                            fill
+                            className="object-cover"
+                          />
+
                           </div>
                           <div className="flex flex-col flex-1 justify-between">
                             <div>
@@ -177,7 +180,7 @@ export default function CartPage() {
                             </div>
                             <div className="flex justify-between items-center mt-2">
                               <div className="font-medium">
-                                ${(item.price * item.quantity).toFixed(2)}
+                                LKR {(item.price * item.quantity).toFixed(2)}
                               </div>
                               <div className="flex items-center gap-3">
                                 <Button
@@ -237,20 +240,20 @@ export default function CartPage() {
                   <div className="flex flex-col gap-4">
                     <div className="flex justify-between">
                       <span className="text-gray-500">Subtotal</span>
-                      <span>${subtotal.toFixed(2)}</span>
+                      <span>LKR {subtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Delivery Fee</span>
-                      <span>${deliveryFee.toFixed(2)}</span>
+                      <span>LKR {deliveryFee.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Tax</span>
-                      <span>${tax.toFixed(2)}</span>
+                      <span>LKR {tax.toFixed(2)}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between font-semibold">
                       <span>Total</span>
-                      <span>${total.toFixed(2)}</span>
+                      <span>LKR {total.toFixed(2)}</span>
                     </div>
                   </div>
                 </CardContent>

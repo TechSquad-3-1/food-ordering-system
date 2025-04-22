@@ -71,6 +71,7 @@ export default function CheckoutPage() {
 
   const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : null;
 
+  // Calculate totals
   useEffect(() => {
     const restaurantId = localStorage.getItem("restaurantId");
     if (restaurantId) {
@@ -86,7 +87,7 @@ export default function CheckoutPage() {
       setCartItems(items);
 
       const calcSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      const calcTax = calcSubtotal * 0.08;
+      const calcTax = calcSubtotal * 0.08; // 8% tax
       const calcTotal = calcSubtotal + deliveryFee + calcTax;
 
       setSubtotal(calcSubtotal);
@@ -97,8 +98,18 @@ export default function CheckoutPage() {
       const quantity = localStorage.getItem("selectedQuantity") || "1";
 
       if (item) {
-        setSelectedItem(JSON.parse(item));
+        const parsedItem = JSON.parse(item);
+        setSelectedItem(parsedItem);
         setSelectedQuantity(parseInt(quantity));
+
+        // Calculate for single item
+        const selectedItemTotal = parsedItem.price * parseInt(quantity);
+        const selectedItemTax = selectedItemTotal * 0.08;
+        const selectedItemTotalWithTax = selectedItemTotal + deliveryFee + selectedItemTax;
+
+        setSubtotal(selectedItemTotal);
+        setTax(selectedItemTax);
+        setTotal(selectedItemTotalWithTax);
       }
     }
 
@@ -107,7 +118,23 @@ export default function CheckoutPage() {
       localStorage.removeItem("selectedItem");
       localStorage.removeItem("selectedQuantity");
     };
+    // Only run on mount
+    // eslint-disable-next-line
   }, []);
+
+  // Recalculate totals if single item quantity changes
+  useEffect(() => {
+    if (selectedItem && cartItems.length === 0) {
+      const selectedItemTotal = selectedItem.price * selectedQuantity;
+      const selectedItemTax = selectedItemTotal * 0.08;
+      const selectedItemTotalWithTax = selectedItemTotal + deliveryFee + selectedItemTax;
+
+      setSubtotal(selectedItemTotal);
+      setTax(selectedItemTax);
+      setTotal(selectedItemTotalWithTax);
+    }
+    // eslint-disable-next-line
+  }, [selectedQuantity, selectedItem]);
 
   if (!userId) {
     alert("User is not logged in. Please log in before placing the order.");
@@ -128,19 +155,20 @@ export default function CheckoutPage() {
           ? cartItems.map((item) => ({
               menu_item_id: item.productId,
               quantity: item.quantity,
-              price: item.price, // Ensure it's treated as a number
-              name: item.name, // Include the name
+              price: item.price,
+              name: item.name,
             }))
           : [
               {
                 menu_item_id: selectedItem!._id,
                 quantity: selectedQuantity,
-                price: selectedItem!.price, // Ensure it's treated as a number
+                price: selectedItem!.price,
                 name: selectedItem!.name,
               },
             ];
 
-      const orderTotal = cartItems.length > 0 ? total : selectedItem!.price * selectedQuantity + deliveryFee;
+      // Always use the calculated total (which includes tax)
+      const orderTotal = total;
 
       const orderPayload = {
         user_id: userId,
@@ -157,7 +185,7 @@ export default function CheckoutPage() {
       localStorage.setItem("pending_order", JSON.stringify(orderPayload));
 
       const paymentData = {
-        amount: orderTotal.toFixed(2), // Ensure the total is a string with two decimal places
+        amount: orderTotal.toFixed(2),
         quantity: itemsToSend.reduce((acc, item) => acc + item.quantity, 0),
         name: "Food Order",
         currency: "USD",
@@ -183,7 +211,6 @@ export default function CheckoutPage() {
       setIsProcessing(false);
     }
   };
-
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -264,7 +291,7 @@ export default function CheckoutPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Subtotal</span>
-                      <span>LKR {cartItems.length > 0 ? subtotal.toFixed(2) : ((selectedItem?.price || 0) * selectedQuantity).toFixed(2)}</span>
+                      <span>LKR {subtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Delivery Fee</span>
@@ -272,11 +299,11 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Tax</span>
-                      <span>LKR {cartItems.length > 0 ? tax.toFixed(2) : ((selectedItem?.price || 0) * selectedQuantity * 0.08).toFixed(2)}</span>
+                      <span>LKR {tax.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between font-bold text-lg pt-2 border-t">
                       <span>Total</span>
-                      <span>LKR {cartItems.length > 0 ? total.toFixed(2) : ((selectedItem?.price || 0) * selectedQuantity + deliveryFee).toFixed(2)}</span>
+                      <span>LKR {total.toFixed(2)}</span>
                     </div>
                   </div>
                 </CardContent>
