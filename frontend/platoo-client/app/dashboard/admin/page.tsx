@@ -257,7 +257,7 @@ export default function AdminDashboardPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${dashboardData.totalRevenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">LKR{dashboardData.totalRevenue.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-green-500 flex items-center">
                 <ArrowUpRight className="mr-1 h-4 w-4" />
@@ -455,7 +455,7 @@ function OrderHistoryPage() {
                   <TableRow key={order._id}>
                     <TableCell>{order.order_id}</TableCell>
                     <TableCell>{order.email}</TableCell>
-                    <TableCell>${order.total_amount.toFixed(2)}</TableCell>
+                    <TableCell>LKR{order.total_amount.toFixed(2)}</TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(order.status)}>{order.status}</Badge>
                     </TableCell>
