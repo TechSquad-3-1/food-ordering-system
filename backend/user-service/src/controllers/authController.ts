@@ -203,3 +203,32 @@ export const getUserById = async (req: AuthRequest, res: Response): Promise<void
     }
   }
 };
+
+
+
+// controllers/authController.ts
+export const getRestaurantOwnerByIdPublic = async (req: Request, res: Response): Promise<void> => {
+  const { userId } = req.params;
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      res.status(400).json({ msg: "Invalid userId format" });
+      return;
+    }
+
+    const user = await User.findOne({ _id: userId, role: UserRole.RESTAURANT_OWNER });
+
+    if (!user) {
+      res.status(404).json({ msg: "Restaurant owner not found" });
+      return;
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    if (error instanceof Error) {
+      res.status(500).json({ msg: "Error retrieving restaurant owner", error: error.message });
+    } else {
+      res.status(500).json({ msg: "Unknown error occurred" });
+    }
+  }
+};
