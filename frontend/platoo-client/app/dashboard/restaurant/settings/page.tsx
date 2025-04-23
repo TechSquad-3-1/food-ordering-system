@@ -1,4 +1,5 @@
 "use client"
+
 import { useState, useEffect } from "react"
 import {
   Card,
@@ -25,8 +26,6 @@ import {
   Globe,
   Camera,
   Save,
-  CreditCard,
-  Bell,
 } from "lucide-react"
 import {
   Dialog,
@@ -38,12 +37,97 @@ import {
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
+interface OwnerInfo {
+  name: string
+  email: string
+  phone: string
+  address: string
+  restaurantName: string
+}
+
 export default function RestaurantSettings() {
+  // Owner state and logic
+  const [owner, setOwner] = useState<OwnerInfo>({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    restaurantName: "",
+  })
+  const [isLoading, setIsLoading] = useState(true)
+  const [isEditing, setIsEditing] = useState(false)
+  const [password, setPassword] = useState("")
+  const [ownerId, setOwnerId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const storedId = localStorage.getItem("restaurantOwnerId")
+    if (!storedId) {
+      console.error("Owner ID not found in localStorage")
+      return
+    }
+    setOwnerId(storedId)
+
+    const fetchOwner = async () => {
+      setIsLoading(true)
+      try {
+        const res = await fetch(`http://localhost:4000/api/auth/restaurant-owner/${storedId}`)
+        if (!res.ok) throw new Error("Failed to fetch owner data")
+        const data = await res.json()
+        setOwner({
+          name: data.name || "",
+          email: data.email || "",
+          phone: data.phone || "",
+          address: data.address || "",
+          restaurantName: data.restaurantName || "",
+        })
+        localStorage.setItem("owner", JSON.stringify(data))
+      } catch (error) {
+        console.error("Error fetching owner data:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchOwner()
+  }, [])
+
+  const handleSaveOwner = async () => {
+    const storedId = localStorage.getItem("restaurantOwnerId")
+    if (!storedId) {
+      alert("Owner ID not found in localStorage.")
+      return
+    }
+    if (!password) {
+      alert("Please enter your password to save changes.")
+      return
+    }
+    try {
+      const response = await fetch(`http://localhost:4000/api/auth/update/${storedId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ...owner, password }),
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to update profile")
+      }
+      alert("Owner info updated successfully!")
+      setIsEditing(false)
+      setPassword("")
+      localStorage.setItem("owner", JSON.stringify(owner))
+    } catch (error) {
+      console.error("Error updating owner info:", error)
+      alert("Error updating owner info.")
+    }
+  }
+
+  // Restaurant state and logic
   const [restaurants, setRestaurants] = useState<any[]>([])
   const [isAddRestaurantOpen, setIsAddRestaurantOpen] = useState(false)
   const [selectedRestaurant, setSelectedRestaurant] = useState<any>(null)
 
-  // Fetch restaurants from backend on component mount
   useEffect(() => {
     fetchRestaurants()
   }, [])
@@ -73,7 +157,7 @@ export default function RestaurantSettings() {
 
       if (response.ok) {
         setIsAddRestaurantOpen(false)
-        fetchRestaurants() // Refresh restaurants after adding/updating
+        fetchRestaurants()
       } else {
         console.error("Failed to save restaurant")
       }
@@ -88,7 +172,7 @@ export default function RestaurantSettings() {
         method: "DELETE",
       })
       if (response.ok) {
-        fetchRestaurants() // Refresh restaurants after deletion
+        fetchRestaurants()
       } else {
         console.error("Failed to delete restaurant")
       }
@@ -102,17 +186,16 @@ export default function RestaurantSettings() {
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">Restaurant Settings</h1>
         <p className="text-muted-foreground">
-          Manage your restaurant profile, business hours, and account settings.
+          Manage your restaurant profile and owner information.
         </p>
       </div>
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 lg:w-[600px]">
+        <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
           <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="hours">Business Hours</TabsTrigger>
-          <TabsTrigger value="payment">Payment</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="owner-profile">Owner Profile</TabsTrigger>
         </TabsList>
+
+        {/* Restaurant Profile Tab */}
         <TabsContent value="profile" className="space-y-4 pt-4">
           <Card>
             <CardHeader>
@@ -280,6 +363,87 @@ export default function RestaurantSettings() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Owner Profile Tab */}
+        <TabsContent value="owner-profile" className="pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Owner Profile</CardTitle>
+              <CardDescription>Manage owner information</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isLoading ? (
+                <div>Loading owner info...</div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="owner-name">Owner Name</Label>
+                    <Input
+                      id="owner-name"
+                      value={owner.name}
+                      onChange={e => setOwner({ ...owner, name: e.target.value })}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="owner-email">Owner Email</Label>
+                    <Input
+                      id="owner-email"
+                      value={owner.email}
+                      onChange={e => setOwner({ ...owner, email: e.target.value })}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="owner-phone">Owner Phone</Label>
+                    <Input
+                      id="owner-phone"
+                      value={owner.phone}
+                      onChange={e => setOwner({ ...owner, phone: e.target.value })}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="owner-address">Owner Address</Label>
+                    <Input
+                      id="owner-address"
+                      value={owner.address}
+                      onChange={e => setOwner({ ...owner, address: e.target.value })}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="owner-restaurant">Restaurant Name</Label>
+                    <Input
+                      id="owner-restaurant"
+                      value={owner.restaurantName}
+                      onChange={e => setOwner({ ...owner, restaurantName: e.target.value })}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                  {isEditing && (
+                    <div className="space-y-2">
+                      <Label htmlFor="owner-password">Confirm Password</Label>
+                      <Input
+                        id="owner-password"
+                        type="password"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+            <CardFooter className="flex justify-end gap-4">
+              {isEditing ? (
+                <Button onClick={handleSaveOwner}>Save Changes</Button>
+              ) : (
+                <Button onClick={() => setIsEditing(true)}>Edit</Button>
+              )}
+            </CardFooter>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* Add/Edit Restaurant Dialog */}
@@ -294,8 +458,8 @@ export default function RestaurantSettings() {
           <ScrollArea className="max-h-[70vh]">
             <div className="space-y-6 p-1">
               <div className="space-y-2">
-                <Label htmlFor="restaurant-name">Restaurant Name</Label>
-                <Input id="restaurant-name" defaultValue={selectedRestaurant?.name || ""} />
+                <Label htmlFor="restaurant-name-dialog">Restaurant Name</Label>
+                <Input id="restaurant-name-dialog" defaultValue={selectedRestaurant?.name || ""} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="restaurant-description">Description</Label>
@@ -332,7 +496,7 @@ export default function RestaurantSettings() {
             <Button
               onClick={() => {
                 const formData = {
-                  name: (document.getElementById("restaurant-name") as HTMLInputElement)?.value,
+                  name: (document.getElementById("restaurant-name-dialog") as HTMLInputElement)?.value,
                   description: (document.getElementById("restaurant-description") as HTMLTextAreaElement)?.value,
                   phone: (document.getElementById("restaurant-phone") as HTMLInputElement)?.value,
                   email: (document.getElementById("restaurant-email") as HTMLInputElement)?.value,
