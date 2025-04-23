@@ -41,7 +41,6 @@ interface Order {
   updatedAt: string
 }
 
-// Helper functions
 function getDateString(date: Date) {
   return date.toISOString().slice(0, 10)
 }
@@ -57,12 +56,9 @@ function getDateRange(start: Date, end: Date) {
 }
 
 // Replace this with your actual logic to get the logged-in restaurant's ID
-// For example, from session, context, or props
 function useRestaurantId() {
-  // Example: fetch from localStorage, context, or API
-  // return localStorage.getItem("restaurantId") || ""
   // For now, hardcoded for demonstration:
-  return "67ea74b67ec2521671a97f93"
+  return "6807d9cc27c9c304b972f912"
 }
 
 export default function OrderHistoryPage() {
@@ -71,6 +67,7 @@ export default function OrderHistoryPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [dailyCounts, setDailyCounts] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] })
   const [orderCount, setOrderCount] = useState(0)
+  const [userOrderStats, setUserOrderStats] = useState<{ labels: string[]; data: number[]; topUsers: { email: string, count: number }[] }>({ labels: [], data: [], topUsers: [] })
 
   useEffect(() => {
     if (!restaurantId) return
@@ -91,13 +88,14 @@ export default function OrderHistoryPage() {
         const dates = filteredOrders.map((order: Order) => new Date(order.createdAt))
         if (dates.length === 0) {
           setDailyCounts({ labels: [], data: [] })
+          setUserOrderStats({ labels: [], data: [], topUsers: [] })
           return
         }
 
         // Find first and last date
         dates.sort((a: { getTime: () => number }, b: { getTime: () => number }) => a.getTime() - b.getTime())
         const startDate = new Date(dates[0].toISOString().slice(0, 10))
-        const endDate = new Date() // today
+        const endDate = new Date()
 
         // Build date range
         const dateRange = getDateRange(startDate, endDate)
@@ -115,11 +113,30 @@ export default function OrderHistoryPage() {
           labels: dateLabels,
           data: dateLabels.map(date => counts[date])
         })
+
+        // User analytics: Count orders per user (by email)
+        const userCounts: { [email: string]: number } = {}
+        filteredOrders.forEach((order: Order) => {
+          if (order.email) {
+            userCounts[order.email] = (userCounts[order.email] || 0) + 1
+          }
+        })
+        // Sort users by count descending, take top 10 for chart
+        const sortedUsers = Object.entries(userCounts)
+          .sort((a, b) => b[1] - a[1])
+        const topUsers = sortedUsers.slice(0, 10).map(([email, count]) => ({ email, count }))
+        setUserOrderStats({
+          labels: topUsers.map(u => u.email),
+          data: topUsers.map(u => u.count),
+          topUsers: sortedUsers.slice(0, 5).map(([email, count]) => ({ email, count }))
+        })
+
       } catch (error) {
         console.error("Error fetching orders:", error)
         setOrders([])
         setOrderCount(0)
         setDailyCounts({ labels: [], data: [] })
+        setUserOrderStats({ labels: [], data: [], topUsers: [] })
       } finally {
         setIsLoading(false)
       }
@@ -177,6 +194,35 @@ export default function OrderHistoryPage() {
     },
   }
 
+  // Chart data for user analytics
+  const userChartData = {
+    labels: userOrderStats.labels,
+    datasets: [
+      {
+        label: "Orders per User",
+        data: userOrderStats.data,
+        backgroundColor: "#34d399",
+      },
+    ],
+  }
+
+  const userChartOptions = {
+    indexAxis: "y" as const,
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      title: { display: true, text: "Top 10 Users by Orders" },
+    },
+    scales: {
+      x: { beginAtZero: true, precision: 0 },
+      y: {
+        ticks: {
+          autoSkip: false,
+        }
+      },
+    },
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
@@ -189,23 +235,65 @@ export default function OrderHistoryPage() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Orders Per Day (Since First Order)</CardTitle>
-          <CardDescription>
-            Number of orders placed each day from your first order to today
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {dailyCounts.labels.length === 0 ? (
-            <div>No orders to display.</div>
-          ) : (
-            <div style={{ maxWidth: 900 }}>
-              <Bar data={chartData} options={chartOptions} />
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* FLEX CONTAINER for the two charts side by side */}
+      <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
+        <Card style={{ flex: 1, minWidth: 0, maxWidth: "50%" }}>
+          <CardHeader>
+            <CardTitle>Orders Per Day (Since First Order)</CardTitle>
+            <CardDescription>
+              Number of orders placed each day from your first order to today
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {dailyCounts.labels.length === 0 ? (
+              <div>No orders to display.</div>
+            ) : (
+              <div style={{ width: "100%", minWidth: 0 }}>
+                <Bar data={chartData} options={chartOptions} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card style={{ flex: 1, minWidth: 0, maxWidth: "50%" }}>
+          <CardHeader>
+            <CardTitle>User Analytics</CardTitle>
+            <CardDescription>
+              Top users who placed the most orders
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {userOrderStats.labels.length === 0 ? (
+              <div>No user analytics to display.</div>
+            ) : (
+              <>
+                <div style={{ width: "100%", minWidth: 0, marginBottom: 24 }}>
+                  <Bar data={userChartData} options={userChartOptions} />
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-2">Top 5 Users</h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Orders</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {userOrderStats.topUsers.map(user => (
+                        <TableRow key={user.email}>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell>{user.count}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
