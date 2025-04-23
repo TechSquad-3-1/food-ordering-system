@@ -79,16 +79,6 @@ interface DashboardData {
   pendingRestaurants: Restaurant[]
 }
 
-const revenueData = [
-  { name: "Jan", revenue: 12400 },
-  { name: "Feb", revenue: 15600 },
-  { name: "Mar", revenue: 14200 },
-  { name: "Apr", revenue: 18900 },
-  { name: "May", revenue: 21500 },
-  { name: "Jun", revenue: 25800 },
-  { name: "Jul", revenue: 28300 },
-]
-
 export default function AdminDashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [dashboardData, setDashboardData] = useState<DashboardData>({
@@ -101,16 +91,17 @@ export default function AdminDashboardPage() {
     recentUsers: [],
     pendingRestaurants: [],
   })
+  const [revenueData, setRevenueData] = useState<{ name: string; revenue: number }[]>([])
 
   useEffect(() => {
     const fetchTotalUsers = async () => {
       try {
-        const token = localStorage.getItem("token") // get JWT from storage
+        const token = localStorage.getItem("token")
         const res = await fetch("http://localhost:4000/api/auth/users", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`, // send JWT in Authorization header
+            Authorization: `Bearer ${token}`,
           },
         })
         if (!res.ok) throw new Error("Failed to fetch users")
@@ -161,16 +152,37 @@ export default function AdminDashboardPage() {
             }))
           : []
 
+        // Calculate total revenue (sum of total_amount for all orders)
+        const totalRevenue = ordersData.reduce((sum, order) => sum + (order.total_amount || 0), 0)
+
+        // Group revenue by month for the current year
+        const now = new Date()
+        const year = now.getFullYear()
+        const monthlyRevenue: { [month: string]: number } = {}
+        for (let i = 0; i < 12; i++) {
+          const monthName = new Date(year, i).toLocaleString("default", { month: "short" })
+          monthlyRevenue[monthName] = 0
+        }
+        ordersData.forEach((order) => {
+          const date = new Date(order.createdAt)
+          if (date.getFullYear() === year) {
+            const monthName = date.toLocaleString("default", { month: "short" })
+            monthlyRevenue[monthName] += order.total_amount || 0
+          }
+        })
+        const revenueDataArr = Object.entries(monthlyRevenue).map(([name, revenue]) => ({ name, revenue }))
+
         setDashboardData((prev) => ({
           ...prev,
           totalOrders: ordersData.length,
           totalRestaurants: Array.isArray(restaurantsData) ? restaurantsData.length : 0,
-          totalRevenue: 328945.75,
+          totalRevenue: totalRevenue,
           activeDeliveries: 87,
           recentOrders: ordersData,
           recentUsers: prev.recentUsers,
           pendingRestaurants: prev.pendingRestaurants,
         }))
+        setRevenueData(revenueDataArr)
       } catch (error) {
         console.error("Error fetching dashboard data:", error)
       } finally {
@@ -282,7 +294,7 @@ export default function AdminDashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
-                  <RechartsTooltip formatter={(value) => [`$${value}`, "Revenue"]} />
+                  <RechartsTooltip formatter={(value) => [`LKR${value}`, "Revenue"]} />
                   <Bar dataKey="revenue" fill="#ef4444" />
                 </BarChart>
               </ResponsiveContainer>
@@ -297,6 +309,7 @@ export default function AdminDashboardPage() {
   )
 }
 
+// OrderHistoryPage and helpers remain unchanged from your original code
 function OrderHistoryPage() {
   const restaurantId = "68035d30a05864216cc9dd25"
   const [orders, setOrders] = useState<Order[]>([])
@@ -321,7 +334,7 @@ function OrderHistoryPage() {
 
         // Find first and last date
         dates.sort((a: { getTime: () => number }, b: { getTime: () => number }) => a.getTime() - b.getTime())
-        const startDate = new Date(dates[0].toISOString().slice(0, 10)) // midnight
+        const startDate = new Date(dates[0].toISOString().slice(0, 10))
         const endDate = new Date() // today
 
         // Build date range
@@ -396,7 +409,7 @@ function OrderHistoryPage() {
           maxRotation: 45,
           minRotation: 45,
           autoSkip: true,
-          maxTicksLimit: 15, // Adjust for readability
+          maxTicksLimit: 15,
         },
       },
       y: { beginAtZero: true, precision: 0 },
