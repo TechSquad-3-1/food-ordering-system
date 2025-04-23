@@ -80,7 +80,7 @@ interface Category {
   itemCount: number;
 }
 
-const RESTAURANT_ID = "67ea74b67ec2521671a97f93";
+const RESTAURANT_ID = "6807db9e27c9c304b972f916";
 
 export default function MenuPage() {
   // State

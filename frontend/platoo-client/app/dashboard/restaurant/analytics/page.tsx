@@ -23,10 +23,11 @@ import {
   LineChart,
   Line,
   Legend,
+  TooltipProps,
 } from "recharts";
 
 // TODO: Replace with the actual restaurant ID from the logged-in user/session
-const RESTAURANT_ID = "67ea74a07ec2521671a97f91";
+const RESTAURANT_ID = "6807da5d27c9c304b972f914";
 
 type Order = {
   _id: string;
@@ -40,6 +41,7 @@ type MenuItem = {
   _id: string;
   name: string;
   price: number;
+  image_url?: string;
 };
 
 type MenuItemOrderStats = {
@@ -55,6 +57,51 @@ const STATUS_COLORS: Record<string, string> = {
   pending: "#60a5fa",
   // Add more statuses/colors as needed
 };
+
+// --- Custom Tooltip for BarChart ---
+interface CustomTooltipProps extends TooltipProps<number, string> {
+  menuItems: MenuItem[];
+}
+function CustomTooltip({ active, payload, menuItems }: CustomTooltipProps) {
+  if (active && payload && payload.length) {
+    const itemName = payload[0].payload.name;
+    const menuItem = menuItems.find((item) => item.name === itemName);
+    return (
+      <div
+        style={{
+          background: "white",
+          border: "1px solid #eee",
+          borderRadius: 8,
+          padding: 12,
+          minWidth: 180,
+          boxShadow: "0 3px 14px rgba(0,0,0,0.08)",
+          textAlign: "center",
+        }}
+      >
+        <div style={{ marginBottom: 8, fontWeight: 600 }}>{itemName}</div>
+        {menuItem?.image_url && (
+          <img
+            src={menuItem.image_url}
+            alt={itemName}
+            style={{
+              width: 80,
+              height: 80,
+              objectFit: "cover",
+              borderRadius: 6,
+              margin: "0 auto 8px auto",
+              display: "block",
+              background: "#f3f3f3",
+            }}
+          />
+        )}
+        <div style={{ color: "#6366f1", fontWeight: 500 }}>
+          orders : {payload[0].value}
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
 
 export default function RestaurantAnalytics() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -105,6 +152,7 @@ export default function RestaurantAnalytics() {
         (menuItemOrderCounts[item.menu_item_id] || 0) + item.quantity;
     });
   });
+
   const menuItemStats: MenuItemOrderStats[] = menuItems.map((item) => ({
     _id: item._id,
     name: item.name,
@@ -198,15 +246,31 @@ export default function RestaurantAnalytics() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {menuItemStats.map((item) => (
-                      <div
-                        key={item._id}
-                        className="flex items-center justify-between border-b py-2"
-                      >
-                        <span className="font-medium">{item.name}</span>
-                        <span className="text-right">{item.orders} orders</span>
-                      </div>
-                    ))}
+                    {menuItemStats.map((item) => {
+                      const menuItem = menuItems.find((m) => m._id === item._id);
+                      return (
+                        <div
+                          key={item._id}
+                          className="flex items-center justify-between border-b py-2"
+                        >
+                          <div className="flex items-center gap-3">
+                            {menuItem?.image_url ? (
+                              <img
+                                src={menuItem.image_url}
+                                alt={item.name}
+                                className="w-12 h-12 object-cover rounded"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-gray-400">
+                                <span className="text-lg">{item.name.charAt(0)}</span>
+                              </div>
+                            )}
+                            <span className="font-medium">{item.name}</span>
+                          </div>
+                          <span className="text-right">{item.orders} orders</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -234,7 +298,12 @@ export default function RestaurantAnalytics() {
                           tick={{ fontSize: 12 }}
                         />
                         <YAxis allowDecimals={false} />
-                        <Tooltip />
+                        <Tooltip
+                          content={
+                            // @ts-ignore
+                            (props) => <CustomTooltip {...props} menuItems={menuItems} />
+                          }
+                        />
                         <Bar dataKey="orders" fill="#8884d8">
                           <LabelList dataKey="orders" position="top" />
                         </Bar>

@@ -41,7 +41,7 @@ interface Order {
   restaurant_id: string
 }
 
-const RESTAURANT_ID = "6807d9cc27c9c304b972f912"
+const RESTAURANT_ID = "6807da5d27c9c304b972f914"
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
