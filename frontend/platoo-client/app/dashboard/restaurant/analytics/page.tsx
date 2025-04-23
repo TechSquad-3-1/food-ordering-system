@@ -26,7 +26,7 @@ import {
 } from "recharts";
 
 // TODO: Replace with the actual restaurant ID from the logged-in user/session
-const RESTAURANT_ID = "67ea74a07ec2521671a97f91";
+const RESTAURANT_ID = "6807d9cc27c9c304b972f912";
 
 type Order = {
   _id: string;
