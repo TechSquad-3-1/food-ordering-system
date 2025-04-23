@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
-import { useUser } from "@/hooks/useUserContext"; // <-- Import your user context
+import { useUser } from "@/hooks/useUserContext";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -24,12 +24,12 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const { setUser } = useUser(); // <-- Use the context
+  const { setUser } = useUser();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
+  
     try {
       const response = await fetch("http://localhost:4000/api/auth/login", {
         method: "POST",
@@ -38,49 +38,62 @@ export default function LoginPage() {
         },
         body: JSON.stringify({ email, password }),
       });
-
+  
       const data = await response.json();
-
+  
       if (!response.ok) {
         throw new Error(data.msg || "Login failed");
       }
-
-      // Decode the token to get the user data
+  
       const token = data.token;
-      const decodedToken = decodeToken(token);
-
-      // Store only the token in localStorage
-      localStorage.setItem("token", token);
-
-      // Update context (this will also sync all tabs via storage event in UserProvider)
-      setUser({
-        token,
-        id: decodedToken.id,
-        role: decodedToken.role,
-        name: decodedToken.name,
-        email: decodedToken.email,
-      });
-
+      const decoded = decodeToken(token);
+  
+      if (decoded?.id && decoded?.role) {
+        // Clear old role-based IDs
+        localStorage.removeItem("adminId");
+        localStorage.removeItem("restaurantId");
+        localStorage.removeItem("deliveryManId");
+        localStorage.removeItem("userId");
+  
+        // Set role-based ID key
+        switch (decoded.role) {
+          case "admin":
+            localStorage.setItem("adminId", decoded.id);
+            break;
+          case "restaurant_owner":
+            localStorage.setItem("restaurantId", decoded.id);
+            break;
+          case "delivery_man":
+            localStorage.setItem("deliveryManId", decoded.id);
+            break;
+          case "user":
+          default:
+            localStorage.setItem("userId", decoded.id);
+            break;
+        }
+      }
+  
+      // Set token in context
+      setUser({ token });
+  
       toast({
         title: "Login successful",
         description: "You have been logged in successfully.",
       });
-
-      // Redirect to dashboard or home page
+  
       router.push("/dashboard");
     } catch (error) {
       toast({
         title: "Login failed",
         description:
-          error instanceof Error
-            ? error.message
-            : "An unknown error occurred",
+          error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
   };
+  
 
   const decodeToken = (token: string) => {
     try {
@@ -100,7 +113,6 @@ export default function LoginPage() {
       }}
     >
       <div className="absolute inset-0 bg-black/50" />
-
       <Card className="w-full max-w-md relative bg-white/20 backdrop-blur-md border-white/30 shadow-xl">
         <div className="absolute inset-0 bg-gradient-to-r from-orange-600/10 to-red-600/10 rounded-lg" />
         <CardHeader className="space-y-1 relative">

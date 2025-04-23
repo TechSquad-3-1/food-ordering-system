@@ -1,7 +1,12 @@
-// useUserContext.tsx
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
 
 interface UserContextType {
   user: any;
@@ -24,11 +29,11 @@ export const useUser = (): UserContextType => {
 };
 
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUserState] = useState<any>(null);
 
   const decodeToken = (token: string) => {
     try {
-      return JSON.parse(atob(token.split('.')[1]));
+      return JSON.parse(atob(token.split(".")[1]));
     } catch (error) {
       console.error("Invalid token:", error);
       return null;
@@ -38,52 +43,46 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const syncAuth = () => {
     const token = localStorage.getItem("token");
     if (!token) {
-      setUser(null);
+      setUserState(null);
       return;
     }
-    
+
     const decoded = decodeToken(token);
     if (!decoded) {
       logout();
       return;
     }
-    
-    setUser(decoded);
+
+    setUserState({ ...decoded, token });
   };
 
   const logout = () => {
     localStorage.removeItem("token");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("role");
-    setUser(null);
+    setUserState(null);
   };
 
   useEffect(() => {
-    // Initial sync
     syncAuth();
 
-    // Cross-tab sync
     const handleStorage = (e: StorageEvent) => {
       if (e.key === "token") {
         syncAuth();
       }
     };
 
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
+  const setUser = (newUser: any) => {
+    if (newUser?.token) {
+      localStorage.setItem("token", newUser.token);
+    }
+    setUserState(newUser);
+  };
+
   return (
-    <UserContext.Provider value={{ 
-      user,
-      setUser: (newUser) => {
-        if (newUser?.token) {
-          localStorage.setItem("token", newUser.token);
-          syncAuth();
-        }
-      },
-      logout
-    }}>
+    <UserContext.Provider value={{ user, setUser, logout }}>
       {children}
     </UserContext.Provider>
   );
