@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -23,80 +23,231 @@ import {
   AreaChart,
   Area,
 } from "recharts"
-import { Download, FileText, DollarSign, ShoppingBag, Users, Store } from "lucide-react"
+import { Download, FileText, DollarSign, ShoppingBag, Store } from "lucide-react"
 
-// Sample data for charts
-const revenueData = [
-  { name: "Jan", revenue: 12400 },
-  { name: "Feb", revenue: 15600 },
-  { name: "Mar", revenue: 14200 },
-  { name: "Apr", revenue: 18900 },
-  { name: "May", revenue: 21500 },
-  { name: "Jun", revenue: 25800 },
-  { name: "Jul", revenue: 28300 },
-  { name: "Aug", revenue: 26700 },
-  { name: "Sep", revenue: 29500 },
-  { name: "Oct", revenue: 31200 },
-  { name: "Nov", revenue: 33800 },
-  { name: "Dec", revenue: 36500 },
-]
+interface Order {
+  date: string
+  timestamp: number
+  total: number
+  amount: number
+  restaurantId: string
+  _id: string
+  order_id: string
+  user_id: string
+  total_amount: number
+  status: string
+  items: any[]
+  restaurant_id: string
+  delivery_fee: number
+  delivery_address: string
+  phone: string
+  email: string
+  createdAt: string
+  updatedAt: string
+  restaurant?: string
+}
 
-const ordersData = [
-  { name: "Jan", orders: 845 },
-  { name: "Feb", orders: 967 },
-  { name: "Mar", orders: 892 },
-  { name: "Apr", orders: 1123 },
-  { name: "May", orders: 1287 },
-  { name: "Jun", orders: 1356 },
-  { name: "Jul", orders: 1489 },
-  { name: "Aug", revenue: 1378 },
-  { name: "Sep", revenue: 1567 },
-  { name: "Oct", revenue: 1689 },
-  { name: "Nov", revenue: 1789 },
-  { name: "Dec", revenue: 1956 },
-]
+interface Restaurant {
+  id: string
+  _id?: string
+  name: string
+  isActive?: boolean
+  rating?: number
+}
 
-const userGrowthData = [
-  { name: "Jan", users: 1245 },
-  { name: "Feb", users: 1345 },
-  { name: "Mar", users: 1530 },
-  { name: "Apr", users: 1678 },
-  { name: "May", users: 1890 },
-  { name: "Jun", users: 2145 },
-  { name: "Jul", users: 2367 },
-  { name: "Aug", users: 2589 },
-  { name: "Sep", users: 2789 },
-  { name: "Oct", users: 2967 },
-  { name: "Nov", users: 3145 },
-  { name: "Dec", users: 3248 },
-]
+interface RestaurantPerformanceData {
+  restaurant: Restaurant
+  orders: Order[]
+  totalOrders: number
+  totalRevenue: number
+}
 
-const restaurantPerformanceData = [
-  { name: "Burger Palace", orders: 1245, revenue: 18675.5 },
-  { name: "Pizza Heaven", orders: 987, revenue: 14560.75 },
-  { name: "Sushi Express", orders: 756, revenue: 12890.25 },
-  { name: "Taco Time", orders: 543, revenue: 8765.5 },
-  { name: "Green Bowl", orders: 432, revenue: 6543.75 },
-]
+interface DateRange {
+  from: Date
+  to: Date
+}
 
-const orderStatusData = [
-  { name: "Delivered", value: 68 },
-  { name: "In Progress", value: 22 },
-  { name: "Cancelled", value: 10 },
-]
+interface ChartData {
+  name: string
+  [key: string]: number | string
+}
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"]
 
 export default function ReportsPage() {
-  const [dateRange, setDateRange] = useState<{
-    from: Date | undefined
-    to: Date | undefined
-  }>({
-    from: new Date(new Date().getFullYear(), 0, 1), // Jan 1 of current year
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: new Date(new Date().getFullYear(), 0, 1),
     to: new Date(),
   })
+  const [timeFrame, setTimeFrame] = useState<string>("yearly")
+  const [orders, setOrders] = useState<Order[]>([])
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([])
+  const [restaurantPerformance, setRestaurantPerformance] = useState<RestaurantPerformanceData[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const [timeFrame, setTimeFrame] = useState("yearly")
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setLoading(true)
+      try {
+        // First fetch all restaurants
+        const restaurantsRes = await fetch("http://localhost:3001/api/restaurants")
+        if (!restaurantsRes.ok) throw new Error("Failed to fetch restaurants")
+        const restaurantsRaw = await restaurantsRes.json()
+        
+        const allRestaurants: Restaurant[] = Array.isArray(restaurantsRaw)
+          ? restaurantsRaw.map((r: any) => ({
+              id: r._id || r.id,
+              name: r.name || "Unnamed Restaurant",
+              isActive: r.isActive ?? true,
+              rating: r.rating || 0
+            }))
+          : []
+        setRestaurants(allRestaurants)
+
+        // Then fetch all orders
+        const ordersRes = await fetch("http://localhost:3008/api/orders")
+        const ordersRaw = await ordersRes.json()
+        
+        const ordersData: Order[] = Array.isArray(ordersRaw)
+          ? ordersRaw.map((order: any) => ({
+              _id: order._id || "",
+              order_id: order.order_id || "",
+              user_id: order.user_id || "",
+              total_amount: Number(order.total_amount) || 0,
+              status: order.status || "",
+              items: order.items || [],
+              restaurant_id: order.restaurant_id || "",
+              delivery_fee: Number(order.delivery_fee) || 0,
+              delivery_address: order.delivery_address || "",
+              phone: order.phone || "",
+              email: order.email || "",
+              createdAt: order.createdAt || "",
+              updatedAt: order.updatedAt || "",
+              restaurant: order.restaurant || "",
+              date: order.createdAt ? new Date(order.createdAt).toISOString().split("T")[0] : "",
+              timestamp: order.createdAt ? new Date(order.createdAt).getTime() : 0,
+              total: order.total_amount || 0,
+              amount: order.total_amount || 0,
+              restaurantId: order.restaurant_id || "",
+            }))
+          : []
+        setOrders(ordersData)
+
+        // Create performance data for all restaurants
+        const performanceData = allRestaurants.map(restaurant => {
+          const restaurantOrders = ordersData.filter(o => o.restaurant_id === restaurant.id)
+          return {
+            restaurant,
+            orders: restaurantOrders,
+            totalOrders: restaurantOrders.length,
+            totalRevenue: restaurantOrders.reduce((sum, o) => sum + o.total_amount, 0)
+          }
+        })
+
+        setRestaurantPerformance(performanceData)
+
+      } catch (error: any) {
+        console.error("Error fetching dashboard data:", error)
+        setError(error.message || "Failed to fetch data")
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    fetchDashboardData()
+  }, [])
+
+  function filterOrdersByDateRange(orders: Order[], range: DateRange): Order[] {
+    return orders.filter(o => {
+      if (!o.createdAt) return false
+      const d = new Date(o.createdAt)
+      return d >= new Date(range.from.setHours(0,0,0,0)) && d <= new Date(range.to.setHours(23,59,59,999))
+    })
+  }
+  
+  const filteredOrders = filterOrdersByDateRange(orders, dateRange)
+  
+  const totalRevenue = filteredOrders.reduce(
+    (sum, o) => sum + Number(o.total_amount ?? 0),
+    0
+  )
+  
+  const totalOrders = filteredOrders.length
+  const totalRestaurants = restaurants.length
+
+  const completedOrders = filteredOrders.filter(
+    o => o.status === "Delivered" || o.status === "Completed"
+  ).length
+  const cancelledOrders = filteredOrders.filter(
+    o => o.status === "Cancelled"
+  ).length
+  const activeRestaurants = restaurants.filter(r => r.isActive !== false).length
+
+  // --- Chart Data Transformation (Filtered) ---
+  function groupByMonth(
+    data: Order[],
+    valueKey: string,
+    sumField?: keyof Order
+  ): ChartData[] {
+    const months: ChartData[] = Array.from({ length: 12 }, (_, i) => ({
+      name: new Date(0, i).toLocaleString("default", { month: "short" }),
+      [valueKey]: 0,
+    }))
+    data.forEach(item => {
+      if (!item.createdAt) return
+      const date = new Date(item.createdAt)
+      if (!isNaN(date.getTime())) {
+        const month = date.getMonth()
+        if (sumField) {
+          months[month][valueKey] = (months[month][valueKey] as number) + Number(item[sumField] ?? 0)
+        } else {
+          months[month][valueKey] = (months[month][valueKey] as number) + 1
+        }
+      }
+    })
+    return months
+  }
+  
+  const revenueData = groupByMonth(filteredOrders, "revenue", "total_amount")
+  const ordersData = groupByMonth(filteredOrders, "orders")
+  
+
+  // --- Restaurant Performance (Filtered) ---
+  const restaurantPerformanceData = restaurantPerformance
+    .sort((a, b) => b.totalOrders - a.totalOrders)
+    .slice(0, 5)
+    .map(r => ({
+      name: r.restaurant.name,
+      orders: r.totalOrders,
+      revenue: r.totalRevenue
+    }))
+  
+
+  // --- Order Status Pie (Filtered) ---
+  const orderStatusCounts: Record<string, number> = {}
+  filteredOrders.forEach(o => {
+    const status = o.status ?? "Unknown"
+    orderStatusCounts[status] = (orderStatusCounts[status] ?? 0) + 1
+  })
+  const orderStatusData = Object.entries(orderStatusCounts).map(([name, value]) => ({ name, value }))
+
+  // --- Misc Metrics (Filtered) ---
+  const avgOrderValue = totalOrders ? (totalRevenue / totalOrders) : 0
+  const projectedRevenue = totalRevenue * 1.1
+  const revenueGrowth = "+12.5%" // Placeholder
+  const orderGrowth = "+18.2%" // Placeholder
+  const restaurantGrowth = "+5.3%" // Placeholder
+  const avgRestaurantRating =
+    restaurants.length > 0
+      ? (
+          restaurants.reduce((sum, r) => sum + (r.rating ?? 0), 0) /
+          restaurants.length
+        ).toFixed(1)
+      : "0.0"
+
+  if (loading) return <div>Loading...</div>
+  if (error) return <div>{error}</div>
 
   return (
     <div className="space-y-6">
@@ -111,43 +262,20 @@ export default function ReportsPage() {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="revenue">Revenue</TabsTrigger>
             <TabsTrigger value="orders">Orders</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="restaurants">Restaurants</TabsTrigger>
           </TabsList>
-
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-4">
             <div className="flex gap-2 w-full sm:w-auto">
-              <Select value={timeFrame} onValueChange={setTimeFrame}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Select timeframe" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="yearly">Yearly</SelectItem>
-                </SelectContent>
-              </Select>
-
+              
               <div className="flex items-center gap-2">
-                <DatePicker date={dateRange} setDate={setDateRange} />
+                
               </div>
             </div>
-
-            <div className="flex gap-2">
-              <Button variant="outline">
-                <FileText className="mr-2 h-4 w-4" />
-                Generate Report
-              </Button>
-              <Button variant="outline">
-                <Download className="mr-2 h-4 w-4" />
-                Export Data
-              </Button>
-            </div>
+           
           </div>
 
+          {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6 mt-6">
-            {/* Key Metrics */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -155,53 +283,37 @@ export default function ReportsPage() {
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">$294,567.89</div>
+                  <div className="text-2xl font-bold">LKR{totalRevenue.toLocaleString()}</div>
                   <p className="text-xs text-muted-foreground">
-                    <span className="text-green-500">+12.5%</span> from previous period
+                    <span className="text-green-500">{revenueGrowth}</span> from previous period
                   </p>
                 </CardContent>
               </Card>
-
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
                   <ShoppingBag className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">12,892</div>
+                  <div className="text-2xl font-bold">{totalOrders.toLocaleString()}</div>
                   <p className="text-xs text-muted-foreground">
-                    <span className="text-green-500">+18.2%</span> from previous period
+                    <span className="text-green-500">{orderGrowth}</span> from previous period
                   </p>
                 </CardContent>
               </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">3,248</div>
-                  <p className="text-xs text-muted-foreground">
-                    <span className="text-green-500">+8.7%</span> from previous period
-                  </p>
-                </CardContent>
-              </Card>
-
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Restaurants</CardTitle>
                   <Store className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">164</div>
+                  <div className="text-2xl font-bold">{totalRestaurants.toLocaleString()}</div>
                   <p className="text-xs text-muted-foreground">
-                    <span className="text-green-500">+5.3%</span> from previous period
+                    <span className="text-green-500">{restaurantGrowth}</span> from previous period
                   </p>
                 </CardContent>
               </Card>
             </div>
-
             {/* Revenue Chart */}
             <Card>
               <CardHeader>
@@ -221,7 +333,7 @@ export default function ReportsPage() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis />
-                      <Tooltip formatter={(value) => [`$${value}`, "Revenue"]} />
+                      <Tooltip formatter={(value: any) => [`$${value}`, "Revenue"]} />
                       <Area
                         type="monotone"
                         dataKey="revenue"
@@ -234,8 +346,7 @@ export default function ReportsPage() {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Orders and Users Charts */}
+            {/* Orders Chart */}
             <div className="grid gap-4 md:grid-cols-2">
               <Card>
                 <CardHeader>
@@ -257,7 +368,6 @@ export default function ReportsPage() {
                   </div>
                 </CardContent>
               </Card>
-
               <Card>
                 <CardHeader>
                   <CardTitle>Order Status Distribution</CardTitle>
@@ -281,14 +391,13 @@ export default function ReportsPage() {
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value) => [`${value}%`, "Percentage"]} />
+                        <Tooltip formatter={(value: any) => [`${value}`, "Orders"]} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
             </div>
-
             {/* Top Restaurants */}
             <Card>
               <CardHeader>
@@ -306,14 +415,14 @@ export default function ReportsPage() {
                       <Tooltip />
                       <Legend />
                       <Bar yAxisId="left" dataKey="orders" fill="#8884d8" name="Orders" />
-                      <Bar yAxisId="right" dataKey="revenue" fill="#82ca9d" name="Revenue ($)" />
+                      <Bar yAxisId="right" dataKey="revenue" fill="#82ca9d" name="Revenue (LKR)" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
-
+          {/* Revenue Tab */}
           <TabsContent value="revenue" className="space-y-6 mt-6">
             <Card>
               <CardHeader>
@@ -333,7 +442,7 @@ export default function ReportsPage() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis />
-                      <Tooltip formatter={(value) => [`$${value}`, "Revenue"]} />
+                      <Tooltip formatter={(value: any) => [`$${value}`, "Revenue"]} />
                       <Legend />
                       <Area
                         type="monotone"
@@ -341,7 +450,7 @@ export default function ReportsPage() {
                         stroke="#ef4444"
                         fillOpacity={1}
                         fill="url(#colorRevenue2)"
-                        name="Revenue ($)"
+                        name="Revenue (LKR)"
                       />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -350,32 +459,32 @@ export default function ReportsPage() {
                   <Card>
                     <CardContent className="p-4">
                       <div className="text-sm font-medium text-muted-foreground">Total Revenue</div>
-                      <div className="text-2xl font-bold">$294,567.89</div>
+                      <div className="text-2xl font-bold">LKR{totalRevenue.toLocaleString()}</div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="p-4">
                       <div className="text-sm font-medium text-muted-foreground">Average Order Value</div>
-                      <div className="text-2xl font-bold">$22.85</div>
+                      <div className="text-2xl font-bold">LKR{avgOrderValue.toFixed(2)}</div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="p-4">
                       <div className="text-sm font-medium text-muted-foreground">Revenue Growth</div>
-                      <div className="text-2xl font-bold text-green-500">+12.5%</div>
+                      <div className="text-2xl font-bold text-green-500">{revenueGrowth}</div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="p-4">
                       <div className="text-sm font-medium text-muted-foreground">Projected Revenue</div>
-                      <div className="text-2xl font-bold">$325,000</div>
+                      <div className="text-2xl font-bold">LKR{projectedRevenue.toLocaleString()}</div>
                     </CardContent>
                   </Card>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
-
+          {/* Orders Tab */}
           <TabsContent value="orders" className="space-y-6 mt-6">
             <Card>
               <CardHeader>
@@ -399,134 +508,141 @@ export default function ReportsPage() {
                   <Card>
                     <CardContent className="p-4">
                       <div className="text-sm font-medium text-muted-foreground">Total Orders</div>
-                      <div className="text-2xl font-bold">12,892</div>
+                      <div className="text-2xl font-bold">{totalOrders.toLocaleString()}</div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="p-4">
                       <div className="text-sm font-medium text-muted-foreground">Completed Orders</div>
-                      <div className="text-2xl font-bold">10,567</div>
+                      <div className="text-2xl font-bold">{completedOrders.toLocaleString()}</div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="p-4">
                       <div className="text-sm font-medium text-muted-foreground">Cancelled Orders</div>
-                      <div className="text-2xl font-bold">1,245</div>
+                      <div className="text-2xl font-bold">{cancelledOrders.toLocaleString()}</div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="p-4">
                       <div className="text-sm font-medium text-muted-foreground">Order Growth</div>
-                      <div className="text-2xl font-bold text-green-500">+18.2%</div>
+                      <div className="text-2xl font-bold text-green-500">{orderGrowth}</div>
                     </CardContent>
                   </Card>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
-
-          <TabsContent value="users" className="space-y-6 mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>User Growth Analysis</CardTitle>
-                <CardDescription>User acquisition and retention metrics</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[400px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={userGrowthData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Line type="monotone" dataKey="users" stroke="#10b981" activeDot={{ r: 8 }} name="Users" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="text-sm font-medium text-muted-foreground">Total Users</div>
-                      <div className="text-2xl font-bold">3,248</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="text-sm font-medium text-muted-foreground">Active Users</div>
-                      <div className="text-2xl font-bold">2,567</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="text-sm font-medium text-muted-foreground">New Users (MTD)</div>
-                      <div className="text-2xl font-bold">245</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="text-sm font-medium text-muted-foreground">User Growth</div>
-                      <div className="text-2xl font-bold text-green-500">+8.7%</div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
+          {/* Restaurants Tab */}
           <TabsContent value="restaurants" className="space-y-6 mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Restaurant Performance</CardTitle>
-                <CardDescription>Metrics for restaurant partners</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[400px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={restaurantPerformanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-                      <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
-                      <Tooltip />
-                      <Legend />
-                      <Bar yAxisId="left" dataKey="orders" fill="#8884d8" name="Orders" />
-                      <Bar yAxisId="right" dataKey="revenue" fill="#82ca9d" name="Revenue ($)" />
-                    </BarChart>
-                  </ResponsiveContainer>
+  <Card>
+    <CardHeader>
+      <CardTitle>Restaurant Performance</CardTitle>
+      <CardDescription>Detailed metrics with order lists</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <div className="w-full min-h-[250px] h-[40vw] max-h-[450px] md:max-h-[500px] overflow-x-auto">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={restaurantPerformanceData}
+            margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+            <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
+            <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
+            <Tooltip />
+            <Legend />
+            <Bar yAxisId="left" dataKey="orders" fill="#8884d8" name="Orders" />
+            <Bar yAxisId="right" dataKey="revenue" fill="#82ca9d" name="Revenue (LKR)" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+  {restaurantPerformance.map(({ restaurant, orders, totalOrders, totalRevenue }) => (
+    <div
+      key={restaurant.id}
+      className="border rounded p-4 bg-white shadow-sm flex flex-col h-full"
+      style={{ minWidth: 0 }}
+    >
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-y-2 gap-x-4">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-lg truncate">{restaurant.name}</h3>
+          <p className="text-sm text-muted-foreground truncate">
+            {totalOrders} orders • LKR {totalRevenue.toLocaleString()} revenue
+          </p>
+        </div>
+        <span
+          className={`px-2 py-1 rounded text-xs font-medium ${
+            restaurant.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+          }`}
+        >
+          {restaurant.isActive ? "Active" : "Inactive"}
+        </span>
+      </div>
+
+      {/* --- PROFESSIONAL VIEW ORDERS LIST START --- */}
+      {orders.length > 0 && (
+        <details className="mt-4 group">
+          <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2 select-none">
+            <span className="inline-block w-2 h-2 rounded-full bg-blue-500 group-open:rotate-90 transition-transform" />
+            <span>
+              View Orders <span className="opacity-60">({orders.length})</span>
+            </span>
+          </summary>
+          <ul className="mt-3 divide-y divide-gray-200 max-h-64 overflow-y-auto bg-gray-50 rounded-lg shadow-inner">
+            {orders.map((order) => (
+              <li key={order._id} className="py-3 px-4 flex items-center gap-4 hover:bg-blue-50 transition">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-base font-semibold text-gray-900">#{order.order_id}</span>
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded text-xs font-medium 
+                        ${order.status === "Delivered" || order.status === "Completed"
+                          ? "bg-green-100 text-green-700"
+                          : order.status === "Cancelled"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-yellow-100 text-yellow-800"
+                        }`}
+                    >
+                      {order.status}
+                    </span>
+                    <span className="ml-2 text-xs text-gray-500">
+                      {new Date(order.createdAt).toLocaleDateString()} {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-4 mt-1 text-sm text-gray-700">
+                    <span>
+                      <span className="font-medium">Amount:</span> LKR {order.total_amount.toLocaleString()}
+                    </span>
+                    <span>
+                      <span className="font-medium">Items:</span> {order.items.length}
+                    </span>
+                    <span>
+                      <span className="font-medium">Customer:</span> {order.email || order.phone || "-"}
+                    </span>
+                  </div>
                 </div>
-                <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="text-sm font-medium text-muted-foreground">Total Restaurants</div>
-                      <div className="text-2xl font-bold">164</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="text-sm font-medium text-muted-foreground">Active Restaurants</div>
-                      <div className="text-2xl font-bold">142</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="text-sm font-medium text-muted-foreground">Avg. Restaurant Rating</div>
-                      <div className="text-2xl font-bold">4.6/5.0</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="text-sm font-medium text-muted-foreground">Restaurant Growth</div>
-                      <div className="text-2xl font-bold text-green-500">+5.3%</div>
-                    </CardContent>
-                  </Card>
+                <div className="flex flex-col items-end min-w-[72px]">
+                  <span className="text-xs text-gray-400">Order ID</span>
+                  <span className="text-xs text-gray-600">{order._id.slice(-6)}</span>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+          </div>
+        ))}
+      </div>
+    </CardContent>
+  </Card>
+</TabsContent>
+
         </Tabs>
       </div>
     </div>
   )
 }
-
