@@ -136,7 +136,7 @@ export default function DeliveryDashboard({ userId }: DeliveryDashboardProps) {
     { title: "Deliveries", href: "/dashboard/deliveries", icon: "truck" },
     { title: "Pending_Deliveries", href: "/dashboard/delivery/pending-deliveries", icon: "truck" },
     { title: "Earnings", href: "/dashboard/earnings", icon: "dollar-sign" },
-    { title: "Profile", href: "/dashboard/delivery", icon: "user" },
+    { title: "Profile", href: "/dashboard/delivery/profile", icon: "user" },
     { title: "Settings", href: "/dashboard/settings", icon: "settings" },
   ];
 

@@ -22,6 +22,9 @@ public class StripeService {
         // Directly use the amount as a decimal value (e.g., 13.74)
         long amountInSmallestUnit = (long) (productRequest.getAmount() * 100); // Convert to cents as integer for backend use
 
+        // Ensure currency is set to LKR if not provided
+        //String currency = productRequest.getCurrency() != null ? productRequest.getCurrency() : "LKR";
+
         // Create a ProductData object for the Stripe session
         SessionCreateParams.LineItem.PriceData.ProductData productData =
                 SessionCreateParams.LineItem.PriceData.ProductData.builder()
@@ -30,11 +33,11 @@ public class StripeService {
 
         // Create a priceData object
         SessionCreateParams.LineItem.PriceData priceData =
-                SessionCreateParams.LineItem.PriceData.builder()
-                        .setCurrency(productRequest.getCurrency() != null ? productRequest.getCurrency() : "USD")
-                        .setUnitAmount(amountInSmallestUnit) // In cents (rounded)
-                        .setProductData(productData)
-                        .build();
+         SessionCreateParams.LineItem.PriceData.builder()
+                 .setCurrency("lkr")  // Make sure it's lowercase "lkr"
+                 .setUnitAmount(amountInSmallestUnit) // In cents (rounded)
+                 .setProductData(productData)
+                 .build();
 
         // Create a line item for the session
         SessionCreateParams.LineItem lineItem =

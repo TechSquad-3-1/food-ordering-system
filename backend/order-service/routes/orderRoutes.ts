@@ -70,7 +70,7 @@ router.delete('/orders/:orderId', async (req: Request, res: Response) => {
 
 
 // Get orders by user_id
-router.get('/orders/user/:userId', async (req: Request, res: Response) => {
+router.get('/orders/history/:userId', async (req: Request, res: Response) => {
     try {
       await getOrdersByUserId(req, res);  // Call the async handler function
     } catch (error: unknown) {

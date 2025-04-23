@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ShoppingCart, ChevronDown, User, MapPin, CreditCard, Clock, Settings, LogOut, Edit, PlusCircleIcon, PencilIcon, HomeIcon, AlertCircleIcon, CheckCircleIcon, MapPinIcon } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { useCart } from "@/hooks/useCart";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -39,7 +40,9 @@ export default function ProfilePage() {
     role: "",
   });
   const [isLoading, setIsLoading] = useState(true);
-
+  // Use the useCart hook to get cart items and cart count
+  const { cartItems } = useCart(); 
+  const cartCount = cartItems.length; // Get the count of items in the cart
   useEffect(() => {
     const token = localStorage.getItem("token");
 
@@ -150,7 +153,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header cartCount={2} />
+      <Header cartCount={cartCount} />
 
       <main className="max-w-[1400px] mx-auto px-6 py-12">
         <div className="flex flex-col md:flex-row gap-8">
@@ -160,7 +163,7 @@ export default function ProfilePage() {
               <CardContent className="p-6">
                 <div className="flex flex-col items-center text-center mb-6">
                   <Avatar className="h-24 w-24 mb-4">
-                    <AvatarImage src="/placeholder.svg?height=96&width=96" alt={user.name} />
+                    <AvatarImage src="/avatar.png?height=96&width=96" alt={user.name} />
                     <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <h2 className="text-xl font-bold">{user.name}</h2>
@@ -172,11 +175,8 @@ export default function ProfilePage() {
                     <User className="mr-3 h-5 w-5" />
                     Personal Information
                   </Link>
-                  <Link href="/profile/addresses" className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50 hover:text-gray-900">
-                    <MapPin className="mr-3 h-5 w-5" />
-                    Delivery Addresses
-                  </Link>
-                  <Link href="/profile/orders" className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50 hover:text-gray-900">
+                  
+                  <Link href="/orders/history" className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50 hover:text-gray-900">
                     <Clock className="mr-3 h-5 w-5" />
                     Order History
                   </Link>
@@ -184,10 +184,7 @@ export default function ProfilePage() {
                     <CreditCard className="mr-3 h-5 w-5" />
                     Payment Methods
                   </Link>
-                  <Link href="/profile/settings" className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50 hover:text-gray-900">
-                    <Settings className="mr-3 h-5 w-5" />
-                    Account Settings
-                  </Link>
+                  
                   <Separator className="my-2" />
                   <button 
                     onClick={handleSignOut}

@@ -113,55 +113,60 @@ export default function RestaurantPage() {
   }, [cart])
 
   const addToCart = async (item: MenuItem) => {
-  try {
-    // Retrieve userId from localStorage
-    const userId = localStorage.getItem("userId");
-
-    if (!userId) {
-      console.error("User is not logged in. Cart operation cannot proceed.");
-      return;
-    }
-
-    // Send POST request to API to add item to cart
-    const response = await fetch("http://localhost:3005/api/cart/add", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        userId: userId, // Send userId along with the cart data
-        productId: item._id, // Ensure we are sending `productId`, matching your Cart model
-        name: item.name,
-        price: item.price,
-        quantity: 1, // Default to 1, but adjust based on the logic if needed
-      }),
-    });
-
-    if (response.ok) {
-      const cartData = await response.json();
-      console.log("Item added to cart:", cartData);
-
-      // Update local state for cart
-      setCart((prevCart) => [
-        ...prevCart,
-        {
-          id: `cart-${Date.now()}`,
-          menuItemId: item._id,
-          name: item.name,
-          price: item.price,
-          quantity: 1,
+    try {
+      // Retrieve userId from localStorage
+      const userId = localStorage.getItem("userId");
+  
+      if (!userId) {
+        console.error("User is not logged in. Cart operation cannot proceed.");
+        return;
+      }
+  
+      // Send POST request to API to add item to cart
+      const response = await fetch("http://localhost:3005/api/cart/add", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      ]);
-
-      // Show cart after adding item
-      setIsCartOpen(true);
-    } else {
-      console.error("Failed to add item to cart");
+        body: JSON.stringify({
+          userId: userId, // Send userId along with the cart data
+          productId: item._id, // Ensure we are sending `productId`, matching your Cart model
+          name: item.name,
+          price: item.price, // Only the item price (no delivery fee or tax)
+          quantity: 1, // Default to 1, but adjust based on the logic if needed
+          image: item.image_url, // Pass the image URL here
+        }),
+      });
+  
+      if (response.ok) {
+        const cartData = await response.json();
+        console.log("Item added to cart:", cartData);
+  
+        // Update local state for cart
+        setCart((prevCart) => [
+          ...prevCart,
+          {
+            id: `cart-${Date.now()}`,
+            menuItemId: item._id,
+            name: item.name,
+            price: item.price,
+            quantity: 1,
+            image: item.image_url, // Store the item image URL here
+          },
+        ]);
+  
+        // Show cart after adding item
+        setIsCartOpen(true);
+      } else {
+        console.error("Failed to add item to cart");
+      }
+    } catch (error) {
+      console.error("Error adding item to cart:", error);
     }
-  } catch (error) {
-    console.error("Error adding item to cart:", error);
-  }
-};
+  };
+  
+  
+  
 
 
 const orderNow = (item: MenuItem) => {
@@ -323,7 +328,7 @@ const orderNow = (item: MenuItem) => {
                                           )}
                                         </div>
                                       </div>
-                                      <div className="font-bold">${item.price.toFixed(2)}</div>
+                                      <div className="font-bold">LKR {item.price.toFixed(2)}</div>
                                     </div>
                                     <p className="text-sm text-gray-500 mt-2 line-clamp-2">{item.description}</p>
                                     <div className="mt-3 flex justify-between items-center">

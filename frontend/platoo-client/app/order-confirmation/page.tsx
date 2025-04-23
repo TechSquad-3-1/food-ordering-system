@@ -137,27 +137,28 @@ export default function OrderConfirmationPage() {
       const itemTotal = item.price * item.quantity;
       subtotal += itemTotal;
       doc.setFontSize(12).text(`${item.quantity}x ${itemName}`, 14, yOffset);
-      doc.text(`$${itemTotal.toFixed(2)}`, 120, yOffset, { align: "right" });
+      doc.text(`LKR ${itemTotal.toFixed(2)}`, 120, yOffset, { align: "right" }); // Change currency to LKR
       yOffset += 10;
     });
 
     doc.line(14, yOffset, 200, yOffset);
     yOffset += 10;
 
-    doc.text(`Subtotal: $${subtotal.toFixed(2)}`, 14, yOffset);
+    doc.text(`Subtotal: LKR ${subtotal.toFixed(2)}`, 14, yOffset); // Change currency to LKR
     yOffset += 6;
-    doc.text(`Delivery Fee: $${delivery_fee.toFixed(2)}`, 14, yOffset);
+    doc.text(`Delivery Fee: LKR ${delivery_fee.toFixed(2)}`, 14, yOffset); // Change currency to LKR
     yOffset += 6;
 
     const totalAmount = subtotal + delivery_fee;
-    doc.setFontSize(14).text(`Total: $${totalAmount.toFixed(2)}`, 14, yOffset);
+    doc.setFontSize(14).text(`Total: LKR ${totalAmount.toFixed(2)}`, 14, yOffset); // Change currency to LKR
     yOffset += 10;
 
     doc.setFontSize(10);
     doc.text("Thank you for your order!", 14, yOffset + 10);
-    doc.text("For inquiries, contact support at support@example.com", 14, yOffset + 16);
+    doc.text("For inquiries, contact support at platoo@gmail.com", 14, yOffset + 16);
     doc.save(`Order_${orderDetails?.order_id}.pdf`);
-  };
+};
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -216,22 +217,22 @@ export default function OrderConfirmationPage() {
                           <span className="font-medium">{item.quantity}x</span>{" "}
                           {menuItemsMap[item.menu_item_id] || "Loading..."}
                         </div>
-                        <div>${(item.price * item.quantity).toFixed(2)}</div>
+                        <div>LKR {(item.price * item.quantity).toFixed(2)}</div>
                       </div>
                     ))}
                   </div>
                   <div className="border-t pt-4 space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Subtotal</span>
-                      <span>${total_amount.toFixed(2)}</span>
+                      <span>LKR {total_amount.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Delivery Fee</span>
-                      <span>${delivery_fee.toFixed(2)}</span>
+                      <span>LKR {delivery_fee.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between font-bold pt-2 border-t">
                       <span>Total</span>
-                      <span>${(total_amount).toFixed(2)}</span>
+                      <span>LKR {(total_amount).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>

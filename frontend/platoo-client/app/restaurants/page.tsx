@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import Header from "@/components/Header"
 import Footer from "@/components/Footer"
-import { useCart } from "@/hooks/useCart"; 
+import { useCart } from "@/hooks/useCart"
 import { Search, MapPin, Star, Clock, Filter } from "lucide-react"
 
 interface Restaurant {
@@ -28,7 +28,7 @@ interface Restaurant {
   cuisines: string[]
   priceLevel: number
 }
-  
+
 export default function RestaurantsPage() {
   const router = useRouter()
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
@@ -118,7 +118,7 @@ export default function RestaurantsPage() {
   }
 
   const getPriceLevelString = (level: number) => {
-    return Array(level).fill("$").join("")
+    return Array(level).fill("LKR").join(" ") // Changed "$" to "LKR" for Sri Lankan Rupee
   }
 
   const handleRestaurantClick = (restaurantId: string) => {
