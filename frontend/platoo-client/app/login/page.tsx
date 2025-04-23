@@ -51,7 +51,7 @@ export default function LoginPage() {
       if (decoded?.id && decoded?.role) {
         // Clear old role-based IDs
         localStorage.removeItem("adminId");
-        localStorage.removeItem("restaurantId");
+        localStorage.removeItem("restaurantOwnerId");
         localStorage.removeItem("deliveryManId");
         localStorage.removeItem("userId");
   
@@ -61,7 +61,7 @@ export default function LoginPage() {
             localStorage.setItem("adminId", decoded.id);
             break;
           case "restaurant_owner":
-            localStorage.setItem("restaurantId", decoded.id);
+            localStorage.setItem("restaurantOwnerId", decoded.id);
             break;
           case "delivery_man":
             localStorage.setItem("deliveryManId", decoded.id);

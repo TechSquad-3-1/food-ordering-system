@@ -27,66 +27,75 @@ import {
 } from "lucide-react"
 
 interface Order {
-  id: string
+  id: string;
   customer: {
-    name: string
-    address: string
-  }
-  items: { name: string; quantity: number; price: string }[]
-  total: string
-  status: string
-  time: string
-  payment: string
-  delivery: string
-  restaurant_id: string
+    name: string;
+    address: string;
+  };
+  items: { name: string; quantity: number; price: string }[];
+  total: string;
+  status: string;
+  time: string;
+  payment: string;
+  delivery: string;
+  restaurant_id: string;
 }
 
-const RESTAURANT_ID = "6807da5d27c9c304b972f914"
-
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedTab, setSelectedTab] = useState("all")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
-  const [selectedStatus, setSelectedStatus] = useState("")
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
-  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
-
-  // Close dropdown on outside click
-  const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (openDropdownId && dropdownRefs.current[openDropdownId]) {
-        if (
-          dropdownRefs.current[openDropdownId] &&
-          !dropdownRefs.current[openDropdownId]!.contains(event.target as Node)
-        ) {
-          setOpenDropdownId(null)
-        }
-      }
-    }
-    if (openDropdownId) {
-      document.addEventListener("mousedown", handleClickOutside)
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-    }
-  }, [openDropdownId])
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedTab, setSelectedTab] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const [restaurantId, setRestaurantId] = useState<string | null>(null); // state to hold restaurantId
+  const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      setLoading(true)
-      setError(null)
+    const ownerId = localStorage.getItem("restaurantOwnerId");  // Fetch the ownerId from localStorage
+    if (!ownerId) return; // If no ownerId is available, exit
+
+    // Fetch the restaurant(s) by ownerId
+    const fetchRestaurants = async () => {
+      setLoading(true);
       try {
-        const res = await fetch("http://localhost:3008/api/orders")
-        if (!res.ok) throw new Error("Failed to fetch orders")
-        const data = await res.json()
+        const response = await fetch(`http://localhost:3001/api/restaurants/owner/${ownerId}`);
+        if (!response.ok) throw new Error("Failed to fetch restaurants");
+        const data = await response.json();
+        
+        // Assuming the first restaurant is the one to use
+        if (data.length > 0) {
+          setRestaurantId(data[0]._id); // Set the restaurantId from the fetched data
+        } else {
+          setError("No restaurants found for this owner");
+        }
+      } catch (error) {
+        console.error("Error fetching restaurants:", error);
+        setError("Failed to fetch restaurants");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRestaurants();
+  }, []);
+
+  useEffect(() => {
+    if (!restaurantId) return; // If no restaurantId, don't proceed with fetching orders
+
+    const fetchOrders = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("http://localhost:3008/api/orders");
+        if (!res.ok) throw new Error("Failed to fetch orders");
+        const data = await res.json();
         const mappedOrders: Order[] = data
-          .filter((order: any) => order.restaurant_id === RESTAURANT_ID)
+          .filter((order: any) => order.restaurant_id === restaurantId) // Filter orders based on dynamic restaurant_id
           .map((order: any) => ({
             id: order.order_id,
             customer: {
@@ -104,36 +113,36 @@ export default function OrdersPage() {
             payment: "Online",
             delivery: "Delivery",
             restaurant_id: order.restaurant_id,
-          }))
-        setOrders(mappedOrders)
+          }));
+        setOrders(mappedOrders);
       } catch (err) {
-        setError((err as Error).message)
+        setError((err as Error).message);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
-    fetchOrders()
-  }, [])
+    };
+    fetchOrders();
+  }, [restaurantId]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery)
-    }, 500)
-    return () => clearTimeout(timeoutId)
-  }, [searchQuery])
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   const filteredOrders = orders.filter((order) => {
-    if (selectedTab !== "all" && order.status !== selectedTab) return false
+    if (selectedTab !== "all" && order.status !== selectedTab) return false;
     if (debouncedSearchQuery) {
-      const query = debouncedSearchQuery.toLowerCase()
+      const query = debouncedSearchQuery.toLowerCase();
       return (
         order.id.toLowerCase().includes(query) ||
         order.customer.name.toLowerCase().includes(query) ||
         order.total.toLowerCase().includes(query)
-      )
+      );
     }
-    return true
-  })
+    return true;
+  });
 
   const getStatusBadge = (status: string) => {
     const commonProps = "mr-1 h-3 w-3"
@@ -212,7 +221,7 @@ export default function OrdersPage() {
       alert("Could not send order to ready.")
     }
   }
-
+  
   const handleMarkDelivered = async (order: Order) => {
     try {
       const res = await fetch(

@@ -19,7 +19,9 @@ export interface IRestaurant extends Document {
   };
   open_time: string; // New field for opening time
   closed_time: string; // New field for closing time
+  owner_id: string; // New field for the restaurant owner ID
 }
+
 const RestaurantSchema: Schema = new Schema(
   {
     name: { type: String, required: true },
@@ -49,6 +51,7 @@ const RestaurantSchema: Schema = new Schema(
     },
     open_time: { type: String, default: '08:00 AM' }, // Default opening time
     closed_time: { type: String, default: '10:00 PM' }, // Default closing time
+    owner_id: { type: String, required: true }, // New field for the restaurant owner ID
   },
   { timestamps: true }
 );

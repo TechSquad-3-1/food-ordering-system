@@ -2,19 +2,38 @@ import express from 'express';
 import { 
   createRestaurantHandler, 
   getRestaurantsHandler, 
-  updateRestaurantHandler, // Import the new handler
-  deleteRestaurantHandler,  // Import the new handler
+  updateRestaurantHandler,
+  updateRestaurantOwnerHandler, // Import the new handler
+  deleteRestaurantHandler,
   getRestaurantByIdHandler,
-  getRestaurantWithCategoriesAndMenuItemsHandler
+  getRestaurantWithCategoriesAndMenuItemsHandler,
+  getRestaurantsByOwnerIdHandler
 } from '../controllers/restaurant.controller';
 
 const router = express.Router();
 
-router.post('/', createRestaurantHandler); // Create a new restaurant
-router.get('/', getRestaurantsHandler);   // Get all restaurants
+// Create a new restaurant
+router.post('/', createRestaurantHandler);
+
+// Get all restaurants
+router.get('/', getRestaurantsHandler);
+
+// Update a restaurant by ID
 router.put('/:restaurantId', updateRestaurantHandler); // Update a restaurant by ID
-router.delete('/:restaurantId', deleteRestaurantHandler); // Delete a restaurant by ID
-router.get('/:restaurantId', getRestaurantByIdHandler); // Get a single restaurant by ID
-router.get('/:restaurantId/details', getRestaurantWithCategoriesAndMenuItemsHandler); // Get restaurant's categories and menu items
+
+// Update restaurant owner_id
+router.patch('/:restaurantId/owner', updateRestaurantOwnerHandler); // Update owner_id of a restaurant
+
+// Delete a restaurant by ID
+router.delete('/:restaurantId', deleteRestaurantHandler);
+
+// Get a single restaurant by ID
+router.get('/:restaurantId', getRestaurantByIdHandler);
+
+// Get restaurant's categories and menu items
+router.get('/:restaurantId/details', getRestaurantWithCategoriesAndMenuItemsHandler);
+
+// New route to get restaurants by owner_id (as route parameter)
+router.get('/owner/:ownerId', getRestaurantsByOwnerIdHandler); // Fetch restaurants by owner_id
 
 export default router;

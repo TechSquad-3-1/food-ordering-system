@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Bar } from "react-chartjs-2"
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -13,155 +13,176 @@ import {
   Title,
   Tooltip,
   Legend,
-} from "chart.js"
+} from "chart.js";
 
 // Register chart.js components
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 interface OrderItem {
-  menu_item_id: string
-  quantity: number
-  price: number
-  _id: string
+  menu_item_id: string;
+  quantity: number;
+  price: number;
+  _id: string;
 }
 
 interface Order {
-  _id: string
-  order_id: string
-  user_id: string
-  total_amount: number
-  status: string
-  items: OrderItem[]
-  restaurant_id: string
-  delivery_fee: number
-  delivery_address: string
-  phone: string
-  email: string
-  createdAt: string
-  updatedAt: string
+  _id: string;
+  order_id: string;
+  user_id: string;
+  total_amount: number;
+  status: string;
+  items: OrderItem[];
+  restaurant_id: string;
+  delivery_fee: number;
+  delivery_address: string;
+  phone: string;
+  email: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 function getDateString(date: Date) {
-  return date.toISOString().slice(0, 10)
+  return date.toISOString().slice(0, 10);
 }
 
 function getDateRange(start: Date, end: Date) {
-  const range = []
-  let current = new Date(start)
+  const range = [];
+  let current = new Date(start);
   while (current <= end) {
-    range.push(new Date(current))
-    current.setDate(current.getDate() + 1)
+    range.push(new Date(current));
+    current.setDate(current.getDate() + 1);
   }
-  return range
-}
-
-// Replace this with your actual logic to get the logged-in restaurant's ID
-function useRestaurantId() {
-  // For now, hardcoded for demonstration:
-  return "6807d9cc27c9c304b972f912"
+  return range;
 }
 
 export default function OrderHistoryPage() {
-  const restaurantId = useRestaurantId()
-  const [orders, setOrders] = useState<Order[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [dailyCounts, setDailyCounts] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] })
-  const [orderCount, setOrderCount] = useState(0)
-  const [userOrderStats, setUserOrderStats] = useState<{ labels: string[]; data: number[]; topUsers: { email: string, count: number }[] }>({ labels: [], data: [], topUsers: [] })
+  // Get the logged-in owner's restaurant ID from localStorage
+  const ownerId = localStorage.getItem("restaurantOwnerId");
+  const [restaurants, setRestaurants] = useState<any[]>([]); // Restaurant data
+  const [orders, setOrders] = useState<Order[]>([]); // Orders data
+  const [isLoading, setIsLoading] = useState(true);
+  const [dailyCounts, setDailyCounts] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] });
+  const [orderCount, setOrderCount] = useState(0);
+  const [userOrderStats, setUserOrderStats] = useState<{ labels: string[]; data: number[]; topUsers: { email: string, count: number }[] }>({ labels: [], data: [], topUsers: [] });
+  
+  
+  useEffect(() => {
+    if (!ownerId) return; // Ensure we have an ownerId
+
+    // Fetch the restaurant(s) by ownerId
+    const fetchRestaurants = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch(`http://localhost:3001/api/restaurants/owner/${ownerId}`);
+        if (!response.ok) throw new Error("Failed to fetch restaurants");
+        const data = await response.json();
+        setRestaurants(data);  // Set the restaurant data
+      } catch (error) {
+        console.error("Error fetching restaurants:", error);
+        setRestaurants([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRestaurants();
+  }, [ownerId]);
 
   useEffect(() => {
-    if (!restaurantId) return
+    if (restaurants.length === 0) return;
 
     const fetchOrders = async () => {
-      setIsLoading(true)
+      setIsLoading(true);
       try {
-        const response = await fetch(`http://localhost:3008/api/orders?restaurant_id=${restaurantId}`)
-        if (!response.ok) throw new Error("Failed to fetch orders")
-        const data = await response.json()
-
-        // Filter orders by restaurant_id as a safety net
-        const filteredOrders = data.filter((order: Order) => order.restaurant_id === restaurantId)
-        setOrders(filteredOrders)
-        setOrderCount(filteredOrders.length)
-
-        // Parse all order dates
-        const dates = filteredOrders.map((order: Order) => new Date(order.createdAt))
-        if (dates.length === 0) {
-          setDailyCounts({ labels: [], data: [] })
-          setUserOrderStats({ labels: [], data: [], topUsers: [] })
-          return
+        // Fetch orders for the restaurant(s) that belong to the owner
+        const ordersData: Order[] = [];
+        for (const restaurant of restaurants) {
+          const response = await fetch(`http://localhost:3008/api/orders?restaurant_id=${restaurant._id}`);
+          if (!response.ok) throw new Error("Failed to fetch orders");
+          const data = await response.json();
+          ordersData.push(...data);
         }
 
-        // Find first and last date
-        dates.sort((a: { getTime: () => number }, b: { getTime: () => number }) => a.getTime() - b.getTime())
-        const startDate = new Date(dates[0].toISOString().slice(0, 10))
-        const endDate = new Date()
+        // Filter orders based on restaurant_id
+        const filteredOrders = ordersData.filter((order: Order) => restaurants.some((restaurant) => restaurant._id === order.restaurant_id));
+        setOrders(filteredOrders);
+        setOrderCount(filteredOrders.length);
 
-        // Build date range
-        const dateRange = getDateRange(startDate, endDate)
-        const dateLabels = dateRange.map(getDateString)
+        // Process order dates
+        const dates = filteredOrders.map((order: Order) => new Date(order.createdAt));
+        if (dates.length === 0) {
+          setDailyCounts({ labels: [], data: [] });
+          setUserOrderStats({ labels: [], data: [], topUsers: [] });
+          return;
+        }
 
-        // Count orders per day
-        const counts: { [date: string]: number } = {}
-        dateLabels.forEach(date => { counts[date] = 0 })
+        // Sort and generate daily counts
+        dates.sort((a: { getTime: () => number }, b: { getTime: () => number }) => a.getTime() - b.getTime());
+        const startDate = new Date(dates[0].toISOString().slice(0, 10));
+        const endDate = new Date();
+
+        const dateRange = getDateRange(startDate, endDate);
+        const dateLabels = dateRange.map(getDateString);
+
+        const counts: { [date: string]: number } = {};
+        dateLabels.forEach(date => { counts[date] = 0 });
         filteredOrders.forEach((order: Order) => {
-          const dateStr = getDateString(new Date(order.createdAt))
-          if (counts[dateStr] !== undefined) counts[dateStr] += 1
-        })
+          const dateStr = getDateString(new Date(order.createdAt));
+          if (counts[dateStr] !== undefined) counts[dateStr] += 1;
+        });
 
         setDailyCounts({
           labels: dateLabels,
-          data: dateLabels.map(date => counts[date])
-        })
+          data: dateLabels.map(date => counts[date]),
+        });
 
         // User analytics: Count orders per user (by email)
-        const userCounts: { [email: string]: number } = {}
+        const userCounts: { [email: string]: number } = {};
         filteredOrders.forEach((order: Order) => {
           if (order.email) {
-            userCounts[order.email] = (userCounts[order.email] || 0) + 1
+            userCounts[order.email] = (userCounts[order.email] || 0) + 1;
           }
-        })
-        // Sort users by count descending, take top 10 for chart
+        });
         const sortedUsers = Object.entries(userCounts)
-          .sort((a, b) => b[1] - a[1])
-        const topUsers = sortedUsers.slice(0, 10).map(([email, count]) => ({ email, count }))
+          .sort((a, b) => b[1] - a[1]);
+        const topUsers = sortedUsers.slice(0, 10).map(([email, count]) => ({ email, count }));
         setUserOrderStats({
           labels: topUsers.map(u => u.email),
           data: topUsers.map(u => u.count),
-          topUsers: sortedUsers.slice(0, 5).map(([email, count]) => ({ email, count }))
-        })
-
+          topUsers: sortedUsers.slice(0, 5).map(([email, count]) => ({ email, count })),
+        });
       } catch (error) {
-        console.error("Error fetching orders:", error)
-        setOrders([])
-        setOrderCount(0)
-        setDailyCounts({ labels: [], data: [] })
-        setUserOrderStats({ labels: [], data: [], topUsers: [] })
+        console.error("Error fetching orders:", error);
+        setOrders([]);
+        setOrderCount(0);
+        setDailyCounts({ labels: [], data: [] });
+        setUserOrderStats({ labels: [], data: [], topUsers: [] });
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
-    fetchOrders()
-  }, [restaurantId])
+    };
+
+    fetchOrders();
+  }, [restaurants]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "pending":
-        return "bg-yellow-500"
+        return "bg-yellow-500";
       case "preparing":
-        return "bg-blue-500"
+        return "bg-blue-500";
       case "ready":
-        return "bg-purple-500"
+        return "bg-purple-500";
       case "out_for_delivery":
-        return "bg-orange-500"
+        return "bg-orange-500";
       case "delivered":
-        return "bg-green-500"
+        return "bg-green-500";
       case "cancelled":
-        return "bg-red-500"
+        return "bg-red-500";
       default:
-        return "bg-gray-500"
+        return "bg-gray-500";
     }
-  }
+  };
 
   // Chart data for orders per day since first order
   const chartData = {
@@ -173,7 +194,7 @@ export default function OrderHistoryPage() {
         backgroundColor: "#6366f1",
       },
     ],
-  }
+  };
 
   const chartOptions = {
     responsive: true,
@@ -192,7 +213,7 @@ export default function OrderHistoryPage() {
       },
       y: { beginAtZero: true, precision: 0 },
     },
-  }
+  };
 
   // Chart data for user analytics
   const userChartData = {
@@ -204,7 +225,7 @@ export default function OrderHistoryPage() {
         backgroundColor: "#34d399",
       },
     ],
-  }
+  };
 
   const userChartOptions = {
     indexAxis: "y" as const,
@@ -221,7 +242,7 @@ export default function OrderHistoryPage() {
         }
       },
     },
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -342,5 +363,5 @@ export default function OrderHistoryPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

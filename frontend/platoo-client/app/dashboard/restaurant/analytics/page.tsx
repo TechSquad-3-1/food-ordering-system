@@ -26,8 +26,6 @@ import {
   TooltipProps,
 } from "recharts";
 
-// TODO: Replace with the actual restaurant ID from the logged-in user/session
-const RESTAURANT_ID = "6807da5d27c9c304b972f914";
 
 type Order = {
   _id: string;
@@ -108,11 +106,38 @@ export default function RestaurantAnalytics() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [restaurantId, setRestaurantId] = useState<string | null>(null);  // state to hold restaurantId
 
   useEffect(() => {
+    const ownerId = localStorage.getItem("restaurantOwnerId");  // Fetch the ownerId from localStorage
+    if (!ownerId) return;  // If no ownerId is available, exit
+
+    const fetchRestaurantId = async () => {
+      try {
+        const response = await fetch(`http://localhost:3001/api/restaurants/owner/${ownerId}`);
+        if (!response.ok) throw new Error("Failed to fetch restaurant data");
+        const data = await response.json();
+        
+        if (data.length > 0) {
+          const restaurant = data[0];
+          setRestaurantId(restaurant._id); // Set the restaurantId from the fetched data
+        } else {
+          console.error("No restaurant found for this owner");
+        }
+      } catch (error) {
+        console.error("Error fetching restaurant data:", error);
+      }
+    };
+
+    fetchRestaurantId();
+  }, []);
+
+  useEffect(() => {
+    if (!restaurantId) return; // If no restaurantId, don't fetch the data
+
     async function fetchData() {
       setLoading(true);
-      let orderQuery = `?restaurant_id=${RESTAURANT_ID}`;
+      let orderQuery = `?restaurant_id=${restaurantId}`;
       if (dateRange?.from) {
         orderQuery += `&start=${dateRange.from.toISOString()}`;
       }
@@ -125,13 +150,13 @@ export default function RestaurantAnalytics() {
       const allOrders: Order[] = await ordersRes.json();
 
       const menuRes = await fetch(
-        `http://localhost:3001/api/menu-items/restaurant/${RESTAURANT_ID}`
+        `http://localhost:3001/api/menu-items/restaurant/${restaurantId}`
       );
       const allMenuItems: MenuItem[] = await menuRes.json();
 
       // Extra frontend filtering by restaurant_id for safety
       const filteredOrders = allOrders.filter(
-        (order) => order.restaurant_id === RESTAURANT_ID
+        (order) => order.restaurant_id === restaurantId
       );
 
       setOrders(filteredOrders);
@@ -139,7 +164,7 @@ export default function RestaurantAnalytics() {
       setLoading(false);
     }
     fetchData();
-  }, [dateRange]);
+  }, [restaurantId, dateRange]);
 
   // Total orders for this restaurant only
   const totalOrders = orders.length;

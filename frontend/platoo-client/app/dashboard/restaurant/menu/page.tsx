@@ -80,8 +80,6 @@ interface Category {
   itemCount: number;
 }
 
-const RESTAURANT_ID = "6807db9e27c9c304b972f916";
-
 export default function MenuPage() {
   // State
   const [searchQuery, setSearchQuery] = useState("");
@@ -92,7 +90,7 @@ export default function MenuPage() {
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryForm, setCategoryForm] = useState<Omit<Category, "id" | "itemCount">>({
-    restaurant_id: RESTAURANT_ID,
+    restaurant_id: "",  // Empty for now, will be fetched
     name: "",
     description: "",
     image_url: "",
@@ -115,11 +113,41 @@ export default function MenuPage() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
 
-  // Fetch menu items and categories
+  const [restaurantId, setRestaurantId] = useState<string | null>(null);  // state to hold restaurantId
+
+  // Fetch restaurantId based on the logged-in owner
   useEffect(() => {
+    const ownerId = localStorage.getItem("restaurantOwnerId");  // Fetch the ownerId from localStorage
+    if (!ownerId) return;  // If no ownerId is available, exit
+
+    const fetchRestaurantId = async () => {
+      try {
+        const response = await fetch(`http://localhost:3001/api/restaurants/owner/${ownerId}`);
+        if (!response.ok) throw new Error("Failed to fetch restaurant data");
+        const data = await response.json();
+        
+        if (data.length > 0) {
+          const restaurant = data[0];
+          setRestaurantId(restaurant._id); // Set the restaurantId from the fetched data
+          setCategoryForm((prevForm) => ({ ...prevForm, restaurant_id: restaurant._id }));
+        } else {
+          console.error("No restaurant found for this owner");
+        }
+      } catch (error) {
+        console.error("Error fetching restaurant data:", error);
+      }
+    };
+
+    fetchRestaurantId();
+  }, []);
+
+  // Fetch menu items and categories for the specific restaurant
+  useEffect(() => {
+    if (!restaurantId) return;  // Ensure restaurantId is available before fetching items and categories
+
     const fetchMenuItems = async () => {
       try {
-        const response = await fetch(`http://localhost:3001/api/menu-items/restaurant/${RESTAURANT_ID}`);
+        const response = await fetch(`http://localhost:3001/api/menu-items/restaurant/${restaurantId}`);
         if (!response.ok) throw new Error("Failed to fetch menu items");
         const data = await response.json();
         const normalized = data.map((item: any) => ({
@@ -134,7 +162,7 @@ export default function MenuPage() {
 
     const fetchCategories = async () => {
       try {
-        const response = await fetch(`http://localhost:3001/api/category/${RESTAURANT_ID}`);
+        const response = await fetch(`http://localhost:3001/api/category/${restaurantId}`);
         if (!response.ok) throw new Error("Failed to fetch categories");
         const data = await response.json();
         const normalized = data.map((category: any) => ({
@@ -149,7 +177,7 @@ export default function MenuPage() {
 
     fetchMenuItems();
     fetchCategories();
-  }, []);
+  }, [restaurantId]);
 
   // Filtering
   const filteredItems = menuItems.filter((item) => {
@@ -168,7 +196,7 @@ export default function MenuPage() {
   const openAddCategoryDialog = () => {
     setEditingCategory(null);
     setCategoryForm({
-      restaurant_id: RESTAURANT_ID,
+      restaurant_id: restaurantId || "",  // Automatically filled with restaurantId
       name: "",
       description: "",
       image_url: "",
@@ -291,7 +319,6 @@ export default function MenuPage() {
       console.error("Error updating menu item:", error);
     }
   };
-
   const handleToggleAvailability = async (id: string) => {
     try {
       const updatedAvailability = !menuItems.find((item) => item.id === id)?.is_available;
@@ -309,7 +336,6 @@ export default function MenuPage() {
       console.error("Error toggling availability:", error);
     }
   };
-
   const handleDeleteItem = async (id: string) => {
     try {
       const response = await fetch(`http://localhost:3001/api/menu-items/${id}`, { method: "DELETE" });
