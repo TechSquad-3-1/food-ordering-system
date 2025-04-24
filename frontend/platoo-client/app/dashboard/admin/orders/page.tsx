@@ -24,6 +24,21 @@ interface Order {
   updatedAt: string;
 }
 
+interface User {
+  _id: string;
+  name: string;
+}
+
+interface Restaurant {
+  _id: string;
+  name: string;
+}
+
+interface MenuItem {
+  _id: string;
+  name: string;
+}
+
 export default function OrdersPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
@@ -31,37 +46,84 @@ export default function OrdersPage() {
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  
+
+  const [userMap, setUserMap] = useState<Record<string, string>>({});
+  const [restaurantMap, setRestaurantMap] = useState<Record<string, string>>({});
+  const [menuItemMap, setMenuItemMap] = useState<Record<string, Record<string, string>>>({});
 
   useEffect(() => {
-    const fetchOrders = async () => {
+    const fetchAll = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch("http://localhost:3008/api/orders", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-        if (!response.ok) {
-          throw new Error(`Error fetching orders: ${response.statusText}`);
-        }
-        const data = await response.json();
-        setOrders(data);
-        setFilteredOrders(data);
+        // Fetch all orders
+        const ordersRes = await fetch("http://localhost:3008/api/orders");
+        const ordersData: Order[] = await ordersRes.json();
+        setOrders(ordersData);
+        setFilteredOrders(ordersData);
+
+        // Get unique user and restaurant IDs from orders
+        const userIds = Array.from(new Set(ordersData.map(o => o.user_id)));
+        const restaurantIds = Array.from(new Set(ordersData.map(o => o.restaurant_id)));
+
+        // Fetch users by ID through JWT token
+        const token = localStorage.getItem('jwt');
+        const userMapTemp: Record<string, string> = {};
+        await Promise.all(userIds.map(async (uid) => {
+          const res = await fetch(`http://localhost:4000/api/auth/user/${uid}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          if (res.ok) {
+            const user: User = await res.json();
+            userMapTemp[uid] = user.name;
+          }
+        }));
+        setUserMap(userMapTemp);
+
+        // Fetch restaurants by ID
+        const restaurantMapTemp: Record<string, string> = {};
+        await Promise.all(restaurantIds.map(async (rid) => {
+          const res = await fetch(`http://localhost:3001/api/restaurants/${rid}`);
+          if (res.ok) {
+            const restaurant: Restaurant = await res.json();
+            restaurantMapTemp[rid] = restaurant.name;
+          }
+        }));
+        setRestaurantMap(restaurantMapTemp);
+
+        // Fetch menu items for each restaurant
+        const menuItemMapTemp: Record<string, Record<string, string>> = {};
+        await Promise.all(
+          restaurantIds.map(async (rid) => {
+            const res = await fetch(`http://localhost:3001/api/menu-items/restaurant/${rid}`);
+            if (res.ok) {
+              const menuItems: MenuItem[] = await res.json();
+              menuItemMapTemp[rid] = {};
+              menuItems.forEach(mi => {
+                menuItemMapTemp[rid][mi._id] = mi.name;
+              });
+            }
+          })
+        );
+        setMenuItemMap(menuItemMapTemp);
+
         setIsLoading(false);
       } catch (error) {
         setIsLoading(false);
         setOrders([]);
         setFilteredOrders([]);
+        setUserMap({});
+        setRestaurantMap({});
+        setMenuItemMap({});
       }
     };
-    fetchOrders();
+    fetchAll();
   }, []);
 
   useEffect(() => {
     let filtered = [...orders];
-
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -73,11 +135,9 @@ export default function OrdersPage() {
           (order.phone || "").toLowerCase().includes(query)
       );
     }
-
     if (statusFilter !== "all") {
       filtered = filtered.filter((order) => order.status === statusFilter);
     }
-
     setFilteredOrders(filtered);
   }, [searchQuery, statusFilter, orders]);
 
@@ -106,7 +166,6 @@ export default function OrdersPage() {
       maximumFractionDigits: 2,
     }).format(amount);
   };
-  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 p-6 md:p-10">
@@ -145,8 +204,8 @@ export default function OrdersPage() {
           <thead>
             <tr className="bg-gradient-to-r from-blue-100 to-gray-100">
               <th className="px-4 py-3 font-semibold text-gray-700">Order ID</th>
-              <th className="px-4 py-3 font-semibold text-gray-700">User ID</th>
-              <th className="px-4 py-3 font-semibold text-gray-700">Restaurant ID</th>
+              <th className="px-4 py-3 font-semibold text-gray-700">User ID / Name</th>
+              <th className="px-4 py-3 font-semibold text-gray-700">Restaurant ID / Name</th>
               <th className="px-4 py-3 font-semibold text-gray-700">Items</th>
               <th className="px-4 py-3 font-semibold text-gray-700">Total</th>
               <th className="px-4 py-3 font-semibold text-gray-700">Status</th>
@@ -180,13 +239,22 @@ export default function OrdersPage() {
                   }
                 >
                   <td className="px-4 py-3 font-mono text-sm">{order.order_id || order._id}</td>
-                  <td className="px-4 py-3 text-sm">{order.user_id}</td>
-                  <td className="px-4 py-3 text-sm">{order.restaurant_id}</td>
+                  <td className="px-4 py-3 text-sm">
+                    {order.user_id}
+                    {userMap[order.user_id] ? ` / ${userMap[order.user_id]}` : ""}
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    {order.restaurant_id}
+                    {restaurantMap[order.restaurant_id] ? ` / ${restaurantMap[order.restaurant_id]}` : ""}
+                  </td>
                   <td className="px-4 py-3 text-xs">
                     {order.items
                       .map(
                         (item) =>
-                          `#${item.menu_item_id || item._id} x${item.quantity} (${formatCurrency(item.price)})`
+                          `${
+                            menuItemMap[order.restaurant_id]?.[item.menu_item_id || item._id] ||
+                            `#${item.menu_item_id || item._id}`
+                          } x${item.quantity} (${formatCurrency(item.price)})`
                       )
                       .join(", ")}
                   </td>
