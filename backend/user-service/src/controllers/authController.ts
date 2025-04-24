@@ -54,8 +54,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 };
 
 // Update user - Admin can update any profile, others can only update their own
+// Update user - Admin can update any profile, others can only update their own
 export const updateUser = async (req: AuthRequest, res: Response): Promise<void> => {
-  const { name, email, phone, address, restaurantName, vehicleNumber } = req.body;
+  const { name, email, phone, address, restaurantName, vehicleNumber, newPassword } = req.body;
   const userId = req.params.userId; // Get userId from the URL parameter
   const currentUser = req.user; // This comes from the middleware (protect)
 
@@ -93,6 +94,13 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
     if (restaurantName) user.restaurantName = restaurantName;
     if (vehicleNumber) user.vehicleNumber = vehicleNumber;
 
+    // If the new password is provided, hash it and update it
+    if (newPassword) {
+      // You can validate password length or other criteria here if needed
+      const hashedPassword = await bcrypt.hash(newPassword, 10); // Hash the new password
+      user.password = hashedPassword; // Update the password in the user document
+    }
+
     // Save the updated user information
     await user.save();
 
@@ -105,7 +113,6 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
     }
   }
 };
-
 
   
 

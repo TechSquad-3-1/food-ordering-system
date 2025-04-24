@@ -1,32 +1,52 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { ChevronDown, ShoppingCart, User } from "lucide-react"
-import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel } from "@/components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { useRouter, usePathname } from "next/navigation" // Import usePathname here
+import { useRouter, usePathname } from "next/navigation"
 
 const Header = ({ cartCount }: { cartCount: number }) => {
   const router = useRouter()
-  const currentPath = usePathname() // Use usePathname() to get the current route
+  const currentPath = usePathname()
+
+  const [username, setUsername] = useState<string | null>(null)
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user")
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser)
+        setUsername(parsedUser.name || "User")
+      } catch (error) {
+        console.error("Failed to parse user:", error)
+      }
+    }
+  }, [])
 
   const handleSignOut = () => {
-    localStorage.removeItem("token"); // Remove token from localStorage
-    localStorage.removeItem("user");  // Remove user data from localStorage
-    router.push("/login"); // Redirect to login page
+    localStorage.removeItem("token")
+    localStorage.removeItem("user")
+    router.push("/login")
   }
 
   const handleProfileRedirect = () => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token")
     if (!token) {
-      router.push("/login"); // Redirect to login if no token
+      router.push("/login")
     } else {
-      router.push("/profile"); // If logged in, redirect to profile
+      router.push("/profile")
     }
   }
 
   const getLinkClassName = (path: string) => {
-    // Check if current path starts with the given base path
     return currentPath?.startsWith(path)
       ? "text-sm font-medium border-b-2 border-red-500 pb-1 px-4"
       : "text-sm font-medium text-gray-600 hover:text-gray-900 px-4"
@@ -57,9 +77,13 @@ const Header = ({ cartCount }: { cartCount: number }) => {
           </nav>
         </div>
 
-        {/* Right side - Phone, Account, Cart, Order button */}
+        {/* Right side - Username, Account, Cart, Order button */}
         <div className="flex items-center gap-6">
-          <span className="hidden md:block text-sm font-medium text-gray-600">+1 202 555 0104</span>
+          {username && (
+            <span className="hidden md:block text-sm font-medium text-gray-600">
+              Welcome, {username}
+            </span>
+          )}
 
           {/* Account Dropdown */}
           <div className="relative">
@@ -73,19 +97,19 @@ const Header = ({ cartCount }: { cartCount: number }) => {
               <DropdownMenuContent className="w-48 mt-2 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                 <DropdownMenuLabel>Account Options</DropdownMenuLabel>
                 <DropdownMenuItem>
-                  <button onClick={handleProfileRedirect} className="block text-sm text-gray-700 hover:bg-gray-100 px-4 py-2 rounded">
+                  <button
+                    onClick={handleProfileRedirect}
+                    className="block text-sm text-gray-700 hover:bg-gray-100 px-4 py-2 rounded"
+                  >
                     Profile
                   </button>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
-                  <Link href="/orders/history" className="block text-sm text-gray-700 hover:bg-gray-100 px-4 py-2 rounded">
+                  <Link
+                    href="/orders/history"
+                    className="block text-sm text-gray-700 hover:bg-gray-100 px-4 py-2 rounded"
+                  >
                     Order History
-                  </Link>
-                </DropdownMenuItem>
-                
-                <DropdownMenuItem>
-                  <Link href="/settings" className="block text-sm text-gray-700 hover:bg-gray-100 px-4 py-2 rounded">
-                    Settings
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
