@@ -282,9 +282,15 @@ export default function UserDashboard({ userId }: UserDashboardProps) {
           <p className="text-sm text-gray-600 mb-3">
             At Platoo, your privacy is important to us. This policy explains how we collect and use your personal information when you use our services.
           </p>
-          <Link href="/privacy" className="text-sm text-red-500 font-medium hover:text-red-600">
+          <a
+            href="/privacy"
+            className="text-sm text-red-500 font-medium hover:text-red-600"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             See more
-          </Link>
+          </a>
+
         </div>
       )}
     </div>
