@@ -53,55 +53,65 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   res.json({ token });
 };
 
+// Update user - Admin can update any profile, others can only update their own
+// Update user - Admin can update any profile, others can only update their own
 export const updateUser = async (req: AuthRequest, res: Response): Promise<void> => {
-    const { name, email, phone, address, restaurantName, vehicleNumber } = req.body;
-    const userId = req.params.userId; // Get userId from the route parameter
-    const currentUser = req.user; // This comes from the middleware (protect)
+  const { name, email, phone, address, restaurantName, vehicleNumber, newPassword } = req.body;
+  const userId = req.params.userId; // Get userId from the URL parameter
+  const currentUser = req.user; // This comes from the middleware (protect)
 
-    if (!currentUser) {
-      res.status(401).json({ msg: "Unauthorized: No user found" });
+  if (!currentUser) {
+    res.status(401).json({ msg: "Unauthorized: No user found" });
+    return;
+  }
+
+  // Admin can update any profile
+  // Non-admins (users and delivery men) can only update their own profile (userId should match the logged-in user)
+  if (currentUser.role !== UserRole.ADMIN && currentUser.id !== userId) {
+    res.status(403).json({ msg: "Forbidden: You can only update your own profile" });
+    return;
+  }
+
+  try {
+    // Check if the userId is valid
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      res.status(400).json({ msg: "Invalid userId format" });
       return;
     }
 
-    // Admin can update any profile
-    // Non-admins (users and delivery men) can only update their own profile (userId should match the logged-in user)
-    if (currentUser.role !== UserRole.ADMIN && currentUser.id !== userId) {
-      res.status(403).json({ msg: "Forbidden: You can only update your own profile" });
-      return; 
+    // Find the user by ObjectId
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ msg: "User not found" });
+      return;
     }
 
-    try {
-      // Check if the userId is valid
-      if (!mongoose.Types.ObjectId.isValid(userId)) {
-        res.status(400).json({ msg: "Invalid userId format" });
-        return; 
-      }
+    // Update only the fields that are provided in the request body
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (phone) user.phone = phone;
+    if (address) user.address = address;
+    if (restaurantName) user.restaurantName = restaurantName;
+    if (vehicleNumber) user.vehicleNumber = vehicleNumber;
 
-      // Find the user by ObjectId
-      const user = await User.findById(userId);
-      if (!user) {
-        res.status(404).json({ msg: "User not found" });
-        return;
-      }
-
-      // Only update the fields that are provided in the request body
-      user.name = name || user.name;
-      user.email = email || user.email;
-      user.phone = phone || user.phone;
-      user.address = address || user.address;
-      user.restaurantName = restaurantName || user.restaurantName;
-      user.vehicleNumber = vehicleNumber || user.vehicleNumber;
-
-      await user.save();  // Save the updated user information
-
-      res.status(200).json({ msg: "User updated successfully", user });
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        res.status(500).json({ msg: "Error updating user", error: error.message });
-      } else {
-        res.status(500).json({ msg: "Unknown error occurred" });
-      }
+    // If the new password is provided, hash it and update it
+    if (newPassword) {
+      // You can validate password length or other criteria here if needed
+      const hashedPassword = await bcrypt.hash(newPassword, 10); // Hash the new password
+      user.password = hashedPassword; // Update the password in the user document
     }
+
+    // Save the updated user information
+    await user.save();
+
+    res.status(200).json({ msg: "User updated successfully", user });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      res.status(500).json({ msg: "Error updating user", error: error.message });
+    } else {
+      res.status(500).json({ msg: "Unknown error occurred" });
+    }
+  }
 };
 
   
@@ -220,3 +230,6 @@ export const getRestaurantOwnerByIdPublic = async (req: Request, res: Response):
     }
   }
 };
+
+
+

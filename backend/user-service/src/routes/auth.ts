@@ -55,4 +55,6 @@ router.get("/user/:userId", async (req: AuthRequest, res: Response) => {
 router.get("/restaurant-owner/:userId", getRestaurantOwnerByIdPublic);
 
 
+
+
 export default router;

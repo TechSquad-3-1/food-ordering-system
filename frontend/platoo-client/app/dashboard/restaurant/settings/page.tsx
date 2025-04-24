@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, SetStateAction } from "react"
 import {
   Card,
   CardContent,
@@ -43,6 +43,26 @@ interface OwnerInfo {
   phone: string
   address: string
   restaurantName: string
+}
+
+const RESTAURANT_SCHEMA = {
+  name: "",
+  image: "",
+  rating: 0,
+  deliveryTime: "",
+  deliveryFee: "",
+  minOrder: "",
+  distance: "",
+  cuisines: [],
+  priceLevel: 1,
+  is_active: true,
+  location: {
+    type: "Point",
+    coordinates: [0, 0],
+    tag: ""
+  },
+  open_time: "",
+  closed_time: ""
 }
 
 export default function RestaurantSettings() {
@@ -104,9 +124,7 @@ export default function RestaurantSettings() {
     try {
       const response = await fetch(`http://localhost:4000/api/auth/update/${storedId}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...owner, password }),
       })
       if (!response.ok) {
@@ -127,6 +145,7 @@ export default function RestaurantSettings() {
   const [restaurants, setRestaurants] = useState<any[]>([])
   const [isAddRestaurantOpen, setIsAddRestaurantOpen] = useState(false)
   const [selectedRestaurant, setSelectedRestaurant] = useState<any>(null)
+  const [restaurantForm, setRestaurantForm] = useState<any>(RESTAURANT_SCHEMA)
 
   useEffect(() => {
     fetchRestaurants()
@@ -142,21 +161,24 @@ export default function RestaurantSettings() {
     }
   }
 
-  const handleAddOrUpdateRestaurant = async (formData: any) => {
+  // Handle add or update restaurant
+  const handleAddOrUpdateRestaurant = async () => {
     try {
       const method = selectedRestaurant ? "PUT" : "POST"
       const url = selectedRestaurant
-        ? `http://localhost:3001/api/restaurants/${selectedRestaurant.id}`
+        ? `http://localhost:3001/api/restaurants/${selectedRestaurant._id}`
         : "http://localhost:3001/api/restaurants"
 
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(restaurantForm),
       })
 
       if (response.ok) {
         setIsAddRestaurantOpen(false)
+        setRestaurantForm(RESTAURANT_SCHEMA)
+        setSelectedRestaurant(null)
         fetchRestaurants()
       } else {
         console.error("Failed to save restaurant")
@@ -166,6 +188,7 @@ export default function RestaurantSettings() {
     }
   }
 
+  // Handle delete restaurant
   const handleDeleteRestaurant = async (id: string) => {
     try {
       const response = await fetch(`http://localhost:3001/api/restaurants/${id}`, {
@@ -180,6 +203,45 @@ export default function RestaurantSettings() {
       console.error("Error deleting restaurant:", error)
     }
   }
+
+  // Handle open dialog for add/edit
+  const openAddEditDialog = (restaurant?: any) => {
+    if (restaurant) {
+      setSelectedRestaurant(restaurant)
+      setRestaurantForm({ ...restaurant })
+    } else {
+      setSelectedRestaurant(null)
+      setRestaurantForm(RESTAURANT_SCHEMA)
+    }
+    setIsAddRestaurantOpen(true)
+  }
+
+  // Handle input changes in restaurant form
+  const handleRestaurantInput = (field: string, value: any) => {
+    setRestaurantForm((prev: any) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
+
+  // Handle location input changes
+  const handleLocationInput = (field: string, value: any) => {
+    setRestaurantForm((prev: any) => ({
+      ...prev,
+      location: {
+        ...prev.location,
+        [field]: value,
+      },
+    }))
+  }
+
+  // Save restaurant ID to localStorage after add/update
+  useEffect(() => {
+    if (restaurants.length > 0) {
+      // Assume the first restaurant belongs to the owner (customize as needed)
+      localStorage.setItem("restaurantId", restaurants[0]._id)
+    }
+  }, [restaurants])
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -205,154 +267,26 @@ export default function RestaurantSettings() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex flex-col items-center justify-center space-y-3 sm:flex-row sm:items-start sm:justify-start sm:space-x-4 sm:space-y-0">
-                <Avatar className="h-24 w-24">
-                  <AvatarImage src="/placeholder.svg?height=96&width=96" alt="Restaurant Logo" />
-                  <AvatarFallback>PR</AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col space-y-2">
-                  <h3 className="text-lg font-medium">Restaurant Logo</h3>
-                  <p className="text-sm text-muted-foreground">
-                    This will be displayed on your profile and in search results.
-                  </p>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      <Camera className="mr-2 h-4 w-4" />
-                      Change Logo
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-red-500">
-                      Remove
-                    </Button>
-                  </div>
-                </div>
-              </div>
+              <Button onClick={() => openAddEditDialog()}>Add New Restaurant</Button>
               <Separator />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="restaurant-name">Restaurant Name</Label>
-                  <Input id="restaurant-name" defaultValue="Platoo Restaurant" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="cuisine-type">Cuisine Type</Label>
-                  <Select defaultValue="indian">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select cuisine type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="indian">Indian</SelectItem>
-                      <SelectItem value="chinese">Chinese</SelectItem>
-                      <SelectItem value="italian">Italian</SelectItem>
-                      <SelectItem value="mexican">Mexican</SelectItem>
-                      <SelectItem value="japanese">Japanese</SelectItem>
-                      <SelectItem value="thai">Thai</SelectItem>
-                      <SelectItem value="american">American</SelectItem>
-                      <SelectItem value="mediterranean">Mediterranean</SelectItem>
-                      <SelectItem value="middle-eastern">Middle Eastern</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Restaurant Description</Label>
-                <Textarea
-                  id="description"
-                  defaultValue="Authentic Indian cuisine with a modern twist. We specialize in flavorful biryanis, rich curries, and freshly baked bread from our tandoor oven."
-                  rows={4}
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <div className="flex">
-                    <Phone className="mr-2 h-4 w-4 self-center text-muted-foreground" />
-                    <Input id="phone" defaultValue="+1 (555) 123-4567" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <div className="flex">
-                    <Mail className="mr-2 h-4 w-4 self-center text-muted-foreground" />
-                    <Input id="email" defaultValue="contact@platoorestaurant.com" />
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="website">Website</Label>
-                <div className="flex">
-                  <Globe className="mr-2 h-4 w-4 self-center text-muted-foreground" />
-                  <Input id="website" defaultValue="https://platoorestaurant.com" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Restaurant Address</Label>
-                <div className="flex">
-                  <MapPin className="mr-2 h-4 w-4 self-center text-muted-foreground" />
-                  <Input id="address" defaultValue="123 Food Street, Culinary District, NY 10001" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Restaurant Features</Label>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                  <div className="flex items-center space-x-2">
-                    <Switch id="dine-in" defaultChecked />
-                    <Label htmlFor="dine-in">Dine-in</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch id="takeout" defaultChecked />
-                    <Label htmlFor="takeout">Takeout</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch id="delivery" defaultChecked />
-                    <Label htmlFor="delivery">Delivery</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch id="vegetarian" defaultChecked />
-                    <Label htmlFor="vegetarian">Vegetarian Options</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch id="vegan" />
-                    <Label htmlFor="vegan">Vegan Options</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch id="gluten-free" />
-                    <Label htmlFor="gluten-free">Gluten-Free Options</Label>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button onClick={() => setIsAddRestaurantOpen(true)}>
-                <Save className="mr-2 h-4 w-4" />
-                Add/Edit Restaurant
-              </Button>
-            </CardFooter>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Restaurant List</CardTitle>
-              <CardDescription>View and manage all your restaurants</CardDescription>
-            </CardHeader>
-            <CardContent>
               <div className="space-y-4">
                 {restaurants.map((restaurant) => (
-                  <div key={restaurant.id} className="flex items-center justify-between">
+                  <div key={restaurant._id} className="flex items-center justify-between">
                     <div>
                       <h3 className="text-lg font-medium">{restaurant.name}</h3>
-                      <p className="text-sm text-muted-foreground">{restaurant.address}</p>
+                      <p className="text-sm text-muted-foreground">{restaurant.location?.tag}</p>
+                      <Badge>{restaurant.is_active ? "Active" : "Inactive"}</Badge>
                     </div>
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
-                        onClick={() => {
-                          setSelectedRestaurant(restaurant)
-                          setIsAddRestaurantOpen(true)
-                        }}
+                        onClick={() => openAddEditDialog(restaurant)}
                       >
                         Edit
                       </Button>
                       <Button
                         variant="destructive"
-                        onClick={() => handleDeleteRestaurant(restaurant.id)}
+                        onClick={() => handleDeleteRestaurant(restaurant._id)}
                       >
                         Delete
                       </Button>
@@ -381,7 +315,7 @@ export default function RestaurantSettings() {
                     <Input
                       id="owner-name"
                       value={owner.name}
-                      onChange={e => setOwner({ ...owner, name: e.target.value })}
+                      onChange={(e: { target: { value: any } }) => setOwner({ ...owner, name: e.target.value })}
                       disabled={!isEditing}
                     />
                   </div>
@@ -390,7 +324,7 @@ export default function RestaurantSettings() {
                     <Input
                       id="owner-email"
                       value={owner.email}
-                      onChange={e => setOwner({ ...owner, email: e.target.value })}
+                      onChange={(e: { target: { value: any } }) => setOwner({ ...owner, email: e.target.value })}
                       disabled={!isEditing}
                     />
                   </div>
@@ -399,7 +333,7 @@ export default function RestaurantSettings() {
                     <Input
                       id="owner-phone"
                       value={owner.phone}
-                      onChange={e => setOwner({ ...owner, phone: e.target.value })}
+                      onChange={(e: { target: { value: any } }) => setOwner({ ...owner, phone: e.target.value })}
                       disabled={!isEditing}
                     />
                   </div>
@@ -408,7 +342,7 @@ export default function RestaurantSettings() {
                     <Input
                       id="owner-address"
                       value={owner.address}
-                      onChange={e => setOwner({ ...owner, address: e.target.value })}
+                      onChange={(e: { target: { value: any } }) => setOwner({ ...owner, address: e.target.value })}
                       disabled={!isEditing}
                     />
                   </div>
@@ -417,7 +351,7 @@ export default function RestaurantSettings() {
                     <Input
                       id="owner-restaurant"
                       value={owner.restaurantName}
-                      onChange={e => setOwner({ ...owner, restaurantName: e.target.value })}
+                      onChange={(e: { target: { value: any } }) => setOwner({ ...owner, restaurantName: e.target.value })}
                       disabled={!isEditing}
                     />
                   </div>
@@ -428,7 +362,7 @@ export default function RestaurantSettings() {
                         id="owner-password"
                         type="password"
                         value={password}
-                        onChange={e => setPassword(e.target.value)}
+                        onChange={(e: { target: { value: SetStateAction<string> } }) => setPassword(e.target.value)}
                       />
                     </div>
                   )}
@@ -459,33 +393,131 @@ export default function RestaurantSettings() {
             <div className="space-y-6 p-1">
               <div className="space-y-2">
                 <Label htmlFor="restaurant-name-dialog">Restaurant Name</Label>
-                <Input id="restaurant-name-dialog" defaultValue={selectedRestaurant?.name || ""} />
+                <Input
+                  id="restaurant-name-dialog"
+                  value={restaurantForm.name}
+                  onChange={(e: { target: { value: any } }) => handleRestaurantInput("name", e.target.value)}
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="restaurant-description">Description</Label>
-                <Textarea
-                  id="restaurant-description"
-                  defaultValue={selectedRestaurant?.description || ""}
-                  rows={3}
+                <Label htmlFor="restaurant-image">Image URL</Label>
+                <Input
+                  id="restaurant-image"
+                  value={restaurantForm.image}
+                  onChange={(e: { target: { value: any } }) => handleRestaurantInput("image", e.target.value)}
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="restaurant-phone">Phone Number</Label>
-                  <Input id="restaurant-phone" defaultValue={selectedRestaurant?.phone || ""} />
+                  <Label htmlFor="restaurant-rating">Rating</Label>
+                  <Input
+                    id="restaurant-rating"
+                    type="number"
+                    value={restaurantForm.rating}
+                    onChange={(e: { target: { value: string } }) => handleRestaurantInput("rating", parseFloat(e.target.value))}
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="restaurant-email">Email Address</Label>
-                  <Input id="restaurant-email" defaultValue={selectedRestaurant?.email || ""} />
+                  <Label htmlFor="restaurant-deliveryTime">Delivery Time</Label>
+                  <Input
+                    id="restaurant-deliveryTime"
+                    value={restaurantForm.deliveryTime}
+                    onChange={(e: { target: { value: any } }) => handleRestaurantInput("deliveryTime", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="restaurant-deliveryFee">Delivery Fee</Label>
+                  <Input
+                    id="restaurant-deliveryFee"
+                    value={restaurantForm.deliveryFee}
+                    onChange={(e: { target: { value: any } }) => handleRestaurantInput("deliveryFee", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="restaurant-minOrder">Minimum Order</Label>
+                  <Input
+                    id="restaurant-minOrder"
+                    value={restaurantForm.minOrder}
+                    onChange={(e: { target: { value: any } }) => handleRestaurantInput("minOrder", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="restaurant-distance">Distance</Label>
+                  <Input
+                    id="restaurant-distance"
+                    value={restaurantForm.distance}
+                    onChange={(e: { target: { value: any } }) => handleRestaurantInput("distance", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="restaurant-priceLevel">Price Level</Label>
+                  <Input
+                    id="restaurant-priceLevel"
+                    type="number"
+                    value={restaurantForm.priceLevel}
+                    onChange={(e: { target: { value: string } }) => handleRestaurantInput("priceLevel", parseInt(e.target.value))}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="restaurant-address">Address</Label>
-                <Input id="restaurant-address" defaultValue={selectedRestaurant?.address || ""} />
+                <Label htmlFor="restaurant-cuisines">Cuisines (comma separated)</Label>
+                <Input
+                  id="restaurant-cuisines"
+                  value={restaurantForm.cuisines.join(", ")}
+                  onChange={(e: { target: { value: string } }) => handleRestaurantInput("cuisines", e.target.value.split(",").map((v: string) => v.trim()))}
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="restaurant-cuisines">Cuisines</Label>
-                <Input id="restaurant-cuisines" defaultValue={selectedRestaurant?.cuisines?.join(", ") || ""} />
+                <Label htmlFor="restaurant-location-tag">Location Tag</Label>
+                <Input
+                  id="restaurant-location-tag"
+                  value={restaurantForm.location.tag}
+                  onChange={(e: { target: { value: any } }) => handleLocationInput("tag", e.target.value)}
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="restaurant-location-lng">Longitude</Label>
+                  <Input
+                    id="restaurant-location-lng"
+                    type="number"
+                    value={restaurantForm.location.coordinates[0]}
+                    onChange={(e: { target: { value: string } }) => handleLocationInput("coordinates", [parseFloat(e.target.value), restaurantForm.location.coordinates[1]])}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="restaurant-location-lat">Latitude</Label>
+                  <Input
+                    id="restaurant-location-lat"
+                    type="number"
+                    value={restaurantForm.location.coordinates[1]}
+                    onChange={(e: { target: { value: string } }) => handleLocationInput("coordinates", [restaurantForm.location.coordinates[0], parseFloat(e.target.value)])}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="restaurant-open-time">Open Time</Label>
+                <Input
+                  id="restaurant-open-time"
+                  value={restaurantForm.open_time}
+                  onChange={(e: { target: { value: any } }) => handleRestaurantInput("open_time", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="restaurant-closed-time">Closed Time</Label>
+                <Input
+                  id="restaurant-closed-time"
+                  value={restaurantForm.closed_time}
+                  onChange={(e: { target: { value: any } }) => handleRestaurantInput("closed_time", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="restaurant-active">Active</Label>
+                <Switch
+                  id="restaurant-active"
+                  checked={restaurantForm.is_active}
+                  onCheckedChange={(checked: any) => handleRestaurantInput("is_active", checked)}
+                />
               </div>
             </div>
           </ScrollArea>
@@ -493,20 +525,7 @@ export default function RestaurantSettings() {
             <Button variant="outline" onClick={() => setIsAddRestaurantOpen(false)}>
               Cancel
             </Button>
-            <Button
-              onClick={() => {
-                const formData = {
-                  name: (document.getElementById("restaurant-name-dialog") as HTMLInputElement)?.value,
-                  description: (document.getElementById("restaurant-description") as HTMLTextAreaElement)?.value,
-                  phone: (document.getElementById("restaurant-phone") as HTMLInputElement)?.value,
-                  email: (document.getElementById("restaurant-email") as HTMLInputElement)?.value,
-                  address: (document.getElementById("restaurant-address") as HTMLInputElement)?.value,
-                  cuisines: (document.getElementById("restaurant-cuisines") as HTMLInputElement)?.value.split(", "),
-                  is_active: true,
-                }
-                handleAddOrUpdateRestaurant(formData)
-              }}
-            >
+            <Button onClick={handleAddOrUpdateRestaurant}>
               {selectedRestaurant ? "Update Restaurant" : "Add Restaurant"}
             </Button>
           </DialogFooter>

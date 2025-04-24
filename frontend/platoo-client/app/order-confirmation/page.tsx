@@ -1,5 +1,6 @@
 "use client";
 
+import { useCart } from "@/hooks/useCart";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,9 @@ export default function OrderConfirmationPage() {
   const [restaurantName, setRestaurantName] = useState<string>("");
   const [deliveryTime, setDeliveryTime] = useState<string>("");
   const [menuItemsMap, setMenuItemsMap] = useState<Record<string, string>>({});
+  // Use the useCart hook to get cart items and cart count
+  const { cartItems } = useCart(); // You can access cartItems, subtotal, etc.
+  const cartCount = cartItems.length; // Get the count of items in the cart
 
   const clearLocalStorage = () => {
     localStorage.removeItem("order_id");
@@ -162,7 +166,7 @@ export default function OrderConfirmationPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header cartCount={0} />
+      <Header cartCount={cartCount} />
       <main className="max-w-[1400px] mx-auto px-6 py-8">
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-8">
