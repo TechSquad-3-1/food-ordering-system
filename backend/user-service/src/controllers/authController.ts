@@ -220,3 +220,70 @@ export const getRestaurantOwnerByIdPublic = async (req: Request, res: Response):
     }
   }
 };
+
+
+
+// Update user (No protection, anyone can update)
+export const updateUserWithoutProtection = async (req: Request, res: Response): Promise<void> => {
+  const { name, email, phone, address, restaurantName, vehicleNumber } = req.body;
+  const userId = req.params.userId;
+
+  try {
+    // Check if the userId is valid
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      res.status(400).json({ msg: "Invalid userId format" });
+      return;
+    }
+
+    // Find the user by ObjectId
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ msg: "User not found" });
+      return;
+    }
+
+    // Only update the fields that are provided in the request body
+    user.name = name || user.name;
+    user.email = email || user.email;
+    user.phone = phone || user.phone;
+    user.address = address || user.address;
+    user.restaurantName = restaurantName || user.restaurantName;
+    user.vehicleNumber = vehicleNumber || user.vehicleNumber;
+
+    await user.save();  // Save the updated user information
+
+    res.status(200).json({ msg: "User updated successfully", user });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      res.status(500).json({ msg: "Error updating user", error: error.message });
+    } else {
+      res.status(500).json({ msg: "Unknown error occurred" });
+    }
+  }
+};
+
+// Delete user (No protection, anyone can delete themselves)
+export const deleteUserWithoutProtection = async (req: Request, res: Response): Promise<void> => {
+  const { userId } = req.params;
+
+  try {
+    // Find the user by ID to delete
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ msg: "User not found" });
+      return;
+    }
+
+    // Delete the user using deleteOne()
+    await user.deleteOne(); // Use `deleteOne()` instead of `remove()` in Mongoose v6
+
+    // Send response confirming deletion
+    res.status(200).json({ msg: "User deleted successfully" });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      res.status(500).json({ msg: "Error deleting user", error: error.message });
+    } else {
+      res.status(500).json({ msg: "Unknown error occurred" });
+    }
+  }
+};
