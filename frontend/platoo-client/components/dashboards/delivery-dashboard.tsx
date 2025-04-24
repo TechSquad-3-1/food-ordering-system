@@ -357,6 +357,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle } from "lucide-react";
 
+interface OrderItem {
+  menu_item_id: string;
+  quantity: number;
+  price: number;
+}
+
 interface Order {
   id: string;
   customer: {
@@ -364,9 +370,9 @@ interface Order {
     address: string;
   };
   total: number;
-  restaurantName: string;
   restaurant_id: string;
-  items: { name: string; quantity: number; price: string }[];
+  restaurantName: string;
+  items: OrderItem[];
 }
 
 export default function DeliveryDashboard() {
@@ -375,72 +381,68 @@ export default function DeliveryDashboard() {
   const [todayDeliveries, setTodayDeliveries] = useState(0);
   const [deliveryHistory, setDeliveryHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [menuItemMap, setMenuItemMap] = useState<Record<string, string>>({});
 
   const driverId =
     typeof window !== "undefined"
       ? localStorage.getItem("deliveryManId") || "driver-123"
       : "driver-123";
 
-  useEffect(() => {
-    const fetchActiveOrderWithDetails = async () => {
-      const stored = localStorage.getItem("activeOrder");
-      if (!stored) return;
-
-      const parsedOrder = JSON.parse(stored);
-
-      // Fetch item names
-      const itemsWithNames = await Promise.all(
-        parsedOrder.items.map(async (item: any) => {
-          try {
-            const res = await fetch(`http://localhost:3001/api/menu-items/${item.name}`);
-            const data = await res.json();
-            return {
-              name: data.name || "Unknown Item",
-              quantity: item.quantity,
-              price: item.price,
-            };
-          } catch {
-            return {
-              name: "Unknown Item",
-              quantity: item.quantity,
-              price: item.price,
-            };
-          }
-        })
-      );
-
-      // Fetch restaurant name
-      let restaurantName = "Unknown Restaurant";
-      try {
-        const res = await fetch(`http://localhost:3001/api/restaurants/${parsedOrder.restaurant_id}`);
-        const data = await res.json();
-        restaurantName = data.name || restaurantName;
-      } catch {}
-
-      setActiveOrder({
-        ...parsedOrder,
-        items: itemsWithNames,
-        restaurantName,
+  const fetchMenuItemMap = async () => {
+    try {
+      const res = await fetch("http://localhost:3001/api/menu-items");
+      const items = await res.json();
+      const map: Record<string, string> = {};
+      items.forEach((item: any) => {
+        map[item._id] = item.name;
       });
-    };
+      setMenuItemMap(map);
+    } catch (err) {
+      console.error("Failed to fetch menu items", err);
+    }
+  };
 
+  const fetchActiveOrderWithDetails = async () => {
+    const stored = localStorage.getItem("activeOrder");
+    if (!stored) return;
+
+    const parsedOrder = JSON.parse(stored);
+
+    let restaurantName = "Unknown Restaurant";
+    try {
+      const res = await fetch(
+        `http://localhost:3001/api/restaurants/${parsedOrder.restaurant_id}`
+      );
+      const data = await res.json();
+      restaurantName = data.name || restaurantName;
+    } catch {}
+
+    setActiveOrder({ ...parsedOrder, restaurantName });
+  };
+
+  const fetchHistory = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`http://localhost:3003/api/delivery/driver/${driverId}`);
+      const data = await res.json();
+      const done = data.filter((d: any) => d.deliveryStatus === "delivered");
+      const today = new Date().toISOString().split("T")[0];
+      const todayDone = done.filter((d: any) => d.deliveryTime.split("T")[0] === today);
+
+      setTotalDeliveries(done.length);
+      setTodayDeliveries(todayDone.length);
+      setDeliveryHistory(done);
+    } catch (err) {
+      console.error("Error fetching history", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMenuItemMap();
     fetchActiveOrderWithDetails();
-
-    // Fetch delivery history
-    fetch(`http://localhost:3003/api/delivery/driver/${driverId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        const done = data.filter((d: any) => d.deliveryStatus === "delivered");
-        const today = new Date().toISOString().split("T")[0];
-        const todayDone = done.filter(
-          (d: any) => d.deliveryTime.split("T")[0] === today
-        );
-
-        setTotalDeliveries(done.length);
-        setTodayDeliveries(todayDone.length);
-        setDeliveryHistory(done);
-      })
-      .finally(() => setIsLoading(false));
+    fetchHistory();
   }, [driverId]);
 
   const completeDelivery = async () => {
@@ -456,7 +458,8 @@ export default function DeliveryDashboard() {
       pickupTime: new Date(),
       deliveryTime: new Date(),
       assignedTo: driverId,
-      earnings: 5,
+      totalAmount: activeOrder.total,
+      earnings: 300,
     };
 
     try {
@@ -466,19 +469,17 @@ export default function DeliveryDashboard() {
         body: JSON.stringify(payload),
       });
 
-      await fetch(
-        `http://localhost:3008/api/orders/${activeOrder.id}/status`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "delivered" }),
-        }
-      );
+      await fetch(`http://localhost:3008/api/orders/${activeOrder.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "delivered" }),
+      });
 
       localStorage.removeItem("activeOrder");
       setActiveOrder(null);
       setTotalDeliveries((prev) => prev + 1);
       setTodayDeliveries((prev) => prev + 1);
+      fetchHistory(); // Refresh after delivery complete
     } catch (error) {
       console.error("Error completing delivery", error);
     }
@@ -486,15 +487,15 @@ export default function DeliveryDashboard() {
 
   const navItems = [
     { title: "Dashboard", href: "/dashboard", icon: "home" },
-    { title: "Deliveries", href: "/dashboard/deliveries", icon: "truck" },
+    //{ title: "Deliveries", href: "/dashboard/deliveries", icon: "truck" },
     {
       title: "Pending Deliveries",
       href: "/dashboard/delivery/pending-deliveries",
       icon: "truck",
     },
-    { title: "Earnings", href: "/dashboard/earnings", icon: "dollar-sign" },
-    { title: "Profile", href: "/dashboard/delivery/profile", icon: "user" },
-    { title: "Settings", href: "/dashboard/settings", icon: "settings" },
+    { title: "Earnings", href: "/dashboard/delivery/earnings", icon: "dollar-sign" },
+    { title: "Profile", href: "/dashboard/delivery", icon: "user" },
+    //{ title: "Settings", href: "/dashboard/settings", icon: "settings" },
   ];
 
   return (
@@ -505,7 +506,7 @@ export default function DeliveryDashboard() {
             <CardHeader>
               <CardTitle>Today's Earnings</CardTitle>
             </CardHeader>
-            <CardContent>${(todayDeliveries * 5).toFixed(2)}</CardContent>
+            <CardContent>LKR {(todayDeliveries * 300).toFixed(2)}</CardContent>
           </Card>
           <Card>
             <CardHeader>
@@ -542,7 +543,7 @@ export default function DeliveryDashboard() {
                     <ul className="list-disc list-inside">
                       {activeOrder.items.map((item, i) => (
                         <li key={i}>
-                          {item.quantity}x {item.name} - ${item.price}
+                          {item.quantity}x {menuItemMap[item.menu_item_id] || "Unknown Item"} - LKR {item.price}
                         </li>
                       ))}
                     </ul>
@@ -564,11 +565,12 @@ export default function DeliveryDashboard() {
             )}
           </TabsContent>
 
-          {/* Delivery History Tab */}
+          {/* Delivery History Tab with Refresh */}
           <TabsContent value="history">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row justify-between items-center">
                 <CardTitle>Delivery History</CardTitle>
+                <Button onClick={fetchHistory}>Refresh</Button>
               </CardHeader>
               <CardContent className="space-y-4">
                 {deliveryHistory.length === 0 ? (
@@ -587,17 +589,14 @@ export default function DeliveryDashboard() {
                       </div>
                       <div>
                         <strong>Status:</strong>{" "}
-                        <Badge className="bg-green-600">
-                          {delivery.deliveryStatus}
-                        </Badge>
+                        <Badge className="bg-green-600">{delivery.deliveryStatus}</Badge>
                       </div>
                       <div>
                         <strong>Delivered At:</strong>{" "}
                         {new Date(delivery.deliveryTime).toLocaleString()}
                       </div>
                       <div>
-                        <strong>Earnings:</strong> $
-                        {delivery.earnings.toFixed(2)}
+                        <strong>Earnings:</strong> LKR {delivery.earnings.toFixed(2)}
                       </div>
                     </div>
                   ))

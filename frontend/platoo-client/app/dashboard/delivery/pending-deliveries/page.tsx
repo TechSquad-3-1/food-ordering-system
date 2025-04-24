@@ -449,6 +449,7 @@
 
 
 
+// ✅ Optimized Pending Deliveries Page
 "use client";
 
 import { useEffect, useState } from "react";
@@ -461,11 +462,8 @@ import { Loader2 } from "lucide-react";
 
 interface Order {
   id: string;
-  customer: {
-    name: string;
-    address: string;
-  };
-  items: { name: string; quantity: number; price: string }[];
+  customer: { name: string; address: string };
+  items: { menu_item_id: string; quantity: number; price: number }[];
   total: string;
   status: string;
   time: string;
@@ -479,66 +477,59 @@ export default function PendingDeliveriesPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [menuItemMap, setMenuItemMap] = useState<Record<string, string>>({});
   const router = useRouter();
 
-  const driverId = typeof window !== "undefined"
-    ? localStorage.getItem("deliveryManId") || "driver-123"
-    : "driver-123";
+  const driverId =
+    typeof window !== "undefined" ? localStorage.getItem("deliveryManId") || "driver-123" : "driver-123";
+
+  const fetchMenuItems = async () => {
+    const res = await fetch("http://localhost:3001/api/menu-items");
+    const items = await res.json();
+    const map: Record<string, string> = {};
+    items.forEach((item: any) => (map[item._id] = item.name));
+    return map;
+  };
 
   const fetchOrders = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("http://localhost:3008/api/orders");
-      if (!res.ok) throw new Error("Failed to fetch orders");
-      const data = await res.json();
+      const [ordersRes, menuMap] = await Promise.all([
+        fetch("http://localhost:3008/api/orders"),
+        fetchMenuItems(),
+      ]);
 
-      const readyOrders = data.filter((order: any) => order.status === "ready");
+      const data = await ordersRes.json();
+      setMenuItemMap(menuMap);
 
-      const mappedOrders: Order[] = await Promise.all(
-        readyOrders.map(async (order: any) => {
-          const restaurantRes = await fetch(`http://localhost:3001/api/restaurants/${order.restaurant_id}`);
-          const restaurantData = await restaurantRes.json();
+      const readyOrders = data.filter((o: any) => o.status === "ready");
 
-          const itemsWithNames = await Promise.all(
-            order.items.map(async (item: any) => {
-              try {
-                const itemRes = await fetch(`http://localhost:3001/api/menu-items/${item.menu_item_id}`);
-                const itemData = await itemRes.json();
-                return {
-                  name: itemData.name || "Unknown Item",
-                  quantity: item.quantity,
-                  price: item.price.toFixed(2),
-                };
-              } catch {
-                return {
-                  name: "Unknown Item",
-                  quantity: item.quantity,
-                  price: item.price.toFixed(2),
-                };
-              }
-            })
-          );
+      const mapped = await Promise.all(
+        readyOrders.map(async (o: any) => {
+          const restRes = await fetch(`http://localhost:3001/api/restaurants/${o.restaurant_id}`);
+          const rest = await restRes.json();
 
           return {
-            id: order.order_id,
+            id: o.order_id,
             customer: {
-              name: order.email?.split("@")[0] || "Customer",
-              address: order.delivery_address || "N/A",
+              name: o.email?.split("@")[0] || "Customer",
+              address: o.delivery_address || "N/A",
             },
-            items: itemsWithNames,
-            total: order.total_amount.toFixed(2),
-            status: order.status,
-            time: new Date(order.createdAt).toLocaleString(),
+            items: o.items,
+            total: o.total_amount.toFixed(2),
+            status: o.status,
+            time: new Date(o.createdAt).toLocaleString(),
             payment: "Online",
             delivery: "Delivery",
-            restaurant_id: order.restaurant_id,
-            restaurantName: restaurantData.name || "Unknown Restaurant",
+            restaurant_id: o.restaurant_id,
+            restaurantName: rest.name || "Unknown Restaurant",
           };
         })
       );
 
-      setOrders(mappedOrders);
+      setOrders(mapped);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -555,26 +546,31 @@ export default function PendingDeliveriesPage() {
     router.push("/dashboard");
   };
 
+  const toggleRow = (id: string) => setExpandedRow((prev) => (prev === id ? null : id));
+
   const navItems = [
     { title: "Dashboard", href: "/dashboard", icon: "home" },
-    { title: "Deliveries", href: "/dashboard/deliveries", icon: "truck" },
+    //{ title: "Deliveries", href: "/dashboard/deliveries", icon: "truck" },
     { title: "Pending Deliveries", href: "/dashboard/delivery/pending-deliveries", icon: "truck" },
-    { title: "Earnings", href: "/dashboard/earnings", icon: "dollar-sign" },
-    { title: "Profile", href: "/dashboard/delivery/profile", icon: "user" },
-    { title: "Settings", href: "/dashboard/settings", icon: "settings" },
+    { title: "Earnings", href: "/dashboard/delivery/earnings", icon: "dollar-sign" },
+    { title: "Profile", href: "/dashboard/delivery", icon: "user" },
+    //{ title: "Settings", href: "/dashboard/settings", icon: "settings" },
   ];
 
   return (
     <DashboardLayout navItems={navItems}>
       <div className="p-6">
-        <h1 className="text-3xl font-bold mb-6">Pending Deliveries</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Pending Deliveries</h1>
+          <Button variant="default" onClick={fetchOrders}>
+            Refresh
+          </Button>
+        </div>
+
         {loading ? (
-          <div className="flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-orange-600" />
-            <span className="ml-2">Loading...</span>
-          </div>
+          <div className="flex justify-center"><Loader2 className="animate-spin" /></div>
         ) : error ? (
-          <div className="text-red-600 text-center">{error}</div>
+          <div className="text-red-500 text-center">{error}</div>
         ) : (
           <Card>
             <CardHeader><CardTitle>Ready Orders</CardTitle></CardHeader>
@@ -591,17 +587,35 @@ export default function PendingDeliveriesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {orders.map(order => (
-                    <TableRow key={order.id}>
-                      <TableCell>{order.id}</TableCell>
-                      <TableCell>{order.customer.name}</TableCell>
-                      <TableCell>{order.restaurantName}</TableCell>
-                      <TableCell>${order.total}</TableCell>
-                      <TableCell>{order.time}</TableCell>
-                      <TableCell className="text-right">
-                        <Button onClick={() => handleAcceptDelivery(order)}>Accept</Button>
-                      </TableCell>
-                    </TableRow>
+                  {orders.map((order) => (
+                    <>
+                      <TableRow key={order.id}>
+                        <TableCell>{order.id}</TableCell>
+                        <TableCell>{order.customer.name}</TableCell>
+                        <TableCell>{order.restaurantName}</TableCell>
+                        <TableCell>LKR {order.total}</TableCell>
+                        <TableCell>{order.time}</TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button variant="outline" onClick={() => toggleRow(order.id)}>
+                            {expandedRow === order.id ? "Hide Items" : "View Items"}
+                          </Button>
+                          <Button onClick={() => handleAcceptDelivery(order)}>Accept</Button>
+                        </TableCell>
+                      </TableRow>
+                      {expandedRow === order.id && (
+                        <TableRow key={`${order.id}-items`}>
+                          <TableCell colSpan={6}>
+                            <ul className="list-disc list-inside">
+                              {order.items.map((item, idx) => (
+                                <li key={idx}>
+                                  {item.quantity}x {menuItemMap[item.menu_item_id] || "Unknown Item"} – LKR {item.price.toFixed(2)}
+                                </li>
+                              ))}
+                            </ul>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </>
                   ))}
                 </TableBody>
               </Table>

@@ -52,11 +52,11 @@ export default function EarningsPage() {
 
   const navItems = [
     { title: "Dashboard", href: "/dashboard", icon: "home" },
-    { title: "Deliveries", href: "/dashboard/deliveries", icon: "truck" },
+    //{ title: "Deliveries", href: "/dashboard/deliveries", icon: "truck" },
     { title: "Pending Deliveries", href: "/dashboard/delivery/pending-deliveries", icon: "truck" },
     { title: "Earnings", href: "/dashboard/delivery/earnings", icon: "dollar-sign" },
-    { title: "Profile", href: "/dashboard/delivery/profile", icon: "user" },
-    { title: "Settings", href: "/dashboard/settings", icon: "settings" },
+    { title: "Profile", href: "/dashboard/delivery", icon: "user" },
+    //{ title: "Settings", href: "/dashboard/settings", icon: "settings" },
   ];
 
   return (
