@@ -382,16 +382,17 @@ export default function DeliveryDashboard() {
       : "driver-123";
 
   useEffect(() => {
-    const fetchActiveOrderWithItemNames = async () => {
+    const fetchActiveOrderWithDetails = async () => {
       const stored = localStorage.getItem("activeOrder");
       if (!stored) return;
 
       const parsedOrder = JSON.parse(stored);
+
+      // Fetch item names
       const itemsWithNames = await Promise.all(
         parsedOrder.items.map(async (item: any) => {
           try {
             const res = await fetch(`http://localhost:3001/api/menu-items/${item.name}`);
-            if (!res.ok) throw new Error("Failed to fetch item");
             const data = await res.json();
             return {
               name: data.name || "Unknown Item",
@@ -408,14 +409,24 @@ export default function DeliveryDashboard() {
         })
       );
 
+      // Fetch restaurant name
+      let restaurantName = "Unknown Restaurant";
+      try {
+        const res = await fetch(`http://localhost:3001/api/restaurants/${parsedOrder.restaurant_id}`);
+        const data = await res.json();
+        restaurantName = data.name || restaurantName;
+      } catch {}
+
       setActiveOrder({
         ...parsedOrder,
         items: itemsWithNames,
+        restaurantName,
       });
     };
 
-    fetchActiveOrderWithItemNames();
+    fetchActiveOrderWithDetails();
 
+    // Fetch delivery history
     fetch(`http://localhost:3003/api/delivery/driver/${driverId}`)
       .then((res) => res.json())
       .then((data) => {

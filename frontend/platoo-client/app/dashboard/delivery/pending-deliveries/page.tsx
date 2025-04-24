@@ -457,9 +457,7 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
 
 interface Order {
   id: string;
@@ -474,14 +472,13 @@ interface Order {
   payment: string;
   delivery: string;
   restaurant_id: string;
+  restaurantName: string;
 }
 
 export default function PendingDeliveriesPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const router = useRouter();
 
   const driverId = typeof window !== "undefined"
@@ -500,11 +497,13 @@ export default function PendingDeliveriesPage() {
 
       const mappedOrders: Order[] = await Promise.all(
         readyOrders.map(async (order: any) => {
+          const restaurantRes = await fetch(`http://localhost:3001/api/restaurants/${order.restaurant_id}`);
+          const restaurantData = await restaurantRes.json();
+
           const itemsWithNames = await Promise.all(
             order.items.map(async (item: any) => {
               try {
                 const itemRes = await fetch(`http://localhost:3001/api/menu-items/${item.menu_item_id}`);
-                if (!itemRes.ok) throw new Error("Menu item fetch failed");
                 const itemData = await itemRes.json();
                 return {
                   name: itemData.name || "Unknown Item",
@@ -534,6 +533,7 @@ export default function PendingDeliveriesPage() {
             payment: "Online",
             delivery: "Delivery",
             restaurant_id: order.restaurant_id,
+            restaurantName: restaurantData.name || "Unknown Restaurant",
           };
         })
       );
@@ -550,31 +550,8 @@ export default function PendingDeliveriesPage() {
     fetchOrders();
   }, []);
 
-  useEffect(() => {
-    const timeoutId = setTimeout(() => setDebouncedSearchQuery(searchQuery), 400);
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
-
-  const filteredOrders = orders.filter((order) => {
-    const query = debouncedSearchQuery.toLowerCase();
-    return (
-      !debouncedSearchQuery ||
-      order.id.toLowerCase().includes(query) ||
-      order.customer.name.toLowerCase().includes(query) ||
-      order.total.toLowerCase().includes(query)
-    );
-  });
-
   const handleAcceptDelivery = (order: Order) => {
-    const orderData = {
-      id: order.id,
-      customer: order.customer,
-      items: order.items,
-      total: order.total,
-      restaurant_id: order.restaurant_id,
-      restaurantName: "Restaurant XYZ", // Replace with actual name if needed
-    };
-    localStorage.setItem("activeOrder", JSON.stringify(orderData));
+    localStorage.setItem("activeOrder", JSON.stringify(order));
     router.push("/dashboard");
   };
 
@@ -607,16 +584,18 @@ export default function PendingDeliveriesPage() {
                   <TableRow>
                     <TableHead>Order ID</TableHead>
                     <TableHead>Customer</TableHead>
+                    <TableHead>Restaurant</TableHead>
                     <TableHead>Total</TableHead>
                     <TableHead>Time</TableHead>
                     <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredOrders.map(order => (
+                  {orders.map(order => (
                     <TableRow key={order.id}>
                       <TableCell>{order.id}</TableCell>
                       <TableCell>{order.customer.name}</TableCell>
+                      <TableCell>{order.restaurantName}</TableCell>
                       <TableCell>${order.total}</TableCell>
                       <TableCell>{order.time}</TableCell>
                       <TableCell className="text-right">
