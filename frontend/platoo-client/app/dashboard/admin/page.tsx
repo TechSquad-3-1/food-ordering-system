@@ -108,6 +108,12 @@ export default function AdminDashboardPage() {
     address: "",
     restaurantName: "",
   })
+
+  // Password change states
+  const [showPassword, setShowPassword] = useState(false)
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [passwordError, setPasswordError] = useState("")
   const [password, setPassword] = useState("")
 
   useEffect(() => {
@@ -218,12 +224,8 @@ export default function AdminDashboardPage() {
       try {
         const token = localStorage.getItem("token");
         if (!token) throw new Error("No authentication token found");
-  
-        // Decode JWT to get user ID
         const decodedToken = JSON.parse(atob(token.split('.')[1]));
         const userId = decodedToken.id;
-  
-        // Fetch admin details from your endpoint
         const response = await fetch(`http://localhost:4000/api/auth/user/${userId}`, {
           method: "GET",
           headers: {
@@ -231,17 +233,11 @@ export default function AdminDashboardPage() {
             "Content-Type": "application/json"
           }
         });
-  
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        
         const userData = await response.json();
-  
-        // Verify user role is admin
         if (userData.role !== 'admin') {
           throw new Error("User is not an admin");
         }
-  
-        // Update form state with fetched admin data
         setOwner({
           name: userData.name || "",
           email: userData.email || "",
@@ -249,52 +245,80 @@ export default function AdminDashboardPage() {
           address: userData.address || "",
           restaurantName: userData.restaurantName || ""
         });
-  
       } catch (error) {
         console.error("Error fetching admin profile:", error);
-        // Handle error (e.g., show toast notification)
       } finally {
         setIsAdminProfileLoading(false);
       }
     };
-  
     fetchAdminProfile();
-  }, []); // Empty dependency array = runs once on mount
+  }, []);
+
   
   const handleSaveOwner = async () => {
+    // Password validation
+    if (newPassword || confirmPassword) {
+      if (newPassword.length < 6) {
+        setPasswordError("Password must be at least 6 characters.");
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setPasswordError("Passwords do not match.");
+        return;
+      }
+    }
+    setPasswordError("");
+  
     try {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("No authentication token found");
-  
-      // Get userId from JWT
       const decodedToken = JSON.parse(atob(token.split('.')[1]));
       const userId = decodedToken.id;
   
-      // Use the correct endpoint for updating user
+      // Build payload for update
+      const payload: any = {
+        name: owner.name,
+        email: owner.email,
+        phone: owner.phone,
+        address: owner.address,
+        restaurantName: owner.restaurantName,
+      };
+      if (newPassword) {
+        payload.password = newPassword;
+      }
+  
       const response = await fetch(`http://localhost:4000/api/auth/update/${userId}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          name: owner.name,
-          email: owner.email,
-          phone: owner.phone,
-          address: owner.address,
-          restaurantName: owner.restaurantName,
-          password // for verification if required
-        })
+        body: JSON.stringify(payload)
       });
   
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Update failed");
   
       setIsEditing(false);
-      setPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
       toast.success("Profile updated successfully");
   
-      // Update owner state with the latest data (from backend or local)
+      // If password was changed, log out and require re-login
+      if (newPassword) {
+        localStorage.removeItem("token");
+        toast.success("Password changed. Please log in again.");
+        window.location.href = "/login";
+        return;
+      }
+  
+      // Update localStorage with new user data (if you store user info)
+      // For example, if you store user profile in localStorage:
+      localStorage.setItem("user", JSON.stringify({
+        ...data,
+        id: userId
+      }));
+  
       setOwner({
         name: data.name ?? owner.name,
         email: data.email ?? owner.email,
@@ -302,16 +326,13 @@ export default function AdminDashboardPage() {
         address: data.address ?? owner.address,
         restaurantName: data.restaurantName ?? owner.restaurantName
       });
-  
     } catch (error) {
       console.error("Update error:", error);
       toast.error(error instanceof Error ? error.message : "Failed to update profile");
     }
   };
   
-  
-     // Add this state for password visibility
-const [showPassword, setShowPassword] = useState(false);
+
   
   
 
@@ -488,42 +509,54 @@ const [showPassword, setShowPassword] = useState(false);
                     />
                   </div>
                   {isEditing && (
-  <div className="space-y-2">
-    <Label htmlFor="owner-password">Confirm Password</Label>
-    <div style={{ position: "relative" }}>
-      <Input
-        id="owner-password"
-        type={showPassword ? "text" : "password"}
-        value={password}
-        onChange={e => setPassword(e.target.value)}
-        placeholder="Enter password to confirm changes"
-      />
-      <button
-        type="button"
-        onClick={() => setShowPassword(prev => !prev)}
-        style={{
-          position: "absolute",
-          right: 10,
-          top: "50%",
-          transform: "translateY(-50%)",
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          padding: 0,
-          display: "flex",
-          alignItems: "center"
-        }}
-        tabIndex={-1}
-        aria-label={showPassword ? "Hide password" : "Show password"}
-      >
-        {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
-      </button>
-    </div>
-  </div>
-)}
-
-
-
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="new-password">New Password</Label>
+                        <div style={{ position: "relative" }}>
+                          <Input
+                            id="new-password"
+                            type={showPassword ? "text" : "password"}
+                            value={newPassword}
+                            onChange={e => setNewPassword(e.target.value)}
+                            placeholder="Enter new password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(prev => !prev)}
+                            style={{
+                              position: "absolute",
+                              right: 10,
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              padding: 0,
+                              display: "flex",
+                              alignItems: "center"
+                            }}
+                            tabIndex={-1}
+                            aria-label={showPassword ? "Hide password" : "Show password"}
+                          >
+                            {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirm-password">Confirm New Password</Label>
+                        <Input
+                          id="confirm-password"
+                          type={showPassword ? "text" : "password"}
+                          value={confirmPassword}
+                          onChange={e => setConfirmPassword(e.target.value)}
+                          placeholder="Confirm new password"
+                        />
+                      </div>
+                      {passwordError && (
+                        <div className="text-red-500 text-sm">{passwordError}</div>
+                      )}
+                    </>
+                  )}
                 </>
               )}
             </CardContent>
