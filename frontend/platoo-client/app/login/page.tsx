@@ -73,6 +73,9 @@ export default function LoginPage() {
         }
       }
   
+      // Set token in localStorage
+      localStorage.setItem("jwtToken", token);
+  
       // Set token in context
       setUser({ token });
   
@@ -93,6 +96,7 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+  
   
 
   const decodeToken = (token: string) => {

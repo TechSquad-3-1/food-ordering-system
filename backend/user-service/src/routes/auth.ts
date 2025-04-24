@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import { AuthRequest } from "../middleware/authMiddleware"; // Import AuthRequest
 import { UserRole } from "../models/User"; // Ensure UserRole is correctly imported
-import { register, login, updateUser, deleteUser, getAllUsers, getUserById, getRestaurantOwnerByIdPublic, deleteUserWithoutProtection, updateUserWithoutProtection } from "../controllers/authController";
+import { register, login, updateUser, deleteUser, getAllUsers, getUserById, getRestaurantOwnerByIdPublic } from "../controllers/authController";
 import { protect } from "../middleware/authMiddleware";
 
 const router = Router();
@@ -55,15 +55,6 @@ router.get("/user/:userId", async (req: AuthRequest, res: Response) => {
 router.get("/restaurant-owner/:userId", getRestaurantOwnerByIdPublic);
 
 
-// Update user without protection (Anyone can update any user)
-router.put("/update-user/:userId", async (req: AuthRequest, res: Response) => {
-  await updateUserWithoutProtection(req, res); // Call the update function directly
-});
-
-// Delete user without protection (Anyone can delete themselves)
-router.delete("/delete-user/:userId", async (req: AuthRequest, res: Response) => {
-  await deleteUserWithoutProtection(req, res); // Call the delete function directly
-});
 
 
 export default router;
