@@ -348,55 +348,64 @@ export default function ReportsPage() {
             </Card>
             {/* Orders Chart */}
             <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Order Trends</CardTitle>
-                  <CardDescription>Monthly orders for the current year</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={ordersData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Line type="monotone" dataKey="orders" stroke="#3b82f6" activeDot={{ r: 8 }} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Order Status Distribution</CardTitle>
-                  <CardDescription>Current order status breakdown</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={orderStatusData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          outerRadius={100}
-                          fill="#8884d8"
-                          dataKey="value"
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        >
-                          {orderStatusData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={(value: any) => [`${value}`, "Orders"]} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
+            <Card>
+  <CardHeader>
+    <CardTitle>Order Status Distribution</CardTitle>
+    <CardDescription>Current order status breakdown</CardDescription>
+  </CardHeader>
+  <CardContent>
+    <div className="h-[300px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={orderStatusData}
+            cx="50%"
+            cy="50%"
+            labelLine={false}
+            outerRadius={100}
+            fill="#8884d8"
+            dataKey="value"
+            label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+          >
+            {orderStatusData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip
+            formatter={(value, name, props) => [
+              value,
+              props.payload?.name || "Orders"
+            ]}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+    {/* Legend: status color, name, and percentage */}
+    <div className="flex flex-wrap gap-4 mt-6 justify-center">
+      {orderStatusData.map((entry, index) => {
+        const total = orderStatusData.reduce((sum, e) => sum + e.value, 0)
+        const percent = total > 0 ? ((entry.value / total) * 100).toFixed(1) : 0
+        return (
+          <div key={entry.name} className="flex items-center gap-2">
+            <span
+              style={{
+                display: 'inline-block',
+                width: 16,
+                height: 16,
+                backgroundColor: COLORS[index % COLORS.length],
+                borderRadius: '50%',
+              }}
+            />
+            <span className="text-sm">{entry.name}</span>
+            <span className="text-xs text-muted-foreground">({percent}%)</span>
+          </div>
+        )
+      })}
+    </div>
+  </CardContent>
+</Card>
+
+
             </div>
             {/* Top Restaurants */}
             <Card>
