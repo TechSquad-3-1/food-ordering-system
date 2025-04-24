@@ -42,14 +42,14 @@ router.delete(
   }
 );
 
-// Get all users (Admin only)
-router.get("/users", protect([UserRole.ADMIN]), async (req: AuthRequest, res: Response) => {
-  await getAllUsers(req, res);
+// Get all users - No role protection now
+router.get("/users", async (req: AuthRequest, res: Response) => {
+  await getAllUsers(req, res); // Get all users without role protection
 });
 
-// Get user by ID (Admins can get any, others can only get their own)
-router.get("/user/:userId", protect([UserRole.ADMIN, UserRole.RESTAURANT_OWNER, UserRole.USER, UserRole.DELIVERY_MAN]), async (req: AuthRequest, res: Response) => {
-  await getUserById(req, res);
+// Get user by ID - No role protection now
+router.get("/user/:userId", async (req: AuthRequest, res: Response) => {
+  await getUserById(req, res); // Get user by ID without role protection
 });
 
 router.get("/restaurant-owner/:userId", getRestaurantOwnerByIdPublic);

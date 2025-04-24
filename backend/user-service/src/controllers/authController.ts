@@ -161,22 +161,9 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
-// Get user by ID (Admins can get any, others can only get their own)
-export const getUserById = async (req: AuthRequest, res: Response): Promise<void> => {
+
+export const getUserById = async (req: Request, res: Response): Promise<void> => {
   const userId = req.params.userId; // Get userId from the route parameter
-  const currentUser = req.user; // This comes from the middleware (protect)
-
-  if (!currentUser) {
-    res.status(401).json({ msg: "Unauthorized: No user found" });
-    return;
-  }
-
-  // Admins can view any profile
-  // Non-admins (users, delivery men) can only view their own profile
-  if (currentUser.role !== UserRole.ADMIN && currentUser.id !== userId) {
-    res.status(403).json({ msg: "Forbidden: You can only view your own profile" });
-    return;
-  }
 
   try {
     // Check if the userId is valid
@@ -203,6 +190,7 @@ export const getUserById = async (req: AuthRequest, res: Response): Promise<void
     }
   }
 };
+
 
 
 
