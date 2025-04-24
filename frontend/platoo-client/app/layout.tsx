@@ -1,11 +1,9 @@
-import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from "@/components/theme-provider"
-import { UserProvider } from "@/hooks/useUserContext" // Import UserProvider
+import { UserProvider } from "@/hooks/useUserContext"
 import "./globals.css"
-import { useEffect, useState } from "react"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -21,10 +19,9 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="light" style={{ colorScheme: "light" }}>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="light">
-          {/* Wrap the entire application with UserProvider */}
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <UserProvider>{children}</UserProvider>
           <Toaster />
         </ThemeProvider>
