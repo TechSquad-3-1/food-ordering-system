@@ -82,12 +82,6 @@ const Header = ({ cartCount }: { cartCount: number }) => {
                     Order History
                   </Link>
                 </DropdownMenuItem>
-                
-                <DropdownMenuItem>
-                  <Link href="/settings" className="block text-sm text-gray-700 hover:bg-gray-100 px-4 py-2 rounded">
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
