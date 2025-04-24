@@ -12,10 +12,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { MapPin, AlertCircle, Plus, Minus } from "lucide-react";
+import { MapPin, AlertCircle, Plus, Minus, Sparkles } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useCart } from "@/hooks/useCart";
+
 
 interface MenuItem {
   _id: string;
@@ -220,20 +221,60 @@ export default function CheckoutPage() {
         <div className="flex flex-col lg:flex-row gap-8">
           <div className="w-full lg:w-2/3 space-y-6">
             <Card>
-              <CardHeader>
-                <div className="flex items-center">
-                  <MapPin className="h-5 w-5 mr-2 text-red-500" />
+            <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center">
+                <MapPin className="h-5 w-5 mr-2 text-red-500" />
+                <div>
                   <CardTitle>Order Details</CardTitle>
+                  <CardDescription>Provide your delivery address, phone, and email</CardDescription>
                 </div>
-                <CardDescription>Provide your delivery address, phone, and email</CardDescription>
-              </CardHeader>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="text-sm flex items-center gap-2 px-3 py-1 rounded-md"
+                onClick={() => {
+                  const userData = localStorage.getItem("user");
+                  if (userData) {
+                    const user = JSON.parse(userData);
+                    if (user.address) setDeliveryAddress(user.address);
+                    if (user.phone) setPhone(user.phone);
+                    if (user.email) setEmail(user.email);
+                  }
+                }}
+              >
+                <Sparkles className="w-4 h-4 text-red-500" />
+                Auto fill
+              </Button>
+            </CardHeader>
+
               <CardContent>
                 <div className="space-y-4">
-                  <input type="text" placeholder="Enter delivery address" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                  <input type="text" placeholder="Enter your phone number" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                  <input type="email" placeholder="Enter your email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input
+                    type="text"
+                    placeholder="Enter delivery address"
+                    value={deliveryAddress}
+                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Enter your phone number"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                  <input
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
                 </div>
               </CardContent>
+
             </Card>
             <Card>
               <CardFooter className="flex-col space-y-4">
