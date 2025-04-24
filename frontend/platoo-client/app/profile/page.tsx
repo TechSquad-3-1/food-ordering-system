@@ -309,16 +309,33 @@ export default function ProfilePage() {
                 </div>
 
                 <nav className="space-y-1">
-                  <Link href="/profile" className="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-red-50 text-red-500">
+                  <Link
+                    href="/profile"
+                    className="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-red-50 text-red-500"
+                  >
                     <User className="mr-3 h-5 w-5" />
                     Personal Information
                   </Link>
-                  <Link href="/orders/history" className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50 hover:text-gray-900">
+
+                  <Link
+                    href="/orders/history"
+                    className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                  >
                     <Clock className="mr-3 h-5 w-5" />
                     Order History
                   </Link>
+
+                  <Link
+                    href="/cart"
+                    className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                  >
+                    <ShoppingCart className="mr-3 h-5 w-5" />
+                    My Cart
+                  </Link>
+
                   <Separator className="my-2" />
-                  <button 
+
+                  <button
                     onClick={handleSignOut}
                     className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-red-500 hover:bg-red-50"
                   >
