@@ -31,6 +31,16 @@ export default function RegisterPage() {
     restaurantName: "",
     vehicleNumber: "",
   })
+  const [formErrors, setFormErrors] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    phone: "",
+    address: "",
+    restaurantName: "",
+    vehicleNumber: "",
+  })
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
@@ -38,33 +48,94 @@ export default function RegisterPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+    setFormErrors({ ...formErrors, [name]: "" }) // Clear errors on input change
   }
 
   const handleRoleChange = (value: string) => {
     setFormData((prev) => ({ ...prev, role: value as UserRole }))
+    setFormErrors({
+      ...formErrors,
+      restaurantName: "",
+      vehicleNumber: "",
+    }) // Clear specific errors when role changes
+  }
+
+  // Frontend validation function
+  const validateForm = () => {
+    let errors = { name: "", email: "", password: "", confirmPassword: "", phone: "", address: "", restaurantName: "", vehicleNumber: "" }
+    let isValid = true
+
+    // Name validation
+    if (!formData.name) {
+      errors.name = "Full Name is required"
+      isValid = false
+    }
+
+    // Email validation
+    if (!formData.email) {
+      errors.email = "Email is required"
+      isValid = false
+    } else if (!/^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(formData.email)) {
+      errors.email = "Please enter a valid Gmail address"
+      isValid = false
+    }
+
+    // Phone number validation (only for USER role)
+    if (formData.role === UserRole.USER && !formData.phone) {
+      errors.phone = "Phone number is required"
+      isValid = false
+    } else if (formData.phone && !/^\d{10}$/.test(formData.phone)) {
+      errors.phone = "Phone number should be exactly 10 digits"
+      isValid = false
+    }
+
+    // Password validation
+    if (!formData.password) {
+      errors.password = "Password is required"
+      isValid = false
+    } else if (formData.password.length < 8) {
+      errors.password = "Password should be at least 8 characters"
+      isValid = false
+    }
+
+    // Confirm password validation
+    if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = "Passwords do not match"
+      isValid = false
+    }
+
+    // Address validation (required for all roles)
+    if (!formData.address) {
+      errors.address = "Address is required"
+      isValid = false
+    }
+
+    // Role-based validation
+    if (formData.role === UserRole.RESTAURANT_OWNER && !formData.restaurantName) {
+      errors.restaurantName = "Restaurant Name is required"
+      isValid = false
+    }
+
+    if (formData.role === UserRole.DELIVERY_MAN && !formData.vehicleNumber) {
+      errors.vehicleNumber = "Vehicle Number is required"
+      isValid = false
+    }
+
+    setFormErrors(errors)
+    return isValid
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Basic validation: Ensure passwords match
-    if (formData.password !== formData.confirmPassword) {
-      console.log("Password mismatch: ", formData.password, formData.confirmPassword); // Debugging log
-      toast({
-        title: "Passwords don't match",
-        description: "Please make sure your passwords match.",
-        variant: "destructive",
-      })
+    if (!validateForm()) {
       return
     }
 
     setIsLoading(true)
 
     try {
-      // Remove confirmPassword as it's not needed in the API
-      const { confirmPassword, ...dataToSend } = formData
-
-      console.log("Sending data to backend:", dataToSend) // Log data for debugging
+      const { confirmPassword, ...dataToSend } = formData // Remove confirmPassword from request data
 
       const response = await fetch("http://localhost:4000/api/auth/register", {
         method: "POST",
@@ -85,7 +156,6 @@ export default function RegisterPage() {
         description: "Your account has been created successfully.",
       })
 
-      // Redirect to login page
       router.push("/login")
     } catch (error) {
       toast({
@@ -128,6 +198,7 @@ export default function RegisterPage() {
                 required
                 className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
+              {formErrors.name && <p className="text-red-500 text-sm">{formErrors.name}</p>}
             </div>
 
             <div className="space-y-2">
@@ -142,6 +213,7 @@ export default function RegisterPage() {
                 required
                 className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
+              {formErrors.email && <p className="text-red-500 text-sm">{formErrors.email}</p>}
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -156,6 +228,7 @@ export default function RegisterPage() {
                   required
                   className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
                 />
+                {formErrors.password && <p className="text-red-500 text-sm">{formErrors.password}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword" className="text-white">Confirm Password</Label>
@@ -168,6 +241,7 @@ export default function RegisterPage() {
                   required
                   className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
                 />
+                {formErrors.confirmPassword && <p className="text-red-500 text-sm">{formErrors.confirmPassword}</p>}
               </div>
             </div>
 
@@ -210,6 +284,7 @@ export default function RegisterPage() {
                 required
                 className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
+              {formErrors.phone && <p className="text-red-500 text-sm">{formErrors.phone}</p>}
             </div>
 
             <div className="space-y-2">
@@ -223,6 +298,7 @@ export default function RegisterPage() {
                 required
                 className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
               />
+              {formErrors.address && <p className="text-red-500 text-sm">{formErrors.address}</p>}
             </div>
 
             {formData.role === UserRole.RESTAURANT_OWNER && (
@@ -237,6 +313,7 @@ export default function RegisterPage() {
                   required
                   className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
                 />
+                {formErrors.restaurantName && <p className="text-red-500 text-sm">{formErrors.restaurantName}</p>}
               </div>
             )}
 
@@ -252,6 +329,7 @@ export default function RegisterPage() {
                   required
                   className="bg-white/30 border-white/30 text-white placeholder:text-white/60 focus:border-orange-400 focus:ring-orange-400"
                 />
+                {formErrors.vehicleNumber && <p className="text-red-500 text-sm">{formErrors.vehicleNumber}</p>}
               </div>
             )}
 
