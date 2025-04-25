@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, SetStateAction } from "react"
+import { useState, useEffect } from "react"
 import {
   Card,
   CardContent,
@@ -12,29 +12,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import {
-  MapPin,
-  Phone,
-  Mail,
-  Globe,
-  Camera,
-  Save,
-} from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface OwnerInfo {
@@ -62,7 +44,8 @@ const RESTAURANT_SCHEMA = {
     tag: ""
   },
   open_time: "",
-  closed_time: ""
+  closed_time: "",
+  owner_id: ""
 }
 
 export default function RestaurantSettings() {
@@ -141,17 +124,76 @@ export default function RestaurantSettings() {
     }
   }
 
+  // Delete owner handler
+  const handleDeleteOwner = async () => {
+    const storedId = localStorage.getItem("restaurantOwnerId")
+    if (!storedId) {
+      alert("Owner ID not found in localStorage.")
+      return
+    }
+    const confirmDelete = window.confirm(
+      "Are you sure you want to permanently delete your account? This action cannot be undone."
+    )
+    if (!confirmDelete) return
+
+    try {
+      const response = await fetch(
+        `http://localhost:4000/api/auth/restaurant-owner/${storedId}`,
+        {
+          method: "DELETE",
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error("Failed to delete account")
+      }
+
+      // Clear local storage and redirect
+      localStorage.removeItem("restaurantOwnerId")
+      localStorage.removeItem("owner")
+      localStorage.removeItem("restaurantId")
+      window.location.href = "/login"
+    } catch (error) {
+      console.error("Error deleting owner account:", error)
+      alert("Error deleting account. Please try again.")
+    }
+  }
+
   // Restaurant state and logic
   const [restaurants, setRestaurants] = useState<any[]>([])
+  const [filteredRestaurants, setFilteredRestaurants] = useState<any[]>([])
+  const [restaurantForm, setRestaurantForm] = useState<any>(RESTAURANT_SCHEMA)
   const [isAddRestaurantOpen, setIsAddRestaurantOpen] = useState(false)
   const [selectedRestaurant, setSelectedRestaurant] = useState<any>(null)
-  const [restaurantForm, setRestaurantForm] = useState<any>(RESTAURANT_SCHEMA)
+  const [isRestaurantLoading, setIsRestaurantLoading] = useState(true)
 
   useEffect(() => {
     fetchRestaurants()
   }, [])
 
+  useEffect(() => {
+    if (ownerId) {
+      setFilteredRestaurants(
+        restaurants.filter((r) => r.owner_id === ownerId)
+      )
+    }
+  }, [restaurants, ownerId])
+
+  // Automatically open edit dialog for first restaurant if not already open
+  useEffect(() => {
+    if (
+      filteredRestaurants.length > 0 &&
+      !isAddRestaurantOpen &&
+      !selectedRestaurant
+    ) {
+      setSelectedRestaurant(filteredRestaurants[0])
+      setRestaurantForm({ ...filteredRestaurants[0] })
+      setIsAddRestaurantOpen(true)
+    }
+  }, [filteredRestaurants])
+
   const fetchRestaurants = async () => {
+    setIsRestaurantLoading(true)
     try {
       const response = await fetch("http://localhost:3001/api/restaurants")
       const data = await response.json()
@@ -159,64 +201,61 @@ export default function RestaurantSettings() {
     } catch (error) {
       console.error("Error fetching restaurants:", error)
     }
+    setIsRestaurantLoading(false)
   }
 
-  // Handle add or update restaurant
+  const openAddEditDialog = (restaurant?: any) => {
+    setSelectedRestaurant(restaurant || null)
+    setRestaurantForm(restaurant ? { ...restaurant } : RESTAURANT_SCHEMA)
+    setIsAddRestaurantOpen(true)
+  }
+
   const handleAddOrUpdateRestaurant = async () => {
     try {
-      const method = selectedRestaurant ? "PUT" : "POST"
       const url = selectedRestaurant
         ? `http://localhost:3001/api/restaurants/${selectedRestaurant._id}`
         : "http://localhost:3001/api/restaurants"
 
+      const method = selectedRestaurant ? "PUT" : "POST"
+      const restaurantData = {
+        ...restaurantForm,
+        owner_id: ownerId,
+      }
+
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(restaurantForm),
+        body: JSON.stringify(restaurantData),
       })
 
       if (response.ok) {
-        setIsAddRestaurantOpen(false)
-        setRestaurantForm(RESTAURANT_SCHEMA)
-        setSelectedRestaurant(null)
+        alert(`Restaurant ${selectedRestaurant ? "updated" : "added"} successfully!`)
         fetchRestaurants()
-      } else {
-        console.error("Failed to save restaurant")
+        setIsAddRestaurantOpen(false)
+        setSelectedRestaurant(null)
       }
     } catch (error) {
       console.error("Error saving restaurant:", error)
     }
   }
 
-  // Handle delete restaurant
   const handleDeleteRestaurant = async (id: string) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this restaurant?")
+    if (!confirmDelete) return
+
     try {
       const response = await fetch(`http://localhost:3001/api/restaurants/${id}`, {
         method: "DELETE",
       })
       if (response.ok) {
+        alert("Restaurant deleted successfully!")
         fetchRestaurants()
-      } else {
-        console.error("Failed to delete restaurant")
       }
     } catch (error) {
       console.error("Error deleting restaurant:", error)
     }
   }
 
-  // Handle open dialog for add/edit
-  const openAddEditDialog = (restaurant?: any) => {
-    if (restaurant) {
-      setSelectedRestaurant(restaurant)
-      setRestaurantForm({ ...restaurant })
-    } else {
-      setSelectedRestaurant(null)
-      setRestaurantForm(RESTAURANT_SCHEMA)
-    }
-    setIsAddRestaurantOpen(true)
-  }
-
-  // Handle input changes in restaurant form
   const handleRestaurantInput = (field: string, value: any) => {
     setRestaurantForm((prev: any) => ({
       ...prev,
@@ -224,7 +263,6 @@ export default function RestaurantSettings() {
     }))
   }
 
-  // Handle location input changes
   const handleLocationInput = (field: string, value: any) => {
     setRestaurantForm((prev: any) => ({
       ...prev,
@@ -235,28 +273,13 @@ export default function RestaurantSettings() {
     }))
   }
 
-  // Save restaurant ID to localStorage after add/update
-  useEffect(() => {
-    if (restaurants.length > 0) {
-      // Assume the first restaurant belongs to the owner (customize as needed)
-      localStorage.setItem("restaurantId", restaurants[0]._id)
-    }
-  }, [restaurants])
-
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Restaurant Settings</h1>
-        <p className="text-muted-foreground">
-          Manage your restaurant profile and owner information.
-        </p>
-      </div>
       <Tabs defaultValue="profile" className="w-full">
         <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="owner-profile">Owner Profile</TabsTrigger>
         </TabsList>
-
         {/* Restaurant Profile Tab */}
         <TabsContent value="profile" className="space-y-4 pt-4">
           <Card>
@@ -270,7 +293,7 @@ export default function RestaurantSettings() {
               <Button onClick={() => openAddEditDialog()}>Add New Restaurant</Button>
               <Separator />
               <div className="space-y-4">
-                {restaurants.map((restaurant) => (
+                {filteredRestaurants.map((restaurant) => (
                   <div key={restaurant._id} className="flex items-center justify-between">
                     <div>
                       <h3 className="text-lg font-medium">{restaurant.name}</h3>
@@ -293,6 +316,9 @@ export default function RestaurantSettings() {
                     </div>
                   </div>
                 ))}
+                {filteredRestaurants.length === 0 && (
+                  <div className="text-muted-foreground">No restaurants found for this owner.</div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -303,7 +329,10 @@ export default function RestaurantSettings() {
           <Card>
             <CardHeader>
               <CardTitle>Owner Profile</CardTitle>
-              <CardDescription>Manage owner information</CardDescription>
+              <CardDescription>
+                Manage your account information
+                {owner.restaurantName && ` - ${owner.restaurantName}`}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {isLoading ? (
@@ -315,7 +344,7 @@ export default function RestaurantSettings() {
                     <Input
                       id="owner-name"
                       value={owner.name}
-                      onChange={(e: { target: { value: any } }) => setOwner({ ...owner, name: e.target.value })}
+                      onChange={(e) => setOwner({ ...owner, name: e.target.value })}
                       disabled={!isEditing}
                     />
                   </div>
@@ -324,7 +353,7 @@ export default function RestaurantSettings() {
                     <Input
                       id="owner-email"
                       value={owner.email}
-                      onChange={(e: { target: { value: any } }) => setOwner({ ...owner, email: e.target.value })}
+                      onChange={(e) => setOwner({ ...owner, email: e.target.value })}
                       disabled={!isEditing}
                     />
                   </div>
@@ -333,7 +362,7 @@ export default function RestaurantSettings() {
                     <Input
                       id="owner-phone"
                       value={owner.phone}
-                      onChange={(e: { target: { value: any } }) => setOwner({ ...owner, phone: e.target.value })}
+                      onChange={(e) => setOwner({ ...owner, phone: e.target.value })}
                       disabled={!isEditing}
                     />
                   </div>
@@ -342,7 +371,7 @@ export default function RestaurantSettings() {
                     <Input
                       id="owner-address"
                       value={owner.address}
-                      onChange={(e: { target: { value: any } }) => setOwner({ ...owner, address: e.target.value })}
+                      onChange={(e) => setOwner({ ...owner, address: e.target.value })}
                       disabled={!isEditing}
                     />
                   </div>
@@ -351,7 +380,7 @@ export default function RestaurantSettings() {
                     <Input
                       id="owner-restaurant"
                       value={owner.restaurantName}
-                      onChange={(e: { target: { value: any } }) => setOwner({ ...owner, restaurantName: e.target.value })}
+                      onChange={(e) => setOwner({ ...owner, restaurantName: e.target.value })}
                       disabled={!isEditing}
                     />
                   </div>
@@ -362,18 +391,35 @@ export default function RestaurantSettings() {
                         id="owner-password"
                         type="password"
                         value={password}
-                        onChange={(e: { target: { value: SetStateAction<string> } }) => setPassword(e.target.value)}
+                        onChange={(e) => setPassword(e.target.value)}
                       />
                     </div>
                   )}
                 </>
               )}
             </CardContent>
-            <CardFooter className="flex justify-end gap-4">
+            <CardFooter className="flex justify-between gap-4">
               {isEditing ? (
-                <Button onClick={handleSaveOwner}>Save Changes</Button>
+                <>
+                  <Button variant="outline" onClick={() => setIsEditing(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSaveOwner}>
+                    Save Changes
+                  </Button>
+                </>
               ) : (
-                <Button onClick={() => setIsEditing(true)}>Edit</Button>
+                <>
+                  <Button
+                    variant="destructive"
+                    onClick={handleDeleteOwner}
+                  >
+                    Delete Account
+                  </Button>
+                  <Button onClick={() => setIsEditing(true)}>
+                    Edit Profile
+                  </Button>
+                </>
               )}
             </CardFooter>
           </Card>
@@ -390,13 +436,20 @@ export default function RestaurantSettings() {
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[70vh]">
-            <div className="space-y-6 p-1">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                handleAddOrUpdateRestaurant()
+              }}
+              className="space-y-6"
+            >
               <div className="space-y-2">
-                <Label htmlFor="restaurant-name-dialog">Restaurant Name</Label>
+                <Label htmlFor="restaurant-name">Restaurant Name</Label>
                 <Input
-                  id="restaurant-name-dialog"
+                  id="restaurant-name"
                   value={restaurantForm.name}
-                  onChange={(e: { target: { value: any } }) => handleRestaurantInput("name", e.target.value)}
+                  onChange={(e) => handleRestaurantInput("name", e.target.value)}
+                  required
                 />
               </div>
               <div className="space-y-2">
@@ -404,7 +457,7 @@ export default function RestaurantSettings() {
                 <Input
                   id="restaurant-image"
                   value={restaurantForm.image}
-                  onChange={(e: { target: { value: any } }) => handleRestaurantInput("image", e.target.value)}
+                  onChange={(e) => handleRestaurantInput("image", e.target.value)}
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -414,7 +467,7 @@ export default function RestaurantSettings() {
                     id="restaurant-rating"
                     type="number"
                     value={restaurantForm.rating}
-                    onChange={(e: { target: { value: string } }) => handleRestaurantInput("rating", parseFloat(e.target.value))}
+                    onChange={(e) => handleRestaurantInput("rating", parseFloat(e.target.value))}
                   />
                 </div>
                 <div className="space-y-2">
@@ -422,7 +475,7 @@ export default function RestaurantSettings() {
                   <Input
                     id="restaurant-deliveryTime"
                     value={restaurantForm.deliveryTime}
-                    onChange={(e: { target: { value: any } }) => handleRestaurantInput("deliveryTime", e.target.value)}
+                    onChange={(e) => handleRestaurantInput("deliveryTime", e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -430,7 +483,7 @@ export default function RestaurantSettings() {
                   <Input
                     id="restaurant-deliveryFee"
                     value={restaurantForm.deliveryFee}
-                    onChange={(e: { target: { value: any } }) => handleRestaurantInput("deliveryFee", e.target.value)}
+                    onChange={(e) => handleRestaurantInput("deliveryFee", e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -438,7 +491,7 @@ export default function RestaurantSettings() {
                   <Input
                     id="restaurant-minOrder"
                     value={restaurantForm.minOrder}
-                    onChange={(e: { target: { value: any } }) => handleRestaurantInput("minOrder", e.target.value)}
+                    onChange={(e) => handleRestaurantInput("minOrder", e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -446,7 +499,7 @@ export default function RestaurantSettings() {
                   <Input
                     id="restaurant-distance"
                     value={restaurantForm.distance}
-                    onChange={(e: { target: { value: any } }) => handleRestaurantInput("distance", e.target.value)}
+                    onChange={(e) => handleRestaurantInput("distance", e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -455,7 +508,7 @@ export default function RestaurantSettings() {
                     id="restaurant-priceLevel"
                     type="number"
                     value={restaurantForm.priceLevel}
-                    onChange={(e: { target: { value: string } }) => handleRestaurantInput("priceLevel", parseInt(e.target.value))}
+                    onChange={(e) => handleRestaurantInput("priceLevel", parseInt(e.target.value))}
                   />
                 </div>
               </div>
@@ -464,7 +517,12 @@ export default function RestaurantSettings() {
                 <Input
                   id="restaurant-cuisines"
                   value={restaurantForm.cuisines.join(", ")}
-                  onChange={(e: { target: { value: string } }) => handleRestaurantInput("cuisines", e.target.value.split(",").map((v: string) => v.trim()))}
+                  onChange={(e) =>
+                    handleRestaurantInput(
+                      "cuisines",
+                      e.target.value.split(",").map((v: string) => v.trim())
+                    )
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -472,7 +530,7 @@ export default function RestaurantSettings() {
                 <Input
                   id="restaurant-location-tag"
                   value={restaurantForm.location.tag}
-                  onChange={(e: { target: { value: any } }) => handleLocationInput("tag", e.target.value)}
+                  onChange={(e) => handleLocationInput("tag", e.target.value)}
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -482,7 +540,12 @@ export default function RestaurantSettings() {
                     id="restaurant-location-lng"
                     type="number"
                     value={restaurantForm.location.coordinates[0]}
-                    onChange={(e: { target: { value: string } }) => handleLocationInput("coordinates", [parseFloat(e.target.value), restaurantForm.location.coordinates[1]])}
+                    onChange={(e) =>
+                      handleLocationInput("coordinates", [
+                        parseFloat(e.target.value),
+                        restaurantForm.location.coordinates[1],
+                      ])
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -491,7 +554,12 @@ export default function RestaurantSettings() {
                     id="restaurant-location-lat"
                     type="number"
                     value={restaurantForm.location.coordinates[1]}
-                    onChange={(e: { target: { value: string } }) => handleLocationInput("coordinates", [restaurantForm.location.coordinates[0], parseFloat(e.target.value)])}
+                    onChange={(e) =>
+                      handleLocationInput("coordinates", [
+                        restaurantForm.location.coordinates[0],
+                        parseFloat(e.target.value),
+                      ])
+                    }
                   />
                 </div>
               </div>
@@ -500,7 +568,7 @@ export default function RestaurantSettings() {
                 <Input
                   id="restaurant-open-time"
                   value={restaurantForm.open_time}
-                  onChange={(e: { target: { value: any } }) => handleRestaurantInput("open_time", e.target.value)}
+                  onChange={(e) => handleRestaurantInput("open_time", e.target.value)}
                 />
               </div>
               <div className="space-y-2">
@@ -508,7 +576,7 @@ export default function RestaurantSettings() {
                 <Input
                   id="restaurant-closed-time"
                   value={restaurantForm.closed_time}
-                  onChange={(e: { target: { value: any } }) => handleRestaurantInput("closed_time", e.target.value)}
+                  onChange={(e) => handleRestaurantInput("closed_time", e.target.value)}
                 />
               </div>
               <div className="space-y-2">
@@ -519,16 +587,16 @@ export default function RestaurantSettings() {
                   onCheckedChange={(checked: any) => handleRestaurantInput("is_active", checked)}
                 />
               </div>
-            </div>
+              <DialogFooter>
+                <Button variant="outline" type="button" onClick={() => setIsAddRestaurantOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  {selectedRestaurant ? "Update Restaurant" : "Add Restaurant"}
+                </Button>
+              </DialogFooter>
+            </form>
           </ScrollArea>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddRestaurantOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddOrUpdateRestaurant}>
-              {selectedRestaurant ? "Update Restaurant" : "Add Restaurant"}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
