@@ -20,6 +20,7 @@ interface IUser extends Document {
   restaurantName?: string;
   vehicleNumber?: string;
   createdAt: Date;
+  location?: { lat: number; lng: number }; // New field for location
 }
 
 // Define the user schema
@@ -33,6 +34,12 @@ const userSchema = new Schema<IUser>({
   restaurantName: String,
   vehicleNumber: String,
   createdAt: { type: Date, default: Date.now },
+  location: {
+    type: {
+      lat: { type: Number },
+      lng: { type: Number },
+    },
+  }, // New field for location
 });
 
 // Export the user model
