@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import {
   Card,
   CardContent,
@@ -49,6 +50,7 @@ const RESTAURANT_SCHEMA = {
 }
 
 export default function RestaurantSettings() {
+  const router = useRouter()
   // Owner state and logic
   const [owner, setOwner] = useState<OwnerInfo>({
     name: "",
@@ -125,12 +127,18 @@ export default function RestaurantSettings() {
       setIsEditing(false)
       setPassword("")
       localStorage.setItem("owner", JSON.stringify(owner))
+      // Clear local storage and redirect to login after update
+      localStorage.removeItem("restaurantOwnerId")
+      localStorage.removeItem("owner")
+      localStorage.removeItem("restaurantId")
+      localStorage.removeItem("jwtToken")
+      router.push("/login")
     } catch (error) {
       console.error("Error updating owner info:", error)
       alert("Error updating owner info.")
     }
   }
-  
+
   // Delete owner handler
   const handleDeleteOwner = async () => {
     if (!ownerId) {
@@ -146,7 +154,7 @@ export default function RestaurantSettings() {
       "Are you sure you want to permanently delete your account? This action cannot be undone."
     )
     if (!confirmDelete) return
-  
+
     try {
       const response = await fetch(
         `http://localhost:4000/api/auth/delete/${ownerId}`,
@@ -157,12 +165,12 @@ export default function RestaurantSettings() {
           },
         }
       )
-  
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.message || "Failed to delete account")
       }
-  
+
       // Clear local storage and redirect
       localStorage.removeItem("restaurantOwnerId")
       localStorage.removeItem("owner")
@@ -174,7 +182,7 @@ export default function RestaurantSettings() {
       alert("Error deleting account. Please try again.")
     }
   }
-  
+
   // Restaurant state and logic
   const [restaurants, setRestaurants] = useState<any[]>([])
   const [filteredRestaurants, setFilteredRestaurants] = useState<any[]>([])
@@ -231,7 +239,6 @@ export default function RestaurantSettings() {
       const url = selectedRestaurant
         ? `http://localhost:3001/api/restaurants/${selectedRestaurant._id}`
         : "http://localhost:3001/api/restaurants"
-
       const method = selectedRestaurant ? "PUT" : "POST"
       const restaurantData = {
         ...restaurantForm,
