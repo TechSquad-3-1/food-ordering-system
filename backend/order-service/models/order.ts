@@ -17,6 +17,7 @@ export interface IOrder extends Document {
   delivery_address: string; // Added delivery_address field
   phone: string; // Added phone field
   email: string; // Added email field
+  location: { lat: number; lng: number };
 }
 
 const orderSchema: Schema = new Schema(
@@ -33,10 +34,17 @@ const orderSchema: Schema = new Schema(
       },
     ],
     restaurant_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant', required: true },
-    delivery_fee: { type: Number, default: 0 }, // Added delivery_fee with a default value
-    delivery_address: { type: String, required: true }, // Added required delivery_address field
-    phone: { type: String, required: true }, // Added phone field
-    email: { type: String, required: true }, // Added email field
+    delivery_fee: { type: Number, default: 0 }, // Delivery fee with a default value
+    delivery_address: { type: String, required: true }, // Delivery address
+    phone: { type: String, required: true }, // Phone number
+    email: { type: String, required: true }, // Email address
+    location: {
+      type: {
+        lat: { type: Number, required: true },
+        lng: { type: Number, required: true },
+      },
+      required: true,
+    }, // New field for location
   },
   { timestamps: true }
 );

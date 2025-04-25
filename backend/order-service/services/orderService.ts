@@ -5,54 +5,53 @@ import { v4 as uuidv4 } from 'uuid';
 
 export class OrderService {
   // Create a new order
-  static async createOrder(user_id: string, items: IOrderItem[], restaurant_id: string, delivery_fee: number, delivery_address: string, phone: string, email: string) {
+  static async createOrder(
+    user_id: string,
+    items: IOrderItem[],
+    restaurant_id: string,
+    delivery_fee: number,
+    delivery_address: string,
+    phone: string,
+    email: string,
+    location: { lat: number; lng: number } // Add location parameter
+  ) {
     const session = await mongoose.startSession();
     session.startTransaction();
-
     try {
       const totalAmount = items.reduce((acc: number, item) => acc + item.price * item.quantity, 0);
-
-      // Include delivery fee in the total amount
       const totalAmountWithDeliveryFee = totalAmount + delivery_fee;
-
+  
       if (totalAmount === 0) {
         throw new Error("No valid menu items found for the order.");
       }
-
-      // Get the current counter for order_id
+  
       let orderCounter = await OrderCounter.findOne({ name: 'orderId' });
-
       if (!orderCounter) {
-        // If no counter exists, create one
         const newCounter = new OrderCounter({ name: 'orderId', count: 1 });
         orderCounter = await newCounter.save();
       } else {
-        // Increment the order counter
         orderCounter.count += 1;
         orderCounter = await orderCounter.save();
       }
-
-      // Generate custom order_id using the incremented counter
+  
       const orderId = `ORD${orderCounter.count.toString().padStart(3, '0')}`;
-
       const order = new Order({
         order_id: orderId,
         user_id,
-        total_amount: totalAmountWithDeliveryFee, // Updated total_amount with delivery fee
+        total_amount: totalAmountWithDeliveryFee,
         items: items,
         status: 'pending',
         restaurant_id: restaurant_id,
-        delivery_fee: delivery_fee, // Set the delivery fee
-        delivery_address: delivery_address, // Set the delivery address
-        phone: phone, // Set the phone field
-        email: email, // Set the email field
+        delivery_fee: delivery_fee,
+        delivery_address: delivery_address,
+        phone: phone,
+        email: email,
+        location: location, // Include the location field
       });
-
+  
       await order.save({ session });
-
       await session.commitTransaction();
       session.endSession();
-
       return order;
     } catch (error: unknown) {
       await session.abortTransaction();
