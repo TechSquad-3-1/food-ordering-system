@@ -95,8 +95,7 @@ export default function RestaurantSettings() {
   }, [])
 
   const handleSaveOwner = async () => {
-    const storedId = localStorage.getItem("restaurantOwnerId")
-    if (!storedId) {
+    if (!ownerId) {
       alert("Owner ID not found in localStorage.")
       return
     }
@@ -104,10 +103,18 @@ export default function RestaurantSettings() {
       alert("Please enter your password to save changes.")
       return
     }
+    const token = localStorage.getItem("jwtToken")
+    if (!token) {
+      alert("You are not authenticated.")
+      return
+    }
     try {
-      const response = await fetch(`http://localhost:4000/api/auth/update/${storedId}`, {
+      const response = await fetch(`http://localhost:4000/api/auth/update/${ownerId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
         body: JSON.stringify({ ...owner, password }),
       })
       if (!response.ok) {
@@ -123,42 +130,51 @@ export default function RestaurantSettings() {
       alert("Error updating owner info.")
     }
   }
-
+  
   // Delete owner handler
   const handleDeleteOwner = async () => {
-    const storedId = localStorage.getItem("restaurantOwnerId")
-    if (!storedId) {
+    if (!ownerId) {
       alert("Owner ID not found in localStorage.")
+      return
+    }
+    const token = localStorage.getItem("jwtToken")
+    if (!token) {
+      alert("You are not authenticated.")
       return
     }
     const confirmDelete = window.confirm(
       "Are you sure you want to permanently delete your account? This action cannot be undone."
     )
     if (!confirmDelete) return
-
+  
     try {
       const response = await fetch(
-        `http://localhost:4000/api/auth/restaurant-owner/${storedId}`,
+        `http://localhost:4000/api/auth/delete/${ownerId}`,
         {
           method: "DELETE",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
         }
       )
-
+  
       if (!response.ok) {
-        throw new Error("Failed to delete account")
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to delete account")
       }
-
+  
       // Clear local storage and redirect
       localStorage.removeItem("restaurantOwnerId")
       localStorage.removeItem("owner")
       localStorage.removeItem("restaurantId")
+      localStorage.removeItem("jwtToken")
       window.location.href = "/login"
     } catch (error) {
       console.error("Error deleting owner account:", error)
       alert("Error deleting account. Please try again.")
     }
   }
-
+  
   // Restaurant state and logic
   const [restaurants, setRestaurants] = useState<any[]>([])
   const [filteredRestaurants, setFilteredRestaurants] = useState<any[]>([])
