@@ -345,7 +345,7 @@ export default function OrderHistoryPage() {
                   <TableRow key={order._id}>
                     <TableCell>{order.order_id}</TableCell>
                     <TableCell>{order.email}</TableCell>
-                    <TableCell>${order.total_amount.toFixed(2)}</TableCell>
+                    <TableCell>LKR{order.total_amount.toFixed(2)}</TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(order.status)}>
                         {order.status}
