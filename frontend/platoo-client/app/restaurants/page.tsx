@@ -216,10 +216,10 @@ export default function RestaurantsPage() {
           <Tabs defaultValue="all">
             <TabsList className="mb-6">
               <TabsTrigger value="all">All Restaurants</TabsTrigger>
-              <TabsTrigger value="featured">Featured</TabsTrigger>
+              {/* <TabsTrigger value="featured">Featured</TabsTrigger>
               <TabsTrigger value="popular">Most Popular</TabsTrigger>
               <TabsTrigger value="new">New Arrivals</TabsTrigger>
-              <TabsTrigger value="offers">Special Offers</TabsTrigger>
+              <TabsTrigger value="offers">Special Offers</TabsTrigger> */}
             </TabsList>
 
             <TabsContent value="all" className="space-y-6">
