@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Order, { IOrderItem } from '../models/order';
 import OrderCounter from '../models/OrderCounter';
 import { v4 as uuidv4 } from 'uuid';
+import { sendEmail } from '../utils/mailer'; 
 
 export class OrderService {
   // Create a new order
@@ -20,11 +21,11 @@ export class OrderService {
     try {
       const totalAmount = items.reduce((acc: number, item) => acc + item.price * item.quantity, 0);
       const totalAmountWithDeliveryFee = totalAmount + delivery_fee;
-  
+    
       if (totalAmount === 0) {
         throw new Error("No valid menu items found for the order.");
       }
-  
+    
       let orderCounter = await OrderCounter.findOne({ name: 'orderId' });
       if (!orderCounter) {
         const newCounter = new OrderCounter({ name: 'orderId', count: 1 });
@@ -33,7 +34,7 @@ export class OrderService {
         orderCounter.count += 1;
         orderCounter = await orderCounter.save();
       }
-  
+    
       const orderId = `ORD${orderCounter.count.toString().padStart(3, '0')}`;
       const order = new Order({
         order_id: orderId,
@@ -48,10 +49,18 @@ export class OrderService {
         email: email,
         location: location, // Include the location field
       });
-  
+    
       await order.save({ session });
       await session.commitTransaction();
       session.endSession();
+  
+      // Send an email after the order is created
+      const subject = 'Order Confirmation';
+      const text = `Your order with ID: ${orderId} has been placed successfully. We will notify you once it's ready.`;
+      const html = `<h3>Order Confirmation</h3><p>Your order with ID: <strong>${orderId}</strong> has been placed successfully. We will notify you once it's ready.</p>`;
+  
+      await sendEmail(email, subject, text, html); // Send email
+  
       return order;
     } catch (error: unknown) {
       await session.abortTransaction();
