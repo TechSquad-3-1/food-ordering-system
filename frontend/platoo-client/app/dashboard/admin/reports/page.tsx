@@ -53,6 +53,7 @@ interface Restaurant {
   name: string
   isActive?: boolean
   rating?: number
+  createdAt?: string
 }
 
 interface RestaurantPerformanceData {
@@ -90,25 +91,22 @@ export default function ReportsPage() {
     const fetchDashboardData = async () => {
       setLoading(true)
       try {
-        // First fetch all restaurants
         const restaurantsRes = await fetch("http://localhost:3001/api/restaurants")
         if (!restaurantsRes.ok) throw new Error("Failed to fetch restaurants")
         const restaurantsRaw = await restaurantsRes.json()
-        
         const allRestaurants: Restaurant[] = Array.isArray(restaurantsRaw)
           ? restaurantsRaw.map((r: any) => ({
               id: r._id || r.id,
               name: r.name || "Unnamed Restaurant",
               isActive: r.isActive ?? true,
-              rating: r.rating || 0
+              rating: r.rating || 0,
+              createdAt: r.createdAt || undefined,
             }))
           : []
         setRestaurants(allRestaurants)
 
-        // Then fetch all orders
         const ordersRes = await fetch("http://localhost:3008/api/orders")
         const ordersRaw = await ordersRes.json()
-        
         const ordersData: Order[] = Array.isArray(ordersRaw)
           ? ordersRaw.map((order: any) => ({
               _id: order._id || "",
@@ -134,7 +132,6 @@ export default function ReportsPage() {
           : []
         setOrders(ordersData)
 
-        // Create performance data for all restaurants
         const performanceData = allRestaurants.map(restaurant => {
           const restaurantOrders = ordersData.filter(o => o.restaurant_id === restaurant.id)
           return {
@@ -144,9 +141,7 @@ export default function ReportsPage() {
             totalRevenue: restaurantOrders.reduce((sum, o) => sum + o.total_amount, 0)
           }
         })
-
         setRestaurantPerformance(performanceData)
-
       } catch (error: any) {
         console.error("Error fetching dashboard data:", error)
         setError(error.message || "Failed to fetch data")
@@ -154,7 +149,6 @@ export default function ReportsPage() {
         setLoading(false)
       }
     }
-    
     fetchDashboardData()
   }, [])
 
@@ -165,24 +159,86 @@ export default function ReportsPage() {
       return d >= new Date(range.from.setHours(0,0,0,0)) && d <= new Date(range.to.setHours(23,59,59,999))
     })
   }
-  
+
+  function filterRestaurantsByDateRange(restaurants: Restaurant[], range: DateRange): Restaurant[] {
+    return restaurants.filter(r => {
+      if (!r.createdAt) return false
+      const d = new Date(r.createdAt)
+      return d >= new Date(range.from.setHours(0,0,0,0)) && d <= new Date(range.to.setHours(23,59,59,999))
+    })
+  }
+
+  function getPreviousDateRange(currentRange: DateRange): DateRange {
+    const diff = currentRange.to.getTime() - currentRange.from.getTime()
+    const prevTo = new Date(currentRange.from.getTime() - 1)
+    const prevFrom = new Date(prevTo.getTime() - diff)
+    return { from: prevFrom, to: prevTo }
+  }
+
   const filteredOrders = filterOrdersByDateRange(orders, dateRange)
-  
+  const filteredRestaurants = filterRestaurantsByDateRange(restaurants, dateRange)
+
   const totalRevenue = filteredOrders.reduce(
     (sum, o) => sum + Number(o.total_amount ?? 0),
     0
   )
-  
   const totalOrders = filteredOrders.length
-  const totalRestaurants = restaurants.length
+  const totalRestaurants = filteredRestaurants.length
 
+  // Completed Orders: Delivered + Completed (case-insensitive)
   const completedOrders = filteredOrders.filter(
-    o => o.status === "Delivered" || o.status === "Completed"
+    o => o.status?.toLowerCase() === "delivered" || o.status?.toLowerCase() === "completed"
   ).length
+
   const cancelledOrders = filteredOrders.filter(
-    o => o.status === "Cancelled"
+    o => o.status?.toLowerCase() === "cancelled"
   ).length
-  const activeRestaurants = restaurants.filter(r => r.isActive !== false).length
+
+  const activeRestaurants = filteredRestaurants.filter(r => r.isActive !== false).length
+
+  // Previous period calculations
+  const previousDateRange = getPreviousDateRange(dateRange)
+  const previousFilteredOrders = filterOrdersByDateRange(orders, previousDateRange)
+  const previousFilteredRestaurants = filterRestaurantsByDateRange(restaurants, previousDateRange)
+  const previousPeriodOrders = previousFilteredOrders.length
+  const previousPeriodRevenue = previousFilteredOrders.reduce(
+    (sum, o) => sum + Number(o.total_amount ?? 0),
+    0
+  )
+  const previousPeriodRestaurants = previousFilteredRestaurants.length
+
+  // Order Growth %
+  let orderGrowth = 0
+  if (previousPeriodOrders > 0) {
+    orderGrowth = ((totalOrders - previousPeriodOrders) / previousPeriodOrders) * 100
+  } else if (totalOrders > 0) {
+    orderGrowth = 100
+  } else {
+    orderGrowth = 0
+  }
+  const orderGrowthDisplay = `${orderGrowth >= 0 ? "+" : ""}${orderGrowth.toFixed(1)}%`
+
+  // Revenue Growth %
+  let revenueGrowth = 0
+  if (previousPeriodRevenue > 0) {
+    revenueGrowth = ((totalRevenue - previousPeriodRevenue) / previousPeriodRevenue) * 100
+  } else if (totalRevenue > 0) {
+    revenueGrowth = 100
+  } else {
+    revenueGrowth = 0
+  }
+  const revenueGrowthDisplay = `${revenueGrowth >= 0 ? "+" : ""}${revenueGrowth.toFixed(1)}%`
+
+  // Restaurant Growth %
+  let restaurantGrowth = 0
+  if (previousPeriodRestaurants > 0) {
+    restaurantGrowth = ((totalRestaurants - previousPeriodRestaurants) / previousPeriodRestaurants) * 100
+  } else if (totalRestaurants > 0) {
+    restaurantGrowth = 100
+  } else {
+    restaurantGrowth = 0
+  }
+  const restaurantGrowthDisplay = `${restaurantGrowth >= 0 ? "+" : ""}${restaurantGrowth.toFixed(1)}%`
 
   // --- Chart Data Transformation (Filtered) ---
   function groupByMonth(
@@ -208,10 +264,9 @@ export default function ReportsPage() {
     })
     return months
   }
-  
+
   const revenueData = groupByMonth(filteredOrders, "revenue", "total_amount")
   const ordersData = groupByMonth(filteredOrders, "orders")
-  
 
   // --- Restaurant Performance (Filtered) ---
   const restaurantPerformanceData = restaurantPerformance
@@ -222,7 +277,6 @@ export default function ReportsPage() {
       orders: r.totalOrders,
       revenue: r.totalRevenue
     }))
-  
 
   // --- Order Status Pie (Filtered) ---
   const orderStatusCounts: Record<string, number> = {}
@@ -235,14 +289,11 @@ export default function ReportsPage() {
   // --- Misc Metrics (Filtered) ---
   const avgOrderValue = totalOrders ? (totalRevenue / totalOrders) : 0
   const projectedRevenue = totalRevenue * 1.1
-  const revenueGrowth = "+12.5%" // Placeholder
-  const orderGrowth = "+18.2%" // Placeholder
-  const restaurantGrowth = "+5.3%" // Placeholder
   const avgRestaurantRating =
-    restaurants.length > 0
+    filteredRestaurants.length > 0
       ? (
-          restaurants.reduce((sum, r) => sum + (r.rating ?? 0), 0) /
-          restaurants.length
+          filteredRestaurants.reduce((sum, r) => sum + (r.rating ?? 0), 0) /
+          filteredRestaurants.length
         ).toFixed(1)
       : "0.0"
 
@@ -266,12 +317,8 @@ export default function ReportsPage() {
           </TabsList>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-4">
             <div className="flex gap-2 w-full sm:w-auto">
-              
-              <div className="flex items-center gap-2">
-                
-              </div>
+              <div className="flex items-center gap-2"></div>
             </div>
-           
           </div>
 
           {/* Overview Tab */}
@@ -285,7 +332,7 @@ export default function ReportsPage() {
                 <CardContent>
                   <div className="text-2xl font-bold">LKR{totalRevenue.toLocaleString()}</div>
                   <p className="text-xs text-muted-foreground">
-                    <span className="text-green-500">{revenueGrowth}</span> from previous period
+                    <span className="text-green-500">{revenueGrowthDisplay}</span> from previous period
                   </p>
                 </CardContent>
               </Card>
@@ -297,7 +344,7 @@ export default function ReportsPage() {
                 <CardContent>
                   <div className="text-2xl font-bold">{totalOrders.toLocaleString()}</div>
                   <p className="text-xs text-muted-foreground">
-                    <span className="text-green-500">{orderGrowth}</span> from previous period
+                    <span className="text-green-500">{orderGrowthDisplay}</span> from previous period
                   </p>
                 </CardContent>
               </Card>
@@ -309,7 +356,7 @@ export default function ReportsPage() {
                 <CardContent>
                   <div className="text-2xl font-bold">{totalRestaurants.toLocaleString()}</div>
                   <p className="text-xs text-muted-foreground">
-                    <span className="text-green-500">{restaurantGrowth}</span> from previous period
+                    <span className="text-green-500">{restaurantGrowthDisplay}</span> from previous period
                   </p>
                 </CardContent>
               </Card>
@@ -333,7 +380,7 @@ export default function ReportsPage() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis />
-                      <Tooltip formatter={(value: any) => [`$${value}`, "Revenue"]} />
+                      <Tooltip formatter={(value: any) => [`LKR ${value}`, "Revenue"]} />
                       <Area
                         type="monotone"
                         dataKey="revenue"
@@ -348,64 +395,62 @@ export default function ReportsPage() {
             </Card>
             {/* Orders Chart */}
             <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-  <CardHeader>
-    <CardTitle>Order Status Distribution</CardTitle>
-    <CardDescription>Current order status breakdown</CardDescription>
-  </CardHeader>
-  <CardContent>
-    <div className="h-[300px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={orderStatusData}
-            cx="50%"
-            cy="50%"
-            labelLine={false}
-            outerRadius={100}
-            fill="#8884d8"
-            dataKey="value"
-            label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-          >
-            {orderStatusData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-            ))}
-          </Pie>
-          <Tooltip
-            formatter={(value, name, props) => [
-              value,
-              props.payload?.name || "Orders"
-            ]}
-          />
-        </PieChart>
-      </ResponsiveContainer>
-    </div>
-    {/* Legend: status color, name, and percentage */}
-    <div className="flex flex-wrap gap-4 mt-6 justify-center">
-      {orderStatusData.map((entry, index) => {
-        const total = orderStatusData.reduce((sum, e) => sum + e.value, 0)
-        const percent = total > 0 ? ((entry.value / total) * 100).toFixed(1) : 0
-        return (
-          <div key={entry.name} className="flex items-center gap-2">
-            <span
-              style={{
-                display: 'inline-block',
-                width: 16,
-                height: 16,
-                backgroundColor: COLORS[index % COLORS.length],
-                borderRadius: '50%',
-              }}
-            />
-            <span className="text-sm">{entry.name}</span>
-            <span className="text-xs text-muted-foreground">({percent}%)</span>
-          </div>
-        )
-      })}
-    </div>
-  </CardContent>
-</Card>
-
-
+              <Card>
+                <CardHeader>
+                  <CardTitle>Order Status Distribution</CardTitle>
+                  <CardDescription>Current order status breakdown</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={orderStatusData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          outerRadius={100}
+                          fill="#8884d8"
+                          dataKey="value"
+                          label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                        >
+                          {orderStatusData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value, name, props) => [
+                            value,
+                            props.payload?.name || "Orders"
+                          ]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  {/* Legend: status color, name, and percentage */}
+                  <div className="flex flex-wrap gap-4 mt-6 justify-center">
+                    {orderStatusData.map((entry, index) => {
+                      const total = orderStatusData.reduce((sum, e) => sum + e.value, 0)
+                      const percent = total > 0 ? ((entry.value / total) * 100).toFixed(1) : 0
+                      return (
+                        <div key={entry.name} className="flex items-center gap-2">
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              width: 16,
+                              height: 16,
+                              backgroundColor: COLORS[index % COLORS.length],
+                              borderRadius: '50%',
+                            }}
+                          />
+                          <span className="text-sm">{entry.name}</span>
+                          <span className="text-xs text-muted-foreground">({percent}%)</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
             {/* Top Restaurants */}
             <Card>
@@ -451,7 +496,7 @@ export default function ReportsPage() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis />
-                      <Tooltip formatter={(value: any) => [`$${value}`, "Revenue"]} />
+                      <Tooltip formatter={(value: any) => [`LKR ${value}`, "Revenue"]} />
                       <Legend />
                       <Area
                         type="monotone"
@@ -479,7 +524,7 @@ export default function ReportsPage() {
                   </Card>
                   <Card>
                     <CardContent className="p-4">
-                      <div className="text-sm font-medium text-muted-foreground">Revenue Growth</div>
+                      <div className="text-sm font-medium text-muted-foreground">Revenue Growth %</div>
                       <div className="text-2xl font-bold text-green-500">{revenueGrowth}</div>
                     </CardContent>
                   </Card>
@@ -534,7 +579,7 @@ export default function ReportsPage() {
                   </Card>
                   <Card>
                     <CardContent className="p-4">
-                      <div className="text-sm font-medium text-muted-foreground">Order Growth</div>
+                      <div className="text-sm font-medium text-muted-foreground">Order Growth %</div>
                       <div className="text-2xl font-bold text-green-500">{orderGrowth}</div>
                     </CardContent>
                   </Card>
@@ -544,112 +589,108 @@ export default function ReportsPage() {
           </TabsContent>
           {/* Restaurants Tab */}
           <TabsContent value="restaurants" className="space-y-6 mt-6">
-  <Card>
-    <CardHeader>
-      <CardTitle>Restaurant Performance</CardTitle>
-      <CardDescription>Detailed metrics with order lists</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <div className="w-full min-h-[250px] h-[40vw] max-h-[450px] md:max-h-[500px] overflow-x-auto">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={restaurantPerformanceData}
-            margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-            <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-            <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
-            <Tooltip />
-            <Legend />
-            <Bar yAxisId="left" dataKey="orders" fill="#8884d8" name="Orders" />
-            <Bar yAxisId="right" dataKey="revenue" fill="#82ca9d" name="Revenue (LKR)" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-  {restaurantPerformance.map(({ restaurant, orders, totalOrders, totalRevenue }) => (
-    <div
-      key={restaurant.id}
-      className="border rounded p-4 bg-white shadow-sm flex flex-col h-full"
-      style={{ minWidth: 0 }}
-    >
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-y-2 gap-x-4">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-lg truncate">{restaurant.name}</h3>
-          <p className="text-sm text-muted-foreground truncate">
-            {totalOrders} orders • LKR {totalRevenue.toLocaleString()} revenue
-          </p>
-        </div>
-        <span
-          className={`px-2 py-1 rounded text-xs font-medium ${
-            restaurant.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-          }`}
-        >
-          {restaurant.isActive ? "Active" : "Inactive"}
-        </span>
-      </div>
-
-      {/* --- PROFESSIONAL VIEW ORDERS LIST START --- */}
-      {orders.length > 0 && (
-        <details className="mt-4 group">
-          <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2 select-none">
-            <span className="inline-block w-2 h-2 rounded-full bg-blue-500 group-open:rotate-90 transition-transform" />
-            <span>
-              View Orders <span className="opacity-60">({orders.length})</span>
-            </span>
-          </summary>
-          <ul className="mt-3 divide-y divide-gray-200 max-h-64 overflow-y-auto bg-gray-50 rounded-lg shadow-inner">
-            {orders.map((order) => (
-              <li key={order._id} className="py-3 px-4 flex items-center gap-4 hover:bg-blue-50 transition">
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-base font-semibold text-gray-900">#{order.order_id}</span>
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded text-xs font-medium 
-                        ${order.status === "Delivered" || order.status === "Completed"
-                          ? "bg-green-100 text-green-700"
-                          : order.status === "Cancelled"
-                          ? "bg-red-100 text-red-700"
-                          : "bg-yellow-100 text-yellow-800"
-                        }`}
+            <Card>
+              <CardHeader>
+                <CardTitle>Restaurant Performance</CardTitle>
+                <CardDescription>Detailed metrics with order lists</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="w-full min-h-[250px] h-[40vw] max-h-[450px] md:max-h-[500px] overflow-x-auto">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={restaurantPerformanceData}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                     >
-                      {order.status}
-                    </span>
-                    <span className="ml-2 text-xs text-gray-500">
-                      {new Date(order.createdAt).toLocaleDateString()} {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-4 mt-1 text-sm text-gray-700">
-                    <span>
-                      <span className="font-medium">Amount:</span> LKR {order.total_amount.toLocaleString()}
-                    </span>
-                    <span>
-                      <span className="font-medium">Items:</span> {order.items.length}
-                    </span>
-                    <span>
-                      <span className="font-medium">Customer:</span> {order.email || order.phone || "-"}
-                    </span>
-                  </div>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                      <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
+                      <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
+                      <Tooltip />
+                      <Legend />
+                      <Bar yAxisId="left" dataKey="orders" fill="#8884d8" name="Orders" />
+                      <Bar yAxisId="right" dataKey="revenue" fill="#82ca9d" name="Revenue (LKR)" />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
-                <div className="flex flex-col items-end min-w-[72px]">
-                  <span className="text-xs text-gray-400">Order ID</span>
-                  <span className="text-xs text-gray-600">{order._id.slice(-6)}</span>
+                <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {restaurantPerformance.map(({ restaurant, orders, totalOrders, totalRevenue }) => (
+                    <div
+                      key={restaurant.id}
+                      className="border rounded p-4 bg-white shadow-sm flex flex-col h-full"
+                      style={{ minWidth: 0 }}
+                    >
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-y-2 gap-x-4">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-lg truncate">{restaurant.name}</h3>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {totalOrders} orders • LKR {totalRevenue.toLocaleString()} revenue
+                          </p>
+                        </div>
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-medium ${
+                            restaurant.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                          }`}
+                        >
+                          {restaurant.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </div>
+                      {/* --- PROFESSIONAL VIEW ORDERS LIST START --- */}
+                      {orders.length > 0 && (
+                        <details className="mt-4 group">
+                          <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2 select-none">
+                            <span className="inline-block w-2 h-2 rounded-full bg-blue-500 group-open:rotate-90 transition-transform" />
+                            <span>
+                              View Orders <span className="opacity-60">({orders.length})</span>
+                            </span>
+                          </summary>
+                          <ul className="mt-3 divide-y divide-gray-200 max-h-64 overflow-y-auto bg-gray-50 rounded-lg shadow-inner">
+                            {orders.map((order) => (
+                              <li key={order._id} className="py-3 px-4 flex items-center gap-4 hover:bg-blue-50 transition">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-base font-semibold text-gray-900">#{order.order_id}</span>
+                                    <span
+                                      className={`inline-block px-2 py-0.5 rounded text-xs font-medium 
+                                        ${order.status === "Delivered" || order.status === "Completed"
+                                          ? "bg-green-100 text-green-700"
+                                          : order.status === "Cancelled"
+                                          ? "bg-red-100 text-red-700"
+                                          : "bg-yellow-100 text-yellow-800"
+                                        }`}
+                                    >
+                                      {order.status}
+                                    </span>
+                                    <span className="ml-2 text-xs text-gray-500">
+                                      {new Date(order.createdAt).toLocaleDateString()} {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-4 mt-1 text-sm text-gray-700">
+                                    <span>
+                                      <span className="font-medium">Amount:</span> LKR {order.total_amount.toLocaleString()}
+                                    </span>
+                                    <span>
+                                      <span className="font-medium">Items:</span> {order.items.length}
+                                    </span>
+                                    <span>
+                                      <span className="font-medium">Customer:</span> {order.email || order.phone || "-"}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex flex-col items-end min-w-[72px]">
+                                  <span className="text-xs text-gray-400">Order ID</span>
+                                  <span className="text-xs text-gray-600">{order._id.slice(-6)}</span>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-
-          </div>
-        ))}
-      </div>
-    </CardContent>
-  </Card>
-</TabsContent>
-
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
     </div>
