@@ -303,21 +303,27 @@ export default function AdminDashboardPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Update failed");
   
+      // Determine if email or password was changed
+      const emailChanged = data.email && data.email !== owner.email;
+      const passwordChanged = !!newPassword;
+  
       setIsEditing(false);
       setNewPassword("");
       setConfirmPassword("");
       toast.success("Profile updated successfully");
   
-      // If password was changed, log out and require re-login
-      if (newPassword) {
+      if (emailChanged || passwordChanged) {
         localStorage.removeItem("token");
-        toast.success("Password changed. Please log in again.");
+        toast.success(
+          emailChanged
+            ? "Email changed. Please log in again."
+            : "Password changed. Please log in again."
+        );
         window.location.href = "/login";
         return;
       }
   
       // Update localStorage with new user data (if you store user info)
-      // For example, if you store user profile in localStorage:
       localStorage.setItem("user", JSON.stringify({
         ...data,
         id: userId
@@ -335,6 +341,7 @@ export default function AdminDashboardPage() {
       toast.error(error instanceof Error ? error.message : "Failed to update profile");
     }
   };
+  
   
  // Delete admin account handler
  const handleDeleteAccount = async () => {
