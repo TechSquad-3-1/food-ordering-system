@@ -62,7 +62,7 @@ export default function OrderHistoryPage() {
   const [dailyCounts, setDailyCounts] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] });
   const [orderCount, setOrderCount] = useState(0);
   const [userOrderStats, setUserOrderStats] = useState<{ labels: string[]; data: number[]; topUsers: { email: string, count: number }[] }>({ labels: [], data: [], topUsers: [] });
-  const [showOrderHistory, setShowOrderHistory] = useState(false);
+  const [showOrderHistory, setShowOrderHistory] = useState(false); // NEW STATE
 
   useEffect(() => {
     if (!ownerId) return;
@@ -247,6 +247,8 @@ export default function OrderHistoryPage() {
         borderRadius: 8,
         barThickness: 28,
         maxBarThickness: 36,
+        barPercentage: 0.5,
+        categoryPercentage: 0.5,
       },
     ],
   };
@@ -313,14 +315,13 @@ export default function OrderHistoryPage() {
         <div className="text-lg font-semibold mt-2">
           Total Orders: <span className="text-primary">{orderCount}</span>
         </div>
-        <div className="mt-4 mb-2">
-          <button
-            className="px-5 py-2 bg-primary text-white rounded hover:bg-primary-dark transition font-semibold text-lg shadow"
-            onClick={() => setShowOrderHistory(v => !v)}
-          >
-            {showOrderHistory ? "Hide Order History" : "Show Order History"}
-          </button>
-        </div>
+        {/* Show Order History Button */}
+        <button
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 w-max"
+          onClick={() => setShowOrderHistory((prev) => !prev)}
+        >
+          {showOrderHistory ? "Hide Order History" : "Show Order History"}
+        </button>
       </div>
 
       {/* Orders Per Day Bar Graph */}
