@@ -2,6 +2,13 @@
 import type React from "react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import type { SelectSingleEventHandler } from "react-day-picker";
 
 interface Order {
   _id: string;
@@ -46,6 +53,7 @@ export default function OrdersPage() {
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
   const [userMap, setUserMap] = useState<Record<string, string>>({});
   const [restaurantMap, setRestaurantMap] = useState<Record<string, string>>({});
@@ -122,8 +130,19 @@ export default function OrdersPage() {
     fetchAll();
   }, []);
 
+  // Date filter function
+  const isSameDay = (date1: Date, date2: Date) => {
+    return (
+      date1.getDate() === date2.getDate() &&
+      date1.getMonth() === date2.getMonth() &&
+      date1.getFullYear() === date2.getFullYear()
+    );
+  };
+
   useEffect(() => {
     let filtered = [...orders];
+    
+    // Apply search filter
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -135,11 +154,30 @@ export default function OrdersPage() {
           (order.phone || "").toLowerCase().includes(query)
       );
     }
+    
+    // Apply status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter((order) => order.status === statusFilter);
     }
+    
+    // Apply date filter
+    if (selectedDate) {
+      filtered = filtered.filter((order) => {
+        const orderDate = new Date(order.createdAt);
+        return isSameDay(orderDate, selectedDate);
+      });
+    }
+    
     setFilteredOrders(filtered);
-  }, [searchQuery, statusFilter, orders]);
+  }, [searchQuery, statusFilter, selectedDate, orders]);
+
+  const handleDateSelect: SelectSingleEventHandler = (day) => {
+    setSelectedDate(day);
+  };
+
+  const clearDateFilter = () => {
+    setSelectedDate(undefined);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -176,27 +214,73 @@ export default function OrdersPage() {
 
       {/* Filters */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-        <input
-          type="text"
-          placeholder="Search by Order ID, User ID, Restaurant ID, Email, Phone"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="border border-gray-300 rounded-lg px-4 py-2 w-full md:w-96 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-        />
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="border border-gray-300 rounded-lg px-4 py-2 w-full md:w-60 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-        >
-          <option value="all">All Statuses</option>
-          <option value="pending">Pending</option>
-          <option value="preparing">Preparing</option>
-          <option value="ready">Ready</option>
-          <option value="out_for_delivery">Out for Delivery</option>
-          <option value="delivered">Delivered</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
+        <div className="flex flex-col md:flex-row gap-4 w-full">
+          <input
+            type="text"
+            placeholder="Search by Order ID, User ID, Restaurant ID, Email, Phone"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="border border-gray-300 rounded-lg px-4 py-2 w-full md:w-96 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+          />
+          
+          <div className="relative w-full md:w-60">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-full border border-gray-300 rounded-lg px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition",
+                    !selectedDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? format(selectedDate, "yyyy-MM-dd") : <span>Filter by date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={handleDateSelect}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="border border-gray-300 rounded-lg px-4 py-2 w-full md:w-60 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+          >
+            <option value="all">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="preparing">Preparing</option>
+            <option value="ready">Ready</option>
+            <option value="out_for_delivery">Out for Delivery</option>
+            <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          
+          {selectedDate && (
+            <button
+              onClick={clearDateFilter}
+              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700 font-medium transition md:w-auto"
+            >
+              Clear Date Filter
+            </button>
+          )}
+        </div>
       </div>
+      
+      {/* Filter Status Display */}
+      {selectedDate && (
+        <div className="mb-4 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg inline-flex items-center">
+          <span className="text-blue-700 font-medium">
+            Showing orders from: {selectedDate.toLocaleDateString()}
+          </span>
+        </div>
+      )}
 
       {/* Table */}
       <div className="overflow-x-auto rounded-xl shadow-lg bg-white">
