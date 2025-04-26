@@ -15,7 +15,6 @@ import {
   Legend,
 } from "chart.js";
 
-// Register chart.js components
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 interface OrderItem {
@@ -56,27 +55,24 @@ function getDateRange(start: Date, end: Date) {
 }
 
 export default function OrderHistoryPage() {
-  // Get the logged-in owner's restaurant ID from localStorage
-  const ownerId = localStorage.getItem("restaurantOwnerId");
-  const [restaurants, setRestaurants] = useState<any[]>([]); // Restaurant data
-  const [orders, setOrders] = useState<Order[]>([]); // Orders data
+  const ownerId = typeof window !== "undefined" ? localStorage.getItem("restaurantOwnerId") : null;
+  const [restaurants, setRestaurants] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dailyCounts, setDailyCounts] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] });
   const [orderCount, setOrderCount] = useState(0);
   const [userOrderStats, setUserOrderStats] = useState<{ labels: string[]; data: number[]; topUsers: { email: string, count: number }[] }>({ labels: [], data: [], topUsers: [] });
-  
-  
-  useEffect(() => {
-    if (!ownerId) return; // Ensure we have an ownerId
+  const [showOrderHistory, setShowOrderHistory] = useState(false);
 
-    // Fetch the restaurant(s) by ownerId
+  useEffect(() => {
+    if (!ownerId) return;
     const fetchRestaurants = async () => {
       setIsLoading(true);
       try {
         const response = await fetch(`http://localhost:3001/api/restaurants/owner/${ownerId}`);
         if (!response.ok) throw new Error("Failed to fetch restaurants");
         const data = await response.json();
-        setRestaurants(data);  // Set the restaurant data
+        setRestaurants(data);
       } catch (error) {
         console.error("Error fetching restaurants:", error);
         setRestaurants([]);
@@ -84,17 +80,14 @@ export default function OrderHistoryPage() {
         setIsLoading(false);
       }
     };
-
     fetchRestaurants();
   }, [ownerId]);
 
   useEffect(() => {
     if (restaurants.length === 0) return;
-
     const fetchOrders = async () => {
       setIsLoading(true);
       try {
-        // Fetch orders for the restaurant(s) that belong to the owner
         const ordersData: Order[] = [];
         for (const restaurant of restaurants) {
           const response = await fetch(`http://localhost:3008/api/orders?restaurant_id=${restaurant._id}`);
@@ -102,41 +95,32 @@ export default function OrderHistoryPage() {
           const data = await response.json();
           ordersData.push(...data);
         }
-
-        // Filter orders based on restaurant_id
         const filteredOrders = ordersData.filter((order: Order) => restaurants.some((restaurant) => restaurant._id === order.restaurant_id));
         setOrders(filteredOrders);
         setOrderCount(filteredOrders.length);
 
-        // Process order dates
         const dates = filteredOrders.map((order: Order) => new Date(order.createdAt));
         if (dates.length === 0) {
           setDailyCounts({ labels: [], data: [] });
           setUserOrderStats({ labels: [], data: [], topUsers: [] });
           return;
         }
-
-        // Sort and generate daily counts
-        dates.sort((a: { getTime: () => number }, b: { getTime: () => number }) => a.getTime() - b.getTime());
+        dates.sort((a, b) => a.getTime() - b.getTime());
         const startDate = new Date(dates[0].toISOString().slice(0, 10));
         const endDate = new Date();
-
         const dateRange = getDateRange(startDate, endDate);
         const dateLabels = dateRange.map(getDateString);
-
         const counts: { [date: string]: number } = {};
         dateLabels.forEach(date => { counts[date] = 0 });
         filteredOrders.forEach((order: Order) => {
           const dateStr = getDateString(new Date(order.createdAt));
           if (counts[dateStr] !== undefined) counts[dateStr] += 1;
         });
-
         setDailyCounts({
           labels: dateLabels,
           data: dateLabels.map(date => counts[date]),
         });
 
-        // User analytics: Count orders per user (by email)
         const userCounts: { [email: string]: number } = {};
         filteredOrders.forEach((order: Order) => {
           if (order.email) {
@@ -161,7 +145,6 @@ export default function OrderHistoryPage() {
         setIsLoading(false);
       }
     };
-
     fetchOrders();
   }, [restaurants]);
 
@@ -184,7 +167,7 @@ export default function OrderHistoryPage() {
     }
   };
 
-  // Chart data for orders per day since first order
+  // Orders Per Day (vertical bar)
   const chartData = {
     labels: dailyCounts.labels,
     datasets: [
@@ -192,30 +175,68 @@ export default function OrderHistoryPage() {
         label: "Number of Orders",
         data: dailyCounts.data,
         backgroundColor: "#6366f1",
+        borderRadius: 8,
+        barThickness: 36,
+        maxBarThickness: 48,
       },
     ],
   };
 
   const chartOptions = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
-      title: { display: true, text: "Orders Placed Per Day (Since First Order)" },
+      title: {
+        display: true,
+        text: "Orders Per Day",
+        font: { size: 26, weight: "bold" as const },
+        color: "#111827",
+        padding: { top: 20, bottom: 30 },
+      },
+      tooltip: {
+        enabled: true,
+        backgroundColor: "#fff",
+        titleColor: "#111827",
+        bodyColor: "#111827",
+        borderColor: "#6366f1",
+        borderWidth: 1,
+      },
+    },
+    layout: {
+      padding: 24,
     },
     scales: {
       x: {
+        title: {
+          display: true,
+          text: "Date",
+          font: { size: 16, weight: "bold" as const },
+        },
         ticks: {
           maxRotation: 45,
           minRotation: 45,
           autoSkip: true,
-          maxTicksLimit: 15,
-        }
+          maxTicksLimit: 18,
+          font: { size: 14 },
+        },
+        grid: { display: false },
       },
-      y: { beginAtZero: true, precision: 0 },
+      y: {
+        title: {
+          display: true,
+          text: "Orders",
+          font: { size: 16, weight: "bold" as const },
+        },
+        beginAtZero: true,
+        precision: 0,
+        ticks: { font: { size: 16 } },
+        grid: { color: "#e5e7eb" },
+      },
     },
   };
 
-  // Chart data for user analytics
+  // Usage Analytics (horizontal bar)
   const userChartData = {
     labels: userOrderStats.labels,
     datasets: [
@@ -223,6 +244,9 @@ export default function OrderHistoryPage() {
         label: "Orders per User",
         data: userOrderStats.data,
         backgroundColor: "#34d399",
+        borderRadius: 8,
+        barThickness: 28,
+        maxBarThickness: 36,
       },
     ],
   };
@@ -230,22 +254,57 @@ export default function OrderHistoryPage() {
   const userChartOptions = {
     indexAxis: "y" as const,
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
-      title: { display: true, text: "Top 10 Users by Orders" },
+      title: {
+        display: true,
+        text: "Usage Analytics",
+        font: { size: 20, weight: "bold" as const },
+        color: "#111827",
+        padding: { top: 20, bottom: 30 },
+      },
+      tooltip: {
+        enabled: true,
+        backgroundColor: "#fff",
+        titleColor: "#111827",
+        bodyColor: "#111827",
+        borderColor: "#34d399",
+        borderWidth: 1,
+      },
+    },
+    layout: {
+      padding: 24,
     },
     scales: {
-      x: { beginAtZero: true, precision: 0 },
+      x: {
+        title: {
+          display: true,
+          text: "Orders",
+          font: { size: 16, weight: "bold" as const },
+        },
+        beginAtZero: true,
+        precision: 0,
+        ticks: { font: { size: 16 } },
+        grid: { color: "#e5e7eb" },
+      },
       y: {
+        title: {
+          display: true,
+          text: "User Email",
+          font: { size: 16, weight: "bold" as const },
+        },
         ticks: {
           autoSkip: false,
-        }
+          font: { size: 14 },
+        },
+        grid: { display: false },
       },
     },
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 max-w-7xl mx-auto px-2 py-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">Order History</h1>
         <p className="text-muted-foreground">
@@ -254,114 +313,124 @@ export default function OrderHistoryPage() {
         <div className="text-lg font-semibold mt-2">
           Total Orders: <span className="text-primary">{orderCount}</span>
         </div>
+        <div className="mt-4 mb-2">
+          <button
+            className="px-5 py-2 bg-primary text-white rounded hover:bg-primary-dark transition font-semibold text-lg shadow"
+            onClick={() => setShowOrderHistory(v => !v)}
+          >
+            {showOrderHistory ? "Hide Order History" : "Show Order History"}
+          </button>
+        </div>
       </div>
 
-      {/* FLEX CONTAINER for the two charts side by side */}
-      <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
-        <Card style={{ flex: 1, minWidth: 0, maxWidth: "50%" }}>
-          <CardHeader>
-            <CardTitle>Orders Per Day (Since First Order)</CardTitle>
-            <CardDescription>
-              Number of orders placed each day from your first order to today
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {dailyCounts.labels.length === 0 ? (
-              <div>No orders to display.</div>
-            ) : (
-              <div style={{ width: "100%", minWidth: 0 }}>
-                <Bar data={chartData} options={chartOptions} />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card style={{ flex: 1, minWidth: 0, maxWidth: "50%" }}>
-          <CardHeader>
-            <CardTitle>User Analytics</CardTitle>
-            <CardDescription>
-              Top users who placed the most orders
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {userOrderStats.labels.length === 0 ? (
-              <div>No user analytics to display.</div>
-            ) : (
-              <>
-                <div style={{ width: "100%", minWidth: 0, marginBottom: 24 }}>
-                  <Bar data={userChartData} options={userChartOptions} />
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-2">Top 5 Users</h3>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Orders</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {userOrderStats.topUsers.map(user => (
-                        <TableRow key={user.email}>
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell>{user.count}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
+      {/* Orders Per Day Bar Graph */}
+      <Card className="shadow-lg border border-gray-100">
         <CardHeader>
-          <CardTitle>Order History</CardTitle>
+          <CardTitle className="text-xl font-bold">Orders Per Day</CardTitle>
           <CardDescription>
-            List of all orders for this restaurant
+            Track order volume trends over time.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div>Loading...</div>
-          ) : orders.length === 0 ? (
-            <div>No orders found for this restaurant.</div>
+          {dailyCounts.labels.length === 0 ? (
+            <div style={{ height: 440, display: "flex", alignItems: "center", justifyContent: "center" }}>No orders to display.</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created At</TableHead>
-                  <TableHead>Delivery Address</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders.map(order => (
-                  <TableRow key={order._id}>
-                    <TableCell>{order.order_id}</TableCell>
-                    <TableCell>{order.email}</TableCell>
-                    <TableCell>LKR{order.total_amount.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(order.status)}>
-                        {order.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(order.createdAt).toLocaleString()}
-                    </TableCell>
-                    <TableCell>{order.delivery_address}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div style={{ width: "100%", minWidth: 0, height: 440 }}>
+              <Bar data={chartData} options={chartOptions} />
+            </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Usage Analytics Graph BELOW the bar graph */}
+      <Card className="shadow-lg border border-gray-100">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold">Usage Analytics</CardTitle>
+          <CardDescription>
+            See your top users by total orders.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {userOrderStats.labels.length === 0 ? (
+            <div style={{ height: 340, display: "flex", alignItems: "center", justifyContent: "center" }}>No user analytics to display.</div>
+          ) : (
+            <>
+              <div style={{ width: "100%", minWidth: 0, height: 340, marginBottom: 24 }}>
+                <Bar data={userChartData} options={userChartOptions} />
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Top 5 Users</h3>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Orders</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {userOrderStats.topUsers.map(user => (
+                      <TableRow key={user.email}>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>{user.count}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Conditionally render the order history table */}
+      {showOrderHistory && (
+        <Card className="mt-6 shadow-lg border border-gray-100">
+          <CardHeader>
+            <CardTitle>Order History</CardTitle>
+            <CardDescription>
+              List of all orders for this restaurant
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div>Loading...</div>
+            ) : orders.length === 0 ? (
+              <div>No orders found for this restaurant.</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order ID</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Created At</TableHead>
+                    <TableHead>Delivery Address</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {orders.map(order => (
+                    <TableRow key={order._id}>
+                      <TableCell>{order.order_id}</TableCell>
+                      <TableCell>{order.email}</TableCell>
+                      <TableCell>LKR{order.total_amount.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(order.status)}>
+                          {order.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(order.createdAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell>{order.delivery_address}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
