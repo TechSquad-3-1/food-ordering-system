@@ -116,6 +116,10 @@ export default function AdminDashboardPage() {
   const [passwordError, setPasswordError] = useState("")
   const [password, setPassword] = useState("")
 
+  // Delete account states
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   useEffect(() => {
     const fetchTotalUsers = async () => {
       try {
@@ -332,6 +336,38 @@ export default function AdminDashboardPage() {
     }
   };
   
+ // Delete admin account handler
+ const handleDeleteAccount = async () => {
+  setIsDeleting(true)
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) throw new Error("No authentication token found")
+    const decodedToken = JSON.parse(atob(token.split('.')[1]))
+    const userId = decodedToken.id
+    const response = await fetch(`http://localhost:4000/api/auth/delete/${userId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      }
+    })
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.message || "Failed to delete account")
+    }
+    localStorage.removeItem("token")
+    localStorage.removeItem("user")
+    toast.success("Account deleted successfully. Logging out...")
+    setTimeout(() => {
+      window.location.href = "/login"
+    }, 1500)
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "Failed to delete account")
+  } finally {
+    setIsDeleting(false)
+    setShowDeleteConfirm(false)
+  }
+}
 
   
   
@@ -564,10 +600,46 @@ export default function AdminDashboardPage() {
               {isEditing ? (
                 <Button onClick={handleSaveOwner}>Save Changes</Button>
               ) : (
-                <Button onClick={() => setIsEditing(true)}>Edit</Button>
+                <>
+                  <Button onClick={() => setIsEditing(true)}>Edit</Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={isDeleting}
+                  >
+                    Delete Account
+                  </Button>
+                </>
               )}
             </CardFooter>
           </Card>
+          {/* Delete Confirmation Modal */}
+          {showDeleteConfirm && (
+            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+              <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full">
+                <h2 className="text-lg font-bold mb-2">Delete Account?</h2>
+                <p className="mb-4 text-sm text-gray-600">
+                  Are you sure you want to delete your admin account? This action cannot be undone.
+                </p>
+                <div className="flex justify-end gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={isDeleting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleDeleteAccount}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? "Deleting..." : "Yes, Delete"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
