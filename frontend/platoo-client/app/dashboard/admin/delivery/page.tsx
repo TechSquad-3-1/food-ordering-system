@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { format, isSameDay } from "date-fns"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -8,13 +9,14 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Progress } from "@/components/ui/progress"
-import { Search, Plus, MapPin, Truck, User, Phone, Mail, Calendar, Star, Bike, Car, MoreHorizontal, Edit, XCircle, CheckCircle, RefreshCw, ShoppingBag } from 'lucide-react'
+import { Search, MapPin, Truck, User, Phone, Mail, Calendar as CalendarIcon, Edit, RefreshCw, Bike, Car } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { cn } from "@/lib/utils"
 
 interface DeliveryPerson {
   address: string
@@ -50,8 +52,47 @@ interface Delivery {
   updatedAt: string
 }
 
+// ======================== DatePicker Component ========================
+function DatePicker({
+  selected,
+  onSelect,
+  placeholder = "Pick a date",
+  className,
+}: {
+  selected: Date | null
+  onSelect: (date: Date | null) => void
+  placeholder?: string
+  className?: string
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant={"outline"}
+          className={cn(
+            "w-[180px] justify-start text-left font-normal",
+            !selected && "text-muted-foreground",
+            className
+          )}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {selected ? format(selected, "PPP") : <span>{placeholder}</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0">
+        <Calendar
+          mode="single"
+          selected={selected || undefined}
+          onSelect={(date) => onSelect(date || null)}
+          initialFocus
+        />
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+// ======================== Main Component ========================
 export default function AdminDeliveryDashboard() {
-  // ======================== EXISTING STATE ========================
   const [isLoading, setIsLoading] = useState(true)
   const [deliveryPersonnel, setDeliveryPersonnel] = useState<DeliveryPerson[]>([])
   const [activeDeliveries, setActiveDeliveries] = useState<Delivery[]>([])
@@ -59,7 +100,6 @@ export default function AdminDeliveryDashboard() {
   const [deliveryPersonnelFilter, setDeliveryPersonnelFilter] = useState("all")
   const [deliveriesFilter, setDeliveriesFilter] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
-
   const [isEditing, setIsEditing] = useState(false)
   const [editForm, setEditForm] = useState({
     name: "",
@@ -72,9 +112,11 @@ export default function AdminDeliveryDashboard() {
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState("")
 
-  // ...existing useEffect hooks and other logic remain unchanged...
+  // Date filter state
+  const [personnelDate, setPersonnelDate] = useState<Date | null>(null)
+  const [deliveriesDate, setDeliveriesDate] = useState<Date | null>(null)
 
-  // ======================== EDIT HANDLERS ========================
+  // Edit handlers
   const openEdit = (person: DeliveryPerson) => {
     setEditForm({
       name: person.name || "",
@@ -93,8 +135,8 @@ export default function AdminDeliveryDashboard() {
     const { name, value } = e.target
     setEditForm((prev) => ({
       ...prev,
-      [name]: name === "status" 
-        ? value as "active" | "inactive" | "on_delivery" 
+      [name]: name === "status"
+        ? value as "active" | "inactive" | "on_delivery"
         : value,
     }))
   }
@@ -117,8 +159,6 @@ export default function AdminDeliveryDashboard() {
         }
       )
       if (!res.ok) throw new Error("Failed to update user")
-      
-      // Update local state
       setSelectedDeliveryPerson((prev) =>
         prev ? { ...prev, ...editForm } : prev
       )
@@ -135,7 +175,7 @@ export default function AdminDeliveryDashboard() {
     }
   }
 
-  // Fetch delivery personnel from backend (UPDATED TO MATCH NEW DATA FORMAT)
+  // Fetch delivery personnel
   useEffect(() => {
     async function fetchDeliveryPersonnel() {
       setIsLoading(true)
@@ -150,7 +190,6 @@ export default function AdminDeliveryDashboard() {
         })
         if (!res.ok) throw new Error("Failed to fetch users")
         const users = await res.json()
-        // Only include users with role "delivery_man"
         const deliveryPersons = users.filter(
           (user: any) => user.role === "delivery_man"
         )
@@ -163,7 +202,7 @@ export default function AdminDeliveryDashboard() {
             status: item.status || "inactive",
             rating: item.rating ?? 4.5,
             totalDeliveries: item.totalDeliveries ?? 0,
-            vehicleType: item.vehicleNumber ? "bike" : "bike", // Default to "bike" if not specified
+            vehicleType: item.vehicleNumber ? "bike" : "bike",
             vehicleNumber: item.vehicleNumber || "",
             address: item.address || "",
             restaurantName: item.restaurantName || "",
@@ -180,9 +219,8 @@ export default function AdminDeliveryDashboard() {
     }
     fetchDeliveryPersonnel()
   }, [])
-  
 
-  // Fetch deliveries from backend and map to UI format
+  // Fetch deliveries
   useEffect(() => {
     async function fetchDeliveries() {
       setIsLoading(true)
@@ -209,7 +247,7 @@ export default function AdminDeliveryDashboard() {
     }
     fetchDeliveries();
   }, []);
-  
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active": return "bg-green-500"
@@ -234,9 +272,14 @@ export default function AdminDeliveryDashboard() {
     }
   }
 
+  // Filter logic with date filters
   const filteredDeliveryPersonnel = deliveryPersonnel.filter((person) => {
     if (deliveryPersonnelFilter !== "all" && person.status !== deliveryPersonnelFilter) {
       return false
+    }
+    if (personnelDate && person.createdAt) {
+      const joinDate = new Date(person.createdAt)
+      if (!isSameDay(joinDate, personnelDate)) return false
     }
     if (searchQuery) {
       return (
@@ -249,9 +292,14 @@ export default function AdminDeliveryDashboard() {
     return true
   })
 
+  // *** CHANGE IS HERE: Use deliveryTime instead of createdAt for date filter ***
   const filteredDeliveries = activeDeliveries.filter((delivery) => {
     if (deliveriesFilter !== "all" && delivery.deliveryStatus !== deliveriesFilter) {
       return false
+    }
+    if (deliveriesDate && delivery.deliveryTime) {
+      const deliveryDate = new Date(delivery.deliveryTime)
+      if (!isSameDay(deliveryDate, deliveriesDate)) return false
     }
     if (searchQuery) {
       return (
@@ -282,10 +330,6 @@ export default function AdminDeliveryDashboard() {
     )
   }
 
-  function setShowAddDeliveryPersonDialog(arg0: boolean): void {
-    throw new Error("Function not implemented.")
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
@@ -303,10 +347,8 @@ export default function AdminDeliveryDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{deliveryPersonnel.length}</div>
-            
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Deliveries</CardTitle>
@@ -328,126 +370,121 @@ export default function AdminDeliveryDashboard() {
           <TabsTrigger value="deliveries">Active Deliveries</TabsTrigger>
         </TabsList>
         <TabsContent value="personnel" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search personnel..."
-                  className="pl-8 w-[250px] md:w-[300px]"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <Select value={deliveryPersonnelFilter} onValueChange={setDeliveryPersonnelFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="on_delivery">On Delivery</SelectItem>
-                </SelectContent>
-              </Select>
+          <div className="flex items-center gap-2">
+            <DatePicker
+              selected={personnelDate}
+              onSelect={setPersonnelDate}
+              placeholder="Filter by join date"
+            />
+            <Button variant="outline" onClick={() => setPersonnelDate(null)} disabled={!personnelDate}>
+              Clear
+            </Button>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search personnel..."
+                className="pl-8 w-[250px] md:w-[300px]"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
-            
+           
           </div>
           <Card>
             <CardContent className="p-0">
-            <Table>
-  <TableHeader>
-    <TableRow>
-      <TableHead>ID</TableHead>
-      <TableHead>Name</TableHead>
-      <TableHead>Contact</TableHead>
-      <TableHead>Vehicle No</TableHead>
-      <TableHead>Address</TableHead>
-      <TableHead>Joined</TableHead>
-      <TableHead>Actions</TableHead>
-    </TableRow>
-  </TableHeader>
-  <TableBody>
-    {filteredDeliveryPersonnel.map((person) => (
-      <TableRow key={person.id}>
-        <TableCell className="font-medium">{person.id}</TableCell>
-        <TableCell>
-          <div className="flex items-center gap-2">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={person.avatar || "/placeholder.svg?height=32&width=32"} alt={person.name || "?"} />
-              <AvatarFallback>{person?.name?.charAt(0)?.toUpperCase() || "?"}</AvatarFallback>
-            </Avatar>
-            <div>
-              <div className="font-medium">{person.name || "Unnamed"}</div>
-              <div className="text-xs text-muted-foreground">{person.email || "No email"}</div>
-            </div>
-          </div>
-        </TableCell>
-        <TableCell>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-1">
-              <Phone className="h-3 w-3 text-muted-foreground" />
-              <span className="text-sm">{person.phone || "-"}</span>
-            </div>
-          </div>
-        </TableCell>
-        {/* Status cell removed */}
-        <TableCell>
-          {person.vehicleNumber || "-"}
-        </TableCell>
-        <TableCell>
-          {person.address || "-"}
-        </TableCell>
-        <TableCell>
-          {person.createdAt ? new Date(person.createdAt).toLocaleDateString() : "-"}
-        </TableCell>
-        <TableCell>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setSelectedDeliveryPerson(person)}>
-              View Details
-            </Button>
-          </div>
-        </TableCell>
-      </TableRow>
-    ))}
-  </TableBody>
-</Table>
-
-
-
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Vehicle No</TableHead>
+                    <TableHead>Address</TableHead>
+                    <TableHead>Joined</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredDeliveryPersonnel.map((person) => (
+                    <TableRow key={person.id}>
+                      <TableCell className="font-medium">{person.id}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={person.avatar || "/placeholder.svg?height=32&width=32"} alt={person.name || "?"} />
+                            <AvatarFallback>{person?.name?.charAt(0)?.toUpperCase() || "?"}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium">{person.name || "Unnamed"}</div>
+                            <div className="text-xs text-muted-foreground">{person.email || "No email"}</div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-1">
+                            <Phone className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-sm">{person.phone || "-"}</span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {person.vehicleNumber || "-"}
+                      </TableCell>
+                      <TableCell>
+                        {person.address || "-"}
+                      </TableCell>
+                      <TableCell>
+                        {person.createdAt ? new Date(person.createdAt).toLocaleDateString() : "-"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setSelectedDeliveryPerson(person)}>
+                            View Details
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>
         <TabsContent value="deliveries" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search deliveries..."
-                  className="pl-8 w-[250px] md:w-[300px]"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <Select value={deliveriesFilter} onValueChange={setDeliveriesFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="assigned">Assigned</SelectItem>
-                  <SelectItem value="picked_up">Picked Up</SelectItem>
-                  <SelectItem value="in_transit">In Transit</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button variant="outline">
-              <RefreshCw className="mr-2 h-4 w-4" /> Refresh
+          <div className="flex items-center gap-2">
+            <DatePicker
+              selected={deliveriesDate}
+              onSelect={setDeliveriesDate}
+              placeholder="Filter by delivery date"
+            />
+            <Button variant="outline" onClick={() => setDeliveriesDate(null)} disabled={!deliveriesDate}>
+              Clear
             </Button>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search deliveries..."
+                className="pl-8 w-[250px] md:w-[300px]"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Select value={deliveriesFilter} onValueChange={setDeliveriesFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="assigned">Assigned</SelectItem>
+                <SelectItem value="picked_up">Picked Up</SelectItem>
+                <SelectItem value="in_transit">In Transit</SelectItem>
+                <SelectItem value="delivered">Delivered</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <Card>
             <CardContent className="p-0">
@@ -506,12 +543,6 @@ export default function AdminDeliveryDashboard() {
                         <TableCell>
                           {delivery.createdAt ? new Date(delivery.createdAt).toLocaleTimeString() : "-"}
                         </TableCell>
-                        <TableCell>
-                          {/* View Details button removed as requested */}
-                          <div className="flex items-center gap-2">
-                            {/* Other action buttons can go here if needed */}
-                          </div>
-                        </TableCell>
                       </TableRow>
                     )
                   })}
@@ -522,186 +553,180 @@ export default function AdminDeliveryDashboard() {
         </TabsContent>
       </Tabs>
 
-     
-
       {/* Delivery Person Details Dialog */}
       {selectedDeliveryPerson && (
-  <Dialog open={!!selectedDeliveryPerson} onOpenChange={() => { setSelectedDeliveryPerson(null); setIsEditing(false); }}>
-    <DialogContent className="sm:max-w-[500px] rounded-xl shadow-xl border-0 p-0">
-      <div className="bg-gradient-to-r from-blue-600 to-blue-400 rounded-t-xl px-6 py-5 flex items-center gap-4">
-        <Avatar className="h-16 w-16 border-4 border-white shadow-lg">
-          <AvatarImage
-            src={selectedDeliveryPerson.avatar || "/placeholder.svg?height=64&width=64"}
-            alt={selectedDeliveryPerson.name || "?"}
-          />
-          <AvatarFallback>
-            {selectedDeliveryPerson?.name?.charAt(0)?.toUpperCase() || "?"}
-          </AvatarFallback>
-        </Avatar>
-        <div>
-          <h2 className="text-2xl font-bold text-white mb-1">
-            {selectedDeliveryPerson.name || "Unnamed"}
-          </h2>
-          <div className="flex items-center gap-2">
-            <Badge className={`${getStatusColor(selectedDeliveryPerson.status)} text-white text-xs px-2 py-0.5 rounded`}>
-              {selectedDeliveryPerson.status === "active"
-                ? "Active"
-                : selectedDeliveryPerson.status === "inactive"
-                ? "Inactive"
-                : "On Delivery"}
-            </Badge>
-            <span className="text-xs text-blue-100">
-              ID: {selectedDeliveryPerson.id}
-            </span>
-          </div>
-        </div>
-      </div>
-      <div className="px-6 py-6 bg-white rounded-b-xl">
-        {!isEditing ? (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Dialog open={!!selectedDeliveryPerson} onOpenChange={() => { setSelectedDeliveryPerson(null); setIsEditing(false); }}>
+          <DialogContent className="sm:max-w-[500px] rounded-xl shadow-xl border-0 p-0">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-400 rounded-t-xl px-6 py-5 flex items-center gap-4">
+              <Avatar className="h-16 w-16 border-4 border-white shadow-lg">
+                <AvatarImage
+                  src={selectedDeliveryPerson.avatar || "/placeholder.svg?height=64&width=64"}
+                  alt={selectedDeliveryPerson.name || "?"}
+                />
+                <AvatarFallback>
+                  {selectedDeliveryPerson?.name?.charAt(0)?.toUpperCase() || "?"}
+                </AvatarFallback>
+              </Avatar>
               <div>
-                <h4 className="font-semibold text-gray-700 mb-2">Contact</h4>
-                <div className="space-y-2 text-sm text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-blue-500" />
-                    <span>{selectedDeliveryPerson.email || "No email"}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-blue-500" />
-                    <span>{selectedDeliveryPerson.phone || "-"}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-blue-500" />
-                    <span>{selectedDeliveryPerson.address || "-"}</span>
-                  </div>
+                <h2 className="text-2xl font-bold text-white mb-1">
+                  {selectedDeliveryPerson.name || "Unnamed"}
+                </h2>
+                <div className="flex items-center gap-2">
+                  <Badge className={`${getStatusColor(selectedDeliveryPerson.status)} text-white text-xs px-2 py-0.5 rounded`}>
+                    {selectedDeliveryPerson.status === "active"
+                      ? "Active"
+                      : selectedDeliveryPerson.status === "inactive"
+                        ? "Inactive"
+                        : "On Delivery"}
+                  </Badge>
+                  <span className="text-xs text-blue-100">
+                    ID: {selectedDeliveryPerson.id}
+                  </span>
                 </div>
               </div>
-              <div>
-                <h4 className="font-semibold text-gray-700 mb-2">Delivery Info</h4>
-                <div className="space-y-2 text-sm text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <Truck className="h-4 w-4 text-blue-500" />
-                    <span>Vehicle No: {selectedDeliveryPerson.vehicleNumber || "-"}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-blue-500" />
-                    <span>
-                      Joined: {selectedDeliveryPerson.createdAt
-                        ? new Date(selectedDeliveryPerson.createdAt).toLocaleDateString()
-                        : "-"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {getVehicleIcon(selectedDeliveryPerson.vehicleType)}
-                    <span>Vehicle Type: {selectedDeliveryPerson.vehicleType}</span>
-                  </div>
-                  {selectedDeliveryPerson.location && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-blue-500" />
-                      <span>
-                        Location: {selectedDeliveryPerson.location.lat}, {selectedDeliveryPerson.location.lng}
-                      </span>
+            </div>
+            <div className="px-6 py-6 bg-white rounded-b-xl">
+              {!isEditing ? (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="font-semibold text-gray-700 mb-2">Contact</h4>
+                      <div className="space-y-2 text-sm text-gray-600">
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-4 w-4 text-blue-500" />
+                          <span>{selectedDeliveryPerson.email || "No email"}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 text-blue-500" />
+                          <span>{selectedDeliveryPerson.phone || "-"}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-blue-500" />
+                          <span>{selectedDeliveryPerson.address || "-"}</span>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-700 mb-2">Delivery Info</h4>
+                      <div className="space-y-2 text-sm text-gray-600">
+                        <div className="flex items-center gap-2">
+                          <Truck className="h-4 w-4 text-blue-500" />
+                          <span>Vehicle No: {selectedDeliveryPerson.vehicleNumber || "-"}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <CalendarIcon className="h-4 w-4 text-blue-500" />
+                          <span>
+                            Joined: {selectedDeliveryPerson.createdAt
+                              ? new Date(selectedDeliveryPerson.createdAt).toLocaleDateString()
+                              : "-"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {getVehicleIcon(selectedDeliveryPerson.vehicleType)}
+                          <span>Vehicle Type: {selectedDeliveryPerson.vehicleType}</span>
+                        </div>
+                        {selectedDeliveryPerson.location && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-blue-500" />
+                            <span>
+                              Location: {selectedDeliveryPerson.location.lat}, {selectedDeliveryPerson.location.lng}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-8 flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEdit(selectedDeliveryPerson)}
+                    >
+                      <Edit className="mr-2 h-4 w-4" /> Edit
+                    </Button>
+                    <Button variant="outline" onClick={() => setSelectedDeliveryPerson(null)}>
+                      Close
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <form
+                  onSubmit={e => {
+                    e.preventDefault()
+                    handleEditSubmit()
+                  }}
+                  className="space-y-6"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="block text-sm font-medium text-gray-700 mb-1">Name</Label>
+                        <Input
+                          name="name"
+                          value={editForm.name}
+                          onChange={handleEditChange}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label className="block text-sm font-medium text-gray-700 mb-1">Email</Label>
+                        <Input
+                          name="email"
+                          type="email"
+                          value={editForm.email}
+                          onChange={handleEditChange}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label className="block text-sm font-medium text-gray-700 mb-1">Phone</Label>
+                        <Input
+                          name="phone"
+                          value={editForm.phone}
+                          onChange={handleEditChange}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="block text-sm font-medium text-gray-700 mb-1">Address</Label>
+                        <Input
+                          name="address"
+                          value={editForm.address}
+                          onChange={handleEditChange}
+                        />
+                      </div>
+                      <div>
+                        <Label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Number</Label>
+                        <Input
+                          name="vehicleNumber"
+                          value={editForm.vehicleNumber}
+                          onChange={handleEditChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  {editError && <div className="text-red-500 text-sm">{editError}</div>}
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={() => setIsEditing(false)}
+                      disabled={editLoading}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={editLoading}>
+                      {editLoading ? "Saving..." : "Save"}
+                    </Button>
+                  </div>
+                </form>
+              )}
             </div>
-            <div className="mt-8 flex justify-end gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => openEdit(selectedDeliveryPerson)}
-              >
-                <Edit className="mr-2 h-4 w-4" /> Edit
-              </Button>
-              <Button variant="outline" onClick={() => setSelectedDeliveryPerson(null)}>
-                Close
-              </Button>
-            </div>
-          </>
-        ) : (
-          // ... keep your existing edit form code here, unchanged ...
-          <form
-            onSubmit={e => {
-              e.preventDefault()
-              handleEditSubmit()
-            }}
-            className="space-y-6"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-  <div className="space-y-4">
-    <div>
-      <Label className="block text-sm font-medium text-gray-700 mb-1">Name</Label>
-      <Input
-        name="name"
-        value={editForm.name}
-        onChange={handleEditChange}
-        required
-      />
-    </div>
-    <div>
-      <Label className="block text-sm font-medium text-gray-700 mb-1">Email</Label>
-      <Input
-        name="email"
-        type="email"
-        value={editForm.email}
-        onChange={handleEditChange}
-        required
-      />
-    </div>
-    <div>
-      <Label className="block text-sm font-medium text-gray-700 mb-1">Phone</Label>
-      <Input
-        name="phone"
-        value={editForm.phone}
-        onChange={handleEditChange}
-        required
-      />
-    </div>
-  </div>
-  <div className="space-y-4">
-    <div>
-      <Label className="block text-sm font-medium text-gray-700 mb-1">Address</Label>
-      <Input
-        name="address"
-        value={editForm.address}
-        onChange={handleEditChange}
-      />
-    </div>
-    <div>
-      <Label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Number</Label>
-      <Input
-        name="vehicleNumber"
-        value={editForm.vehicleNumber}
-        onChange={handleEditChange}
-      />
-    </div>
-  </div>
-</div>
-{editError && <div className="text-red-500 text-sm">{editError}</div>}
-<div className="flex justify-end gap-2">
-  <Button
-    variant="outline"
-    type="button"
-    onClick={() => setIsEditing(false)}
-    disabled={editLoading}
-  >
-    Cancel
-  </Button>
-  <Button type="submit" disabled={editLoading}>
-    {editLoading ? "Saving..." : "Save"}
-  </Button>
-</div>
-
-          </form>
-        )}
-      </div>
-    </DialogContent>
-  </Dialog>
-)}
-
-
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }
