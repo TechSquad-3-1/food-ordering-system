@@ -126,6 +126,19 @@ export default function UsersPage() {
     </div>
   );
 
+  function validatePassword(password: string): string | null {
+    // Minimum 8 characters, at least one uppercase, one lowercase, one digit, one special character
+    const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_\-+={}[\]|\\:;"'<>,.?/~`]).{8,}$/;
+    if (!password) {
+      return "Password is required";
+    }
+    if (!regex.test(password)) {
+      return "Password must be at least 8 characters and include uppercase, lowercase, number, and special character";
+    }
+    return null;
+  }
+  
+
   useEffect(() => {
     const fetchUsersAndOrders = async () => {
       setIsLoading(true)
@@ -210,10 +223,18 @@ export default function UsersPage() {
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
+  
+    // Password validation
+    const passwordError = validatePassword(newUser.password);
+    if (passwordError) {
+      alert(passwordError);
+      return;
+    }
     if (newUser.password !== newUser.confirmPassword) {
       alert("Passwords do not match");
       return;
     }
+  
     try {
       const res = await fetch("http://localhost:4000/api/auth/register", {
         method: "POST",
@@ -264,6 +285,7 @@ export default function UsersPage() {
       alert("Error registering admin: " + err.message);
     }
   };
+  
 
   const handleDeleteUser = async () => {
     if (!selectedUser || !selectedUser.id) {
