@@ -486,70 +486,71 @@ export default function UsersPage() {
                 <p>Loading users...</p>
               </div>
             ) : filteredUsers.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Orders</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9">
-                            <AvatarImage src={user.avatar} alt={user.name} />
-                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">{user.name}</div>
-                            <div className="text-sm text-muted-foreground">{user.email}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={`${getRoleColor(user.role)} text-white`}>{getRoleName(user.role)}</Badge>
-                      </TableCell>
-                      <TableCell>{user.orders}</TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Actions</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => openViewDetails(user)}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openEditUser(user)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-red-600"
-                              onClick={() => {
-                                setSelectedUser(user)
-                                setIsDeleteDialogOpen(true)
-                              }}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <Table className="w-full table-fixed">
+  <TableHeader>
+    <TableRow>
+      <TableHead>User</TableHead>
+      <TableHead>Role</TableHead>
+      <TableHead>Orders</TableHead>
+      <TableHead className="text-right w-32">Actions</TableHead>
+    </TableRow>
+  </TableHeader>
+  <TableBody>
+    {filteredUsers.map((user) => (
+      <TableRow key={user.id}>
+        <TableCell>
+          <div className="flex items-center gap-3">
+            <Avatar className="h-9 w-9">
+              <AvatarImage src={user.avatar} alt={user.name} />
+              <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <div>
+              <div className="font-medium">{user.name}</div>
+              <div className="text-sm text-muted-foreground">{user.email}</div>
+            </div>
+          </div>
+        </TableCell>
+        <TableCell>
+          <Badge className={`${getRoleColor(user.role)} text-white`}>{getRoleName(user.role)}</Badge>
+        </TableCell>
+        <TableCell>{user.orders}</TableCell>
+        <TableCell className="text-right w-32">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+                <span className="sr-only">Actions</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => openViewDetails(user)}>
+                <Eye className="mr-2 h-4 w-4" />
+                View Details
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openEditUser(user)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-red-600"
+                onClick={() => {
+                  setSelectedUser(user)
+                  setIsDeleteDialogOpen(true)
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </TableCell>
+      </TableRow>
+    ))}
+  </TableBody>
+</Table>
+
             ) : (
               <div className="flex flex-col items-center justify-center py-8">
                 <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />

@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { jwtDecode } from "jwt-decode"
@@ -18,24 +16,19 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  LayoutDashboard,
-  Users,
-  Store,
-  ShoppingBag,
-  Truck,
-  BarChart3,
-  Settings,
-  Bell,
-  LogOut,
-  Search,
-  HelpCircle,
-  MessageSquare,
-} from "lucide-react"
+
+// Material UI Icons
+import DashboardIcon from "@mui/icons-material/Dashboard"
+import PeopleIcon from "@mui/icons-material/People"
+import RestaurantIcon from "@mui/icons-material/Restaurant"
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart"
+import LocalShippingIcon from "@mui/icons-material/LocalShipping"
+import AssessmentIcon from "@mui/icons-material/Assessment"
+import LogoutIcon from "@mui/icons-material/Logout"
+import SearchIcon from "@mui/icons-material/Search"
 
 interface JwtPayload {
   id: string
@@ -46,11 +39,7 @@ interface JwtPayload {
   exp: number
 }
 
-export default function AdminDashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const [isLoading, setIsLoading] = useState(true)
@@ -60,41 +49,75 @@ export default function AdminDashboardLayout({
     email: string
     role: string
   } | null>(null)
-  const [notifications, setNotifications] = useState(3)
+  const [ordersCount, setOrdersCount] = useState<number | null>(null)
 
   useEffect(() => {
-    // Check if user is authenticated and is an admin
     const token = localStorage.getItem("token")
-
     if (!token) {
       router.push("/login")
       return
     }
 
+    let decoded: JwtPayload
     try {
-      // Decode the JWT token to get user role
-      const decoded = jwtDecode<JwtPayload>(token)
-
+      decoded = jwtDecode<JwtPayload>(token)
       if (decoded.role !== "admin") {
-        // Redirect non-admin users
         router.push("/dashboard")
         return
       }
-
-      setUserData({
-        id: decoded.id,
-        name: decoded.name || "Admin User",
-        email: decoded.email || "admin@example.com",
-        role: decoded.role,
-      })
     } catch (error) {
       console.error("Invalid token:", error)
       localStorage.removeItem("token")
       router.push("/login")
-    } finally {
-      setIsLoading(false)
+      return
     }
+
+    // Fetch real user data from backend using user ID from token
+    fetch(`http://localhost:4000/api/auth/user/${decoded.id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to fetch user data")
+        return res.json()
+      })
+      .then((data) => {
+        setUserData({
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          role: data.role,
+        })
+      })
+      .catch((err) => {
+        console.error(err)
+        setUserData({
+          id: decoded.id,
+          name: decoded.name || "Admin User",
+          email: decoded.email || "admin@example.com",
+          role: decoded.role,
+        })
+      })
+      .finally(() => setIsLoading(false))
   }, [router])
+
+  // Fetch orders count
+  useEffect(() => {
+    fetch("http://localhost:3008/api/orders")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to fetch orders")
+        return res.json()
+      })
+      .then((orders) => {
+        setOrdersCount(Array.isArray(orders) ? orders.length : 0)
+      })
+      .catch((err) => {
+        console.error(err)
+        setOrdersCount(0)
+      })
+  }, [])
 
   const handleSignOut = () => {
     localStorage.removeItem("token")
@@ -105,40 +128,39 @@ export default function AdminDashboardLayout({
     {
       title: "Dashboard",
       href: "/dashboard/admin",
-      icon: <LayoutDashboard className="h-5 w-5" />,
+      icon: <DashboardIcon fontSize="small" />,
       badge: null,
     },
     {
       title: "Users",
       href: "/dashboard/admin/users",
-      icon: <Users className="h-5 w-5" />,
+      icon: <PeopleIcon fontSize="small" />,
       badge: null,
     },
     {
       title: "Restaurants",
       href: "/dashboard/admin/restaurants",
-      icon: <Store className="h-5 w-5" />,
+      icon: <RestaurantIcon fontSize="small" />,
       badge: null,
     },
     {
       title: "Orders",
       href: "/dashboard/admin/orders",
-      icon: <ShoppingBag className="h-5 w-5" />,
-      badge: { count: 12, variant: "default" },
+      icon: <ShoppingCartIcon fontSize="small" />,
+      badge: ordersCount !== null ? { count: ordersCount, variant: "default" } : null,
     },
     {
       title: "Delivery",
       href: "/dashboard/admin/delivery",
-      icon: <Truck className="h-5 w-5" />,
+      icon: <LocalShippingIcon fontSize="small" />,
       badge: null,
     },
     {
       title: "Reports",
       href: "/dashboard/admin/reports",
-      icon: <BarChart3 className="h-5 w-5" />,
+      icon: <AssessmentIcon fontSize="small" />,
       badge: null,
     },
-    
   ]
 
   if (isLoading) {
@@ -170,7 +192,7 @@ export default function AdminDashboardLayout({
           <SidebarContent>
             <div className="px-4 py-4">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input placeholder="Search..." className="pl-9 bg-muted/50" />
               </div>
             </div>
@@ -180,11 +202,15 @@ export default function AdminDashboardLayout({
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton asChild isActive={pathname === item.href}>
                     <Link href={item.href} className="flex justify-between w-full">
-                      <div className="flex items-center">
+                      <div className="flex items-center gap-2">
                         {item.icon}
                         <span>{item.title}</span>
                       </div>
-                      {item.badge && <Badge className="ml-auto bg-red-500 text-white">{item.badge.count}</Badge>}
+                      {item.badge && (
+                        <Badge className="ml-auto bg-red-500 text-white">
+                          {item.badge.count}
+                        </Badge>
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -192,44 +218,16 @@ export default function AdminDashboardLayout({
             </SidebarMenu>
 
             <SidebarSeparator className="my-4" />
-
-            <div className="px-4 py-2">
-              <h3 className="mb-2 text-xs font-medium text-muted-foreground">Support</h3>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard/admin/help">
-                      <HelpCircle className="h-5 w-5" />
-                      <span>Help Center</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard/admin/messages">
-                      <MessageSquare className="h-5 w-5" />
-                      <span>Messages</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </div>
           </SidebarContent>
 
           <SidebarFooter className="border-t p-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-9 w-9">
-                  <AvatarImage src="/placeholder.svg?height=36&width=36" alt={userData?.name || "Admin"} />
-                  <AvatarFallback>{userData?.name?.charAt(0) || "A"}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-sm font-medium">{userData?.name}</p>
-                  <p className="text-xs text-muted-foreground">{userData?.email}</p>
-                </div>
+              <div>
+                <p className="text-sm font-medium">{userData?.name}</p>
+                <p className="text-xs text-muted-foreground">{userData?.email}</p>
               </div>
               <Button variant="ghost" size="icon" onClick={handleSignOut}>
-                <LogOut className="h-5 w-5" />
+                <LogoutIcon fontSize="small" />
                 <span className="sr-only">Sign out</span>
               </Button>
             </div>
@@ -246,24 +244,9 @@ export default function AdminDashboardLayout({
             </div>
 
             <div className="flex items-center gap-4">
-              <Button variant="outline" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                {notifications > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
-                    {notifications}
-                  </span>
-                )}
-              </Button>
-
-              <div className="hidden md:flex items-center gap-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src="/placeholder.svg?height=32&width=32" alt={userData?.name || "Admin"} />
-                  <AvatarFallback>{userData?.name?.charAt(0) || "A"}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-sm font-medium">{userData?.name}</p>
-                  <p className="text-xs text-muted-foreground">Administrator</p>
-                </div>
+              <div>
+                <p className="text-sm font-medium">{userData?.name}</p>
+                <p className="text-xs text-muted-foreground">{userData?.email}</p>
               </div>
             </div>
           </header>
@@ -276,4 +259,3 @@ export default function AdminDashboardLayout({
     </SidebarProvider>
   )
 }
-
