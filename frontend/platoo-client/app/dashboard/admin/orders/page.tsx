@@ -59,6 +59,10 @@ export default function OrdersPage() {
   const [restaurantMap, setRestaurantMap] = useState<Record<string, string>>({});
   const [menuItemMap, setMenuItemMap] = useState<Record<string, Record<string, string>>>({});
 
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
   useEffect(() => {
     const fetchAll = async () => {
       setIsLoading(true);
@@ -141,7 +145,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     let filtered = [...orders];
-    
+
     // Apply search filter
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase();
@@ -154,12 +158,12 @@ export default function OrdersPage() {
           (order.phone || "").toLowerCase().includes(query)
       );
     }
-    
+
     // Apply status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter((order) => order.status === statusFilter);
     }
-    
+
     // Apply date filter
     if (selectedDate) {
       filtered = filtered.filter((order) => {
@@ -167,7 +171,7 @@ export default function OrdersPage() {
         return isSameDay(orderDate, selectedDate);
       });
     }
-    
+
     setFilteredOrders(filtered);
   }, [searchQuery, statusFilter, selectedDate, orders]);
 
@@ -191,11 +195,6 @@ export default function OrdersPage() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString();
-  };
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-LK', {
       style: 'currency',
@@ -205,13 +204,128 @@ export default function OrdersPage() {
     }).format(amount);
   };
 
+  // Modal component
+  const OrderDetailsModal = ({
+    order,
+    onClose,
+  }: {
+    order: Order;
+    onClose: () => void;
+  }) => {
+    if (!order) return null;
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        aria-modal="true"
+        role="dialog"
+        aria-labelledby="order-details-title"
+        aria-describedby="order-details-content"
+      >
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl p-8 relative animate-fadeIn">
+          <button
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition text-2xl"
+            onClick={onClose}
+            aria-label="Close details modal"
+          >
+            ×
+          </button>
+          <h2
+            id="order-details-title"
+            className="text-3xl font-bold text-blue-800 mb-2 tracking-tight"
+          >
+            Order Details
+          </h2>
+          <p className="text-gray-500 mb-6">
+            Placed on {format(new Date(order.createdAt), "yyyy-MM-dd HH:mm")}
+          </p>
+          <div id="order-details-content" className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="block text-xs text-gray-400">Order ID</span>
+                <span className="font-semibold">{order.order_id || order._id}</span>
+              </div>
+              <div>
+                <span className="block text-xs text-gray-400">Status</span>
+                <span
+                  className={`inline-block px-2 py-1 rounded-full text-xs font-bold shadow-sm ${getStatusColor(
+                    order.status
+                  )} text-white`}
+                >
+                  {order.status.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
+                </span>
+              </div>
+              <div>
+                <span className="block text-xs text-gray-400">Customer</span>
+                <span className="font-medium">{userMap[order.user_id] || order.user_id}</span>
+              </div>
+              <div>
+                <span className="block text-xs text-gray-400">Restaurant</span>
+                <span className="font-medium">{restaurantMap[order.restaurant_id] || order.restaurant_id}</span>
+              </div>
+              <div>
+                <span className="block text-xs text-gray-400">Phone</span>
+                <span>{order.phone}</span>
+              </div>
+              <div>
+                <span className="block text-xs text-gray-400">Email</span>
+                <span>{order.email}</span>
+              </div>
+              <div className="col-span-2">
+                <span className="block text-xs text-gray-400">Delivery Address</span>
+                <span>{order.delivery_address}</span>
+              </div>
+            </div>
+            {/* Items */}
+            <div>
+              <span className="block text-xs text-gray-400 mb-2">Items</span>
+              <ul className="divide-y divide-gray-100 rounded-lg border border-gray-100 bg-gray-50">
+                {order.items.map((item) => (
+                  <li key={item._id} className="flex justify-between items-center px-4 py-2">
+                    <span>
+                      {/* Always show menu item name, never the ID */}
+                      {menuItemMap[order.restaurant_id]?.[item.menu_item_id || item._id] || "Unknown Item"}
+                      <span className="text-xs text-gray-400 ml-2">x{item.quantity}</span>
+                    </span>
+                    <span className="font-mono">{formatCurrency(item.price)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {/* Summary */}
+            <div className="flex flex-col gap-2 border-t pt-4 mt-2">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Subtotal</span>
+                <span>{formatCurrency(order.total_amount - order.delivery_fee)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Delivery Fee</span>
+                <span>{formatCurrency(order.delivery_fee)}</span>
+              </div>
+              <div className="flex justify-between font-bold text-lg text-blue-800">
+                <span>Total</span>
+                <span>{formatCurrency(order.total_amount)}</span>
+              </div>
+            </div>
+          </div>
+          <div className="mt-8 flex justify-end">
+            <button
+              onClick={onClose}
+              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold shadow transition"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 p-6 md:p-10">
       <div className="mb-8">
         <h1 className="text-4xl font-extrabold text-gray-800 mb-1 tracking-tight">Order Management</h1>
         <p className="text-gray-500 text-lg">Track and manage all orders across your platform</p>
       </div>
-
       {/* Filters */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4 w-full">
@@ -222,7 +336,7 @@ export default function OrdersPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="border border-gray-300 rounded-lg px-4 py-2 w-full md:w-96 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
           />
-          
+
           <div className="relative w-full md:w-60">
             <Popover>
               <PopoverTrigger asChild>
@@ -247,7 +361,7 @@ export default function OrdersPage() {
               </PopoverContent>
             </Popover>
           </div>
-          
+
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -261,7 +375,7 @@ export default function OrdersPage() {
             <option value="delivered">Delivered</option>
             <option value="cancelled">Cancelled</option>
           </select>
-          
+
           {selectedDate && (
             <button
               onClick={clearDateFilter}
@@ -272,7 +386,7 @@ export default function OrdersPage() {
           )}
         </div>
       </div>
-      
+
       {/* Filter Status Display */}
       {selectedDate && (
         <div className="mb-4 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg inline-flex items-center">
@@ -293,22 +407,19 @@ export default function OrdersPage() {
               <th className="px-4 py-3 font-semibold text-gray-700">Items</th>
               <th className="px-4 py-3 font-semibold text-gray-700">Total</th>
               <th className="px-4 py-3 font-semibold text-gray-700">Status</th>
-              <th className="px-4 py-3 font-semibold text-gray-700">Delivery Address</th>
-              <th className="px-4 py-3 font-semibold text-gray-700">Phone</th>
-              <th className="px-4 py-3 font-semibold text-gray-700">Email</th>
-              <th className="px-4 py-3 font-semibold text-gray-700">Date</th>
+              <th className="px-4 py-3 font-semibold text-gray-700">Actions</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={10} className="text-center py-8 text-gray-500">
+                <td colSpan={7} className="text-center py-8 text-gray-500">
                   Loading orders...
                 </td>
               </tr>
             ) : filteredOrders.length === 0 ? (
               <tr>
-                <td colSpan={10} className="text-center py-8 text-gray-500">
+                <td colSpan={7} className="text-center py-8 text-gray-500">
                   No orders found.
                 </td>
               </tr>
@@ -336,8 +447,8 @@ export default function OrdersPage() {
                       .map(
                         (item) =>
                           `${
-                            menuItemMap[order.restaurant_id]?.[item.menu_item_id || item._id] ||
-                            `#${item.menu_item_id || item._id}`
+                            // Always show menu item name, never the ID
+                            menuItemMap[order.restaurant_id]?.[item.menu_item_id || item._id] || "Unknown Item"
                           } x${item.quantity} (${formatCurrency(item.price)})`
                       )
                       .join(", ")}
@@ -352,16 +463,28 @@ export default function OrdersPage() {
                       {order.status.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-xs">{order.delivery_address}</td>
-                  <td className="px-4 py-3 text-xs">{order.phone}</td>
-                  <td className="px-4 py-3 text-xs">{order.email}</td>
-                  <td className="px-4 py-3 text-xs">{formatDate(order.createdAt)}</td>
+                  <td className="px-4 py-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedOrder(order);
+                        setShowModal(true);
+                      }}
+                    >
+                      View Details
+                    </Button>
+                  </td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
+      {/* Modal */}
+      {showModal && selectedOrder && (
+        <OrderDetailsModal order={selectedOrder} onClose={() => setShowModal(false)} />
+      )}
     </div>
   );
 }
