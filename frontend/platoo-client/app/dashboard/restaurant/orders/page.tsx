@@ -1,13 +1,14 @@
-"use client"
+"use client";
 
-import { JSX, useEffect, useState, useRef } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useEffect, useState, useRef, JSX } from "react";
+import { format } from "date-fns";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -15,7 +16,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   ChefHat,
   CheckCircle,
@@ -24,7 +25,16 @@ import {
   Search,
   Filter,
   MoreVertical,
-} from "lucide-react"
+  Calendar as CalendarIcon,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { DateRange } from "react-day-picker"; // <-- Use library type
 
 interface Order {
   id: string;
@@ -39,6 +49,7 @@ interface Order {
   payment: string;
   delivery: string;
   restaurant_id: string;
+  createdAt: string;
 }
 
 export default function OrdersPage() {
@@ -52,24 +63,23 @@ export default function OrdersPage() {
   const [selectedStatus, setSelectedStatus] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
-  const [restaurantId, setRestaurantId] = useState<string | null>(null); // state to hold restaurantId
+  const [restaurantId, setRestaurantId] = useState<string | null>(null);
+  // Use DayPicker's DateRange type for selectedRange
+  const [selectedRange, setSelectedRange] = useState<DateRange | undefined>(undefined);
   const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   useEffect(() => {
-    const ownerId = localStorage.getItem("restaurantOwnerId");  // Fetch the ownerId from localStorage
-    if (!ownerId) return; // If no ownerId is available, exit
+    const ownerId = localStorage.getItem("restaurantOwnerId");
+    if (!ownerId) return;
 
-    // Fetch the restaurant(s) by ownerId
     const fetchRestaurants = async () => {
       setLoading(true);
       try {
         const response = await fetch(`http://localhost:3001/api/restaurants/owner/${ownerId}`);
         if (!response.ok) throw new Error("Failed to fetch restaurants");
         const data = await response.json();
-        
-        // Assuming the first restaurant is the one to use
         if (data.length > 0) {
-          setRestaurantId(data[0]._id); // Set the restaurantId from the fetched data
+          setRestaurantId(data[0]._id);
         } else {
           setError("No restaurants found for this owner");
         }
@@ -85,7 +95,7 @@ export default function OrdersPage() {
   }, []);
 
   useEffect(() => {
-    if (!restaurantId) return; // If no restaurantId, don't proceed with fetching orders
+    if (!restaurantId) return;
 
     const fetchOrders = async () => {
       setLoading(true);
@@ -95,7 +105,7 @@ export default function OrdersPage() {
         if (!res.ok) throw new Error("Failed to fetch orders");
         const data = await res.json();
         const mappedOrders: Order[] = data
-          .filter((order: any) => order.restaurant_id === restaurantId) // Filter orders based on dynamic restaurant_id
+          .filter((order: any) => order.restaurant_id === restaurantId)
           .map((order: any) => ({
             id: order.order_id,
             customer: {
@@ -113,6 +123,7 @@ export default function OrdersPage() {
             payment: "Online",
             delivery: "Delivery",
             restaurant_id: order.restaurant_id,
+            createdAt: order.createdAt,
           }));
         setOrders(mappedOrders);
       } catch (err) {
@@ -135,17 +146,26 @@ export default function OrdersPage() {
     if (selectedTab !== "all" && order.status !== selectedTab) return false;
     if (debouncedSearchQuery) {
       const query = debouncedSearchQuery.toLowerCase();
-      return (
+      const matchesQuery =
         order.id.toLowerCase().includes(query) ||
         order.customer.name.toLowerCase().includes(query) ||
-        order.total.toLowerCase().includes(query)
-      );
+        order.total.toLowerCase().includes(query);
+      if (!matchesQuery) return false;
+    }
+    // Date range filter: use .from and .to
+    if (selectedRange?.from && selectedRange?.to) {
+      const orderDate = new Date(order.createdAt);
+      const start = new Date(selectedRange.from);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(selectedRange.to);
+      end.setHours(23, 59, 59, 999);
+      if (orderDate < start || orderDate > end) return false;
     }
     return true;
   });
 
   const getStatusBadge = (status: string) => {
-    const commonProps = "mr-1 h-3 w-3"
+    const commonProps = "mr-1 h-3 w-3";
     const badgeMap: Record<string, JSX.Element> = {
       preparing: (
         <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
@@ -167,20 +187,20 @@ export default function OrdersPage() {
           <XCircle className={commonProps} /> Cancelled
         </Badge>
       ),
-    }
+    };
     return badgeMap[status] || (
       <Badge variant="outline">
         <Clock className={commonProps} /> {status}
       </Badge>
-    )
-  }
+    );
+  };
 
   const handleViewDetails = (order: Order) => {
-    setSelectedOrder(order)
-    setSelectedStatus(order.status)
-    setIsDetailsOpen(true)
-    setOpenDropdownId(null)
-  }
+    setSelectedOrder(order);
+    setSelectedStatus(order.status);
+    setIsDetailsOpen(true);
+    setOpenDropdownId(null);
+  };
 
   const handleUpdateStatus = async (orderId: string, newStatus: string) => {
     try {
@@ -188,17 +208,17 @@ export default function OrdersPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
-      })
-      if (!res.ok) throw new Error("Failed to update status")
+      });
+      if (!res.ok) throw new Error("Failed to update status");
       setOrders((prevOrders) =>
         prevOrders.map((o) =>
           o.id === orderId ? { ...o, status: newStatus } : o
         )
-      )
+      );
     } catch (err) {
-      console.error("Error updating status", err)
+      console.error("Error updating status", err);
     }
-  }
+  };
 
   const handleSentDelivery = async (order: Order) => {
     try {
@@ -209,19 +229,19 @@ export default function OrdersPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: "ready" }),
         }
-      )
-      if (!res.ok) throw new Error("Failed to update order status")
+      );
+      if (!res.ok) throw new Error("Failed to update order status");
       setOrders((prevOrders) =>
         prevOrders.map((o) =>
           o.id === order.id ? { ...o, status: "ready" } : o
         )
-      )
+      );
     } catch (err) {
-      console.error(err)
-      alert("Could not send order to ready.")
+      console.error(err);
+      alert("Could not send order to ready.");
     }
-  }
-  
+  };
+
   const handleMarkDelivered = async (order: Order) => {
     try {
       const res = await fetch(
@@ -231,30 +251,30 @@ export default function OrdersPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: "delivered" }),
         }
-      )
-      if (!res.ok) throw new Error("Failed to update order status")
+      );
+      if (!res.ok) throw new Error("Failed to update order status");
       setOrders((prevOrders) =>
         prevOrders.map((o) =>
           o.id === order.id ? { ...o, status: "delivered" } : o
         )
-      )
+      );
     } catch (err) {
-      console.error(err)
-      alert("Could not mark order as delivered.")
+      console.error(err);
+      alert("Could not mark order as delivered.");
     }
-  }
+  };
 
   const handleSaveChanges = () => {
     if (selectedOrder && selectedStatus) {
-      handleUpdateStatus(selectedOrder.id, selectedStatus)
-      setIsDetailsOpen(false)
+      handleUpdateStatus(selectedOrder.id, selectedStatus);
+      setIsDetailsOpen(false);
     }
-  }
+  };
 
-  if (loading) return <div className="p-6 text-center">Loading orders...</div>
-  if (error) return <div className="p-6 text-center text-red-600">Error: {error}</div>
+  if (loading) return <div className="p-6 text-center">Loading orders...</div>;
+  if (error) return <div className="p-6 text-center text-red-600">Error: {error}</div>;
 
-  const tabs = ["all", "pending", "preparing", "ready", "delivered"]
+  const tabs = ["all", "pending", "preparing", "ready", "delivered"];
 
   return (
     <div className="space-y-6">
@@ -285,6 +305,41 @@ export default function OrdersPage() {
             ))}
           </TabsList>
           <div className="flex gap-2">
+            {/* --- Date Range Picker --- */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-[220px] justify-start text-left font-normal",
+                    !selectedRange?.from && !selectedRange?.to && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedRange?.from && selectedRange?.to
+                    ? `${format(selectedRange.from, "yyyy-MM-dd")} ~ ${format(selectedRange.to, "yyyy-MM-dd")}`
+                    : <span>Pick date range</span>
+                  }
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="range"
+                  selected={selectedRange}
+                  onSelect={setSelectedRange}
+                  initialFocus
+                />
+                <div className="flex justify-end p-2">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setSelectedRange(undefined)}
+                    disabled={!selectedRange?.from && !selectedRange?.to}
+                  >
+                    Clear Range
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -319,7 +374,6 @@ export default function OrdersPage() {
                     <TableHead>Status</TableHead>
                     <TableHead>Time</TableHead>
                     <TableHead>Type</TableHead>
-                    {/* Actions column for all, pending, and preparing tabs */}
                     {(selectedTab === "all" ||
                       selectedTab === "pending" ||
                       selectedTab === "preparing") && (
@@ -336,7 +390,6 @@ export default function OrdersPage() {
                       <TableCell>{getStatusBadge(order.status)}</TableCell>
                       <TableCell>{order.time}</TableCell>
                       <TableCell>{order.payment}</TableCell>
-                      {/* Actions cell for All tab */}
                       {selectedTab === "all" && (
                         <TableCell className="text-right" style={{ position: "relative" }}>
                           {order.status === "delivered" ? (
@@ -359,7 +412,7 @@ export default function OrdersPage() {
                               {openDropdownId === order.id && (
                                 <div
                                   ref={(el) => {
-                                    dropdownRefs.current[order.id] = el
+                                    dropdownRefs.current[order.id] = el;
                                   }}
                                   className="absolute right-0 z-10 mt-2 w-32 bg-white border border-gray-200 rounded shadow-lg"
                                 >
@@ -375,7 +428,6 @@ export default function OrdersPage() {
                           )}
                         </TableCell>
                       )}
-                      {/* Actions cell for Pending tab: three dots */}
                       {selectedTab === "pending" && (
                         <TableCell className="text-right" style={{ position: "relative" }}>
                           <button
@@ -392,7 +444,7 @@ export default function OrdersPage() {
                           {openDropdownId === order.id && (
                             <div
                               ref={(el) => {
-                                dropdownRefs.current[order.id] = el
+                                dropdownRefs.current[order.id] = el;
                               }}
                               className="absolute right-0 z-10 mt-2 w-32 bg-white border border-gray-200 rounded shadow-lg"
                             >
@@ -406,7 +458,6 @@ export default function OrdersPage() {
                           )}
                         </TableCell>
                       )}
-                      {/* Actions cell for Preparing tab: Sent to Delivery button */}
                       {selectedTab === "preparing" && (
                         <TableCell className="text-right">
                           <Button onClick={() => handleSentDelivery(order)}>
@@ -508,5 +559,5 @@ export default function OrdersPage() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
