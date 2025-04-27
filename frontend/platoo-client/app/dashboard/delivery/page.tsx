@@ -1,222 +1,303 @@
-// "use client";
+"use client";
 
-// import { useState, useEffect } from "react";
-// import { useRouter } from "next/navigation";
-// import { Button } from "@/components/ui/button";
-// import {
-//   Card,
-//   CardContent,
-//   CardHeader,
-//   CardTitle,
-//   CardDescription,
-// } from "@/components/ui/card";
-// import { Input } from "@/components/ui/input";
-// import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-// import { Edit, Loader2 } from "lucide-react";
-// import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Loader2, Edit, MapPin, Search } from "lucide-react";
+import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
-// export default function DeliveryPersonProfile() {
-//   const router = useRouter();
-//   const [isEditing, setIsEditing] = useState(false);
-//   const [isLoading, setIsLoading] = useState(true);
+interface UserProfile {
+  name: string;
+  email: string;
+  phone: string;
+  vehicleNumber?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+}
 
-//   const [user, setUser] = useState<{
-//     name: string;
-//     email: string;
-//     phone?: string;
-//     vehicleNumber?: string;
-//   } | null>(null);
+export default function DeliveryPersonProfile() {
+  const router = useRouter();
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState<UserProfile>({ name: "", email: "", phone: "", vehicleNumber: "" });
+  const [searchValue, setSearchValue] = useState("");
+  const [locationError, setLocationError] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
 
-//   const [formData, setFormData] = useState({
-//     name: "",
-//     email: "",
-//     phone: "",
-//     vehicleNumber: "",
-//   });
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [map, setMap] = useState<any>(null);
+  const [marker, setMarker] = useState<any>(null);
 
-//   useEffect(() => {
-//     const token = localStorage.getItem("token");
-//     const userId = localStorage.getItem("userId");
+  useEffect(() => {
+    const token = localStorage.getItem("jwtToken");
+    const userId = localStorage.getItem("deliveryManId");
+    if (!token || !userId) {
+      router.push("/login");
+      return;
+    }
+    fetchUserData(token, userId);
+  }, []);
 
-//     if (token && userId) {
-//       fetchUserProfile(token, userId);
-//     } else {
-//       router.push("/login");
-//     }
-//   }, [router]);
+  const fetchUserData = async (token: string, userId: string) => {
+    try {
+      const res = await fetch(`http://localhost:4000/api/auth/user/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setUser(data);
+      setFormData({
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        vehicleNumber: data.vehicleNumber,
+        address: data.address,
+        latitude: data.latitude,
+        longitude: data.longitude,
+      });
+    } catch (err) {
+      console.error("Failed to fetch user data", err);
+      router.push("/login");
+    }
+  };
 
-//   const fetchUserProfile = async (token: string, userId: string) => {
-//     try {
-//       setIsLoading(true);
-//       const res = await fetch(`http://localhost:4000/api/auth/user/${userId}`, {
-//         method: "GET",
-//         headers: { Authorization: `Bearer ${token}` },
-//       });
+  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
-//       const data = await res.json();
+  const handleSaveProfile = async () => {
+    const userId = localStorage.getItem("deliveryManId");
+    try {
+      await fetch(`http://localhost:4000/api/auth/update/${userId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("jwtToken")}`,
+        },
+        body: JSON.stringify(formData),
+      });
+      setIsEditing(false);
+      alert("Profile updated successfully.");
+    } catch (err) {
+      console.error("Failed to update profile", err);
+    }
+  };
 
-//       if (res.ok) {
-//         setUser(data);
-//         setFormData({
-//           name: data.name,
-//           email: data.email,
-//           phone: data.phone || "",
-//           vehicleNumber: data.vehicleNumber || "",
-//         });
-//       } else {
-//         localStorage.removeItem("token");
-//         router.push("/login");
-//       }
-//     } catch (error) {
-//       console.error("Failed to fetch profile:", error);
-//     } finally {
-//       setIsLoading(false);
-//     }
-//   };
+  const handleSaveLocation = async () => {
+    const userId = localStorage.getItem("deliveryManId");
+    try {
+      await fetch(`http://localhost:4000/api/auth/update/${userId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("jwtToken")}`,
+        },
+        body: JSON.stringify({ address: formData.address, latitude: formData.latitude, longitude: formData.longitude }),
+      });
+      alert("Location updated successfully.");
+    } catch (err) {
+      console.error("Failed to update location", err);
+    }
+  };
 
-//   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-//     setFormData({ ...formData, [e.target.name]: e.target.value });
-//   };
+  const initializeMap = () => {
+    if (!mapRef.current || !window.L) return;
 
-//   const handleSave = async (e: React.FormEvent) => {
-//     e.preventDefault();
-//     const token = localStorage.getItem("token");
-//     if (!token) return;
+    const defaultLatLng = [formData.latitude || 20.5937, formData.longitude || 78.9629];
+    const mapInstance = window.L.map(mapRef.current).setView(defaultLatLng, 13);
 
-//     try {
-//       const res = await fetch("http://localhost:4000/api/auth/update", {
-//         method: "PUT",
-//         headers: {
-//           "Content-Type": "application/json",
-//           Authorization: `Bearer ${token}`,
-//         },
-//         body: JSON.stringify(formData),
-//       });
+    window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; OpenStreetMap contributors',
+    }).addTo(mapInstance);
 
-//       if (res.ok) {
-//         setUser(formData);
-//         setIsEditing(false);
-//       } else {
-//         console.error("Failed to update profile");
-//       }
-//     } catch (error) {
-//       console.error("Error updating profile:", error);
-//     }
-//   };
+    if (formData.latitude && formData.longitude) {
+      const newMarker = window.L.marker(defaultLatLng, { draggable: true }).addTo(mapInstance);
+      newMarker.on("dragend", (e: any) => {
+        const { lat, lng } = e.target.getLatLng();
+        setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+      });
+      setMarker(newMarker);
+    }
 
-//   const navItems = [
-//     { title: "Dashboard", href: "/dashboard", icon: "home" },
-//     { title: "Pending Deliveries", href: "/dashboard/delivery/pending-deliveries", icon: "truck" },
-//     { title: "Earnings", href: "/dashboard/earnings", icon: "dollar-sign" },
-//     { title: "Profile", href: "/dashboard/profile", icon: "user" },
-//   ];
+    mapInstance.on("click", (e: any) => {
+      const { lat, lng } = e.latlng;
+      setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+      if (marker) {
+        marker.setLatLng([lat, lng]);
+      } else {
+        const newMarker = window.L.marker([lat, lng], { draggable: true }).addTo(mapInstance);
+        newMarker.on("dragend", (e: any) => {
+          const { lat, lng } = e.target.getLatLng();
+          setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+        });
+        setMarker(newMarker);
+      }
+    });
 
-//   if (isLoading) {
-//     return (
-//       <DashboardLayout navItems={navItems}>
-//         <div className="flex h-full items-center justify-center">
-//           <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
-//           <span className="ml-2 text-lg">Loading your profile...</span>
-//         </div>
-//       </DashboardLayout>
-//     );
-//   }
+    setMap(mapInstance);
+  };
 
-//   if (!user) {
-//     return (
-//       <DashboardLayout navItems={navItems}>
-//         <div className="flex justify-center items-center min-h-screen">
-//           <p className="text-gray-600">User not found.</p>
-//         </div>
-//       </DashboardLayout>
-//     );
-//   }
+  const searchAddress = async () => {
+    if (!searchValue.trim()) return;
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchValue)}`);
+      const data = await res.json();
+      if (data.length > 0) {
+        const { lat, lon, display_name } = data[0];
+        setFormData((prev) => ({ ...prev, latitude: parseFloat(lat), longitude: parseFloat(lon), address: display_name }));
+        if (map) {
+          map.setView([lat, lon], 15);
+          if (marker) {
+            marker.setLatLng([lat, lon]);
+          } else {
+            const newMarker = window.L.marker([lat, lon], { draggable: true }).addTo(map);
+            setMarker(newMarker);
+          }
+        }
+      } else {
+        setLocationError("No results found.");
+      }
+    } catch (err) {
+      console.error("Search failed", err);
+    }
+  };
 
-//   return (
-//     <DashboardLayout navItems={navItems}>
-//       <div className="min-h-screen p-6 md:p-10 bg-gray-50 flex items-center justify-center">
-//         <div className="w-full max-w-5xl">
-//           <Card className="shadow-lg rounded-2xl">
-//             <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-//               <div>
-//                 <CardTitle className="text-3xl font-bold">Delivery Person Profile</CardTitle>
-//                 <CardDescription className="text-gray-500">Manage your personal details</CardDescription>
-//               </div>
-//               <Button
-//                 variant="outline"
-//                 size="sm"
-//                 onClick={() => setIsEditing(!isEditing)}
-//                 className="flex items-center gap-2"
-//               >
-//                 {isEditing ? "Cancel" : (<><Edit className="h-4 w-4" /> Edit</>)}
-//               </Button>
-//             </CardHeader>
+  useEffect(() => {
+    if (typeof window !== "undefined" && !map && mapRef.current) {
+      if (!window.L) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+        document.head.appendChild(link);
 
-//             <CardContent className="p-8 grid grid-cols-1 md:grid-cols-2 gap-10">
-//               <div className="flex flex-col items-center md:items-start gap-4">
-//                 <Avatar className="h-32 w-32">
-//                   <AvatarImage src="https://github.com/shadcn.png" alt={user.name} />
-//                   <AvatarFallback className="bg-primary text-white text-4xl">{user.name.charAt(0)}</AvatarFallback>
-//                 </Avatar>
-//                 <div className="text-center md:text-left">
-//                   <h2 className="text-2xl font-semibold">{user.name}</h2>
-//                   <p className="text-gray-500">{user.email}</p>
-//                 </div>
-//               </div>
+        const script = document.createElement("script");
+        script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+        script.onload = () => initializeMap();
+        document.body.appendChild(script);
+      } else {
+        initializeMap();
+      }
+    }
+  }, [mapRef, formData.latitude, formData.longitude]);
 
-//               <form onSubmit={handleSave} className="space-y-6">
-//                 <div className="space-y-2">
-//                   <label className="block text-sm font-medium text-gray-700">Full Name</label>
-//                   <Input
-//                     name="name"
-//                     value={formData.name}
-//                     onChange={handleChange}
-//                     disabled={!isEditing}
-//                     required
-//                   />
-//                 </div>
+  if (!user) {
+    return (
+      <div className="flex justify-center items-center h-screen">Loading profile...</div>
+    );
+  }
 
-//                 <div className="space-y-2">
-//                   <label className="block text-sm font-medium text-gray-700">Email Address</label>
-//                   <Input
-//                     name="email"
-//                     value={formData.email}
-//                     disabled
-//                   />
-//                 </div>
+  const navItems = [
+    { title: "Dashboard", href: "/dashboard", icon: "home" },
+    { title: "Pending Deliveries", href: "/dashboard/delivery/pending-deliveries", icon: "truck" },
+    { title: "Earnings", href: "/dashboard/delivery/earnings", icon: "dollar-sign" },
+    { title: "Profile", href: "/dashboard/delivery", icon: "user" },
+  ];
 
-//                 <div className="space-y-2">
-//                   <label className="block text-sm font-medium text-gray-700">Phone Number</label>
-//                   <Input
-//                     name="phone"
-//                     value={formData.phone}
-//                     onChange={handleChange}
-//                     disabled={!isEditing}
-//                   />
-//                 </div>
+  return (
+    <DashboardLayout navItems={navItems}>
+      <div className="p-6 max-w-7xl mx-auto">
+        <Tabs defaultValue="personal">
+          <TabsList>
+            <TabsTrigger value="personal">Profile Info</TabsTrigger>
+            <TabsTrigger value="location">Location</TabsTrigger>
+          </TabsList>
 
-//                 <div className="space-y-2">
-//                   <label className="block text-sm font-medium text-gray-700">Vehicle Number</label>
-//                   <Input
-//                     name="vehicleNumber"
-//                     value={formData.vehicleNumber}
-//                     onChange={handleChange}
-//                     disabled={!isEditing}
-//                   />
-//                 </div>
+          {/* Profile Info Part (fixed) */}
+          <TabsContent value="personal">
+            <Card>
+              <CardHeader>
+                <CardTitle>Delivery Person Profile</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Input
+                  name="name"
+                  value={formData.name}
+                  onChange={handleProfileChange}
+                  placeholder="Full Name"
+                  disabled={!isEditing}
+                />
+                <Input
+                  name="email"
+                  value={formData.email}
+                  onChange={handleProfileChange}
+                  placeholder="Email"
+                  disabled={!isEditing}
+                />
+                <Input
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleProfileChange}
+                  placeholder="Phone Number"
+                  disabled={!isEditing}
+                />
+                <Input
+                  name="vehicleNumber"
+                  value={formData.vehicleNumber}
+                  onChange={handleProfileChange}
+                  placeholder="Vehicle Number"
+                  disabled={!isEditing}
+                />
+                {isEditing ? (
+                  <Button onClick={handleSaveProfile}>Save Changes</Button>
+                ) : (
+                  <Button variant="outline" onClick={() => setIsEditing(true)}>
+                    <Edit className="h-4 w-4 mr-2" /> Edit Profile
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-//                 {isEditing && (
-//                   <div className="flex justify-end">
-//                     <Button type="submit" className="rounded-full px-6 bg-green-600 hover:bg-green-700">
-//                       Save Changes
-//                     </Button>
-//                   </div>
-//                 )}
-//               </form>
-//             </CardContent>
-//           </Card>
-//         </div>
-//       </div>
-//     </DashboardLayout>
-//   );
-// }
+          {/* Location Part (your latest version kept exactly) */}
+          <TabsContent value="location">
+            {/* Your location code */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex gap-2 items-center">
+                  <MapPin className="h-5 w-5 text-red-500" /> Delivery Addresses
+                </CardTitle>
+                {formData.address && (
+                  <CardDescription className="flex gap-2 items-center">
+                    <MapPin className="h-4 w-4 text-green-500" />
+                    Your current address: {formData.address}
+                  </CardDescription>
+                )}
+              </CardHeader>
+
+              <CardContent className="space-y-4">
+                {locationError && (
+                  <Alert variant="destructive">
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{locationError}</AlertDescription>
+                  </Alert>
+                )}
+                <div className="flex gap-2">
+                  <Input placeholder="Search for an address..." value={searchValue} onChange={(e) => setSearchValue(e.target.value)} />
+                  <Button onClick={searchAddress}><Search className="h-4 w-4" /></Button>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    placeholder="Latitude"
+                    value={formData.latitude || ""}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, latitude: parseFloat(e.target.value) }))}
+                  />
+                  <Input
+                    placeholder="Longitude"
+                    value={formData.longitude || ""}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, longitude: parseFloat(e.target.value) }))}
+                  />
+                </div>
+                <Button onClick={handleSaveLocation} className="w-full bg-red-500">Save Location</Button>
+                <div ref={mapRef} className="w-full h-[400px] rounded-md border"></div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </DashboardLayout>
+  );
+}
