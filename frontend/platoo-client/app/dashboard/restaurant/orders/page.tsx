@@ -222,8 +222,8 @@ export default function OrdersPage() {
 
   const handleSentDelivery = async (order: Order) => {
     try {
-      // 1. Update order status to 'ready' as before
-      const res = await fetch(
+      // 1. Update order status to 'ready'
+      const statusRes = await fetch(
         `http://localhost:3008/api/orders/${order.id}/status`,
         {
           method: "PATCH",
@@ -231,58 +231,62 @@ export default function OrdersPage() {
           body: JSON.stringify({ status: "ready" }),
         }
       );
-      if (!res.ok) throw new Error("Failed to update order status");
-      setOrders((prevOrders) =>
-        prevOrders.map((o) =>
-          o.id === order.id ? { ...o, status: "ready" } : o
-        )
-      );
+      if (!statusRes.ok) throw new Error("Failed to update order status");
   
-      // 2. Fetch all users
+      // 2. Fetch all delivery persons
       const usersRes = await fetch("http://localhost:4000/api/auth/users");
       if (!usersRes.ok) throw new Error("Failed to fetch users");
       const users = await usersRes.json();
   
-      // 3. Filter delivery persons (assuming role is 'delivery')
+      // 3. Filter for delivery persons
       const deliveryPersons = users.filter(
-        (user: { role: string; }) => user.role && user.role.toLowerCase() === "delivery_man"
+        (user: { role: string; }) => user.role?.toLowerCase() === "delivery_man"
       );
-  
-      // 4. Prepare the email details
-      const subject = `New Order Ready for Delivery: #${order.id}`;
-      const message = `
-        <h2>Order #${order.id} is ready for delivery</h2>
-        <p><strong>Customer:</strong> ${order.customer.name}</p>
-        <p><strong>Address:</strong> ${order.customer.address}</p>
-        <p><strong>Total:</strong> ${order.total}</p>
-        <p><strong>Items:</strong></p>
-        <ul>
-          ${order.items
-            .map(
-              (item) =>
-                `<li>${item.quantity} x ${item.name} - ${item.price}</li>`
-            )
-            .join("")}
-        </ul>
-      `;
-  
-      // 5. Send email to each delivery person
-      for (const person of deliveryPersons) {
-        await fetch("http://localhost:3000/api/send-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            to: person.email,
-            subject,
-            message,
-          }),
-        });
+      if (deliveryPersons.length === 0) {
+        throw new Error("No delivery persons available");
       }
   
-      alert("Order sent to all delivery persons!");
+      // 4. Prepare orderDetails object as expected by backend
+      const orderDetails = {
+        id: order.id,
+        customer: {
+          name: order.customer.name,
+          address: order.customer.address,
+        },
+        total: parseFloat(order.total),
+        // Optionally, you can add items if backend supports it
+        // items: order.items
+      };
+  
+      // 5. Send notification request
+      const emailRes = await fetch(
+        "http://localhost:4006/api/notifications/send-delivery-notification",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderDetails }),
+        }
+      );
+  
+      const result = await emailRes.json();
+  
+      if (!emailRes.ok) {
+        throw new Error(result.message || "Email sending failed");
+      }
+  
+      // 6. Update UI state
+      setOrders((prev) =>
+        prev.map((o) => (o.id === order.id ? { ...o, status: "ready" } : o))
+      );
+  
+      alert(result.success
+        ? "Order sent to all delivery persons!"
+        : "Partial success: " + result.message
+      );
+  
     } catch (err) {
       console.error(err);
-      alert("Could not send order to delivery persons.");
+      alert(err instanceof Error ? err.message : "Failed to send notifications");
     }
   };
   
