@@ -1,5 +1,3 @@
-// Full updated Delivery Person Profile Page with Edit Profile + Location Management + Toasts
-
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -147,16 +145,45 @@ export default function DeliveryPersonProfile() {
 
   const handleSaveLocation = async () => {
     const userId = localStorage.getItem("deliveryManId");
-    await fetch(`http://localhost:4000/api/auth/update/${userId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("jwtToken")}` },
-      body: JSON.stringify({ address: formData.address, latitude: formData.latitude, longitude: formData.longitude }),
-    });
-    toast.success("Location updated successfully!");
-    setTimeout(() => router.refresh(), 1000);
+    if (!userId) return;
+  
+    try {
+      await fetch(`http://localhost:4000/api/auth/update/${userId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("jwtToken")}`,
+        },
+        body: JSON.stringify({
+          address: formData.address,
+          latitude: formData.latitude,
+          longitude: formData.longitude,
+        }),
+      });
+  
+      // ✅ Save driver location into localStorage as well
+      if (formData.latitude !== undefined && formData.longitude !== undefined) {
+        localStorage.setItem("driverLatitude", formData.latitude.toString());
+        localStorage.setItem("driverLongitude", formData.longitude.toString());
+        console.log("✅ Driver location saved in localStorage:", {
+          lat: formData.latitude,
+          lng: formData.longitude,
+        });
+      }
+  
+      toast.success("Location updated successfully!");
+      setTimeout(() => router.refresh(), 1000);
+    } catch (error) {
+      console.error("❌ Error saving location:", error);
+      toast.error("Failed to save location!");
+    }
   };
-
-  if (!user) return <div className="flex justify-center items-center h-screen">Loading profile...</div>;
+  
+  if (!user) return (
+    <div className="flex justify-center items-center min-h-screen">
+      <Loader2 className="animate-spin w-8 h-8 text-gray-500" />
+    </div>
+  );
 
   const navItems = [
     { title: "Dashboard", href: "/dashboard", icon: "home" },
@@ -168,17 +195,22 @@ export default function DeliveryPersonProfile() {
   return (
     <DashboardLayout navItems={navItems}>
       <div className="p-6 max-w-7xl mx-auto">
-        <Tabs defaultValue="profile" onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="profile">Profile Info</TabsTrigger>
-            <TabsTrigger value="location">Location</TabsTrigger>
+        <Tabs defaultValue="profile" onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="flex justify-center mb-6">
+            <TabsTrigger value="profile" className="px-6 py-2 text-lg rounded-full data-[state=active]:bg-primary data-[state=active]:text-white">
+              Profile Info
+            </TabsTrigger>
+            <TabsTrigger value="location" className="px-6 py-2 text-lg rounded-full data-[state=active]:bg-primary data-[state=active]:text-white">
+              Location
+            </TabsTrigger>
           </TabsList>
 
           {/* Profile Editing */}
           <TabsContent value="profile">
-            <Card>
+            <Card className="shadow-md">
               <CardHeader>
                 <CardTitle>Delivery Person Profile</CardTitle>
+                <CardDescription>Edit your personal details below</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Input name="name" value={formData.name} onChange={handleProfileChange} placeholder="Full Name" disabled={!isEditing} />
@@ -188,7 +220,9 @@ export default function DeliveryPersonProfile() {
                 {isEditing ? (
                   <Button onClick={handleSaveProfile} className="w-full">Save Changes</Button>
                 ) : (
-                  <Button variant="outline" onClick={() => setIsEditing(true)} className="w-full"><Edit className="h-4 w-4 mr-2" /> Edit Profile</Button>
+                  <Button variant="outline" onClick={() => setIsEditing(true)} className="w-full hover:bg-gray-100">
+                    <Edit className="h-4 w-4 mr-2" /> Edit Profile
+                  </Button>
                 )}
               </CardContent>
             </Card>
@@ -196,7 +230,7 @@ export default function DeliveryPersonProfile() {
 
           {/* Location Updating */}
           <TabsContent value="location">
-            <Card>
+            <Card className="shadow-md">
               <CardHeader>
                 <CardTitle className="flex gap-2 items-center">
                   <MapPin className="h-5 w-5 text-red-500" /> Delivery Addresses
@@ -205,17 +239,18 @@ export default function DeliveryPersonProfile() {
                   <CardDescription>Your current address: {formData.address}</CardDescription>
                 )}
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 <div className="flex gap-2">
                   <Input placeholder="Search for an address..." value={searchValue} onChange={(e) => setSearchValue(e.target.value)} />
-                  <Button onClick={handleSearchAddress}><Search className="h-4 w-4" /></Button>
+                  <Button onClick={handleSearchAddress} className="bg-blue-500 hover:bg-blue-600">
+                    <Search className="h-4 w-4" />
+                  </Button>
                 </div>
-                <Button onClick={handleSaveLocation} className="w-full bg-red-500">Save Location</Button>
+                <Button onClick={handleSaveLocation} className="w-full bg-red-600 hover:bg-red-700 text-white">Save Location</Button>
                 <div ref={mapRef} className="w-full h-[400px] rounded-md border"></div>
               </CardContent>
             </Card>
           </TabsContent>
-
         </Tabs>
       </div>
     </DashboardLayout>
