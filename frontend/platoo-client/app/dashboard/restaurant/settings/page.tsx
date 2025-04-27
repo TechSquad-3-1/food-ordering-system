@@ -1,5 +1,4 @@
 "use client"
-
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
@@ -59,6 +58,7 @@ declare global {
 
 export default function RestaurantSettings() {
   const router = useRouter()
+
   // Owner state and logic
   const [owner, setOwner] = useState<OwnerInfo>({
     name: "",
@@ -79,7 +79,6 @@ export default function RestaurantSettings() {
       return
     }
     setOwnerId(storedId)
-
     const fetchOwner = async () => {
       setIsLoading(true)
       try {
@@ -100,7 +99,6 @@ export default function RestaurantSettings() {
         setIsLoading(false)
       }
     }
-
     fetchOwner()
   }, [])
 
@@ -162,7 +160,6 @@ export default function RestaurantSettings() {
       "Are you sure you want to permanently delete your account? This action cannot be undone."
     )
     if (!confirmDelete) return
-
     try {
       const response = await fetch(
         `http://localhost:4000/api/auth/delete/${ownerId}`,
@@ -173,12 +170,10 @@ export default function RestaurantSettings() {
           },
         }
       )
-
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.message || "Failed to delete account")
       }
-
       // Clear local storage and redirect
       localStorage.removeItem("restaurantOwnerId")
       localStorage.removeItem("owner")
@@ -198,6 +193,15 @@ export default function RestaurantSettings() {
   const [isAddRestaurantOpen, setIsAddRestaurantOpen] = useState(false)
   const [selectedRestaurant, setSelectedRestaurant] = useState<any>(null)
   const [isRestaurantLoading, setIsRestaurantLoading] = useState(true)
+
+  // Add New Restaurant dialog state
+  const [addRestaurantForm, setAddRestaurantForm] = useState<any>(RESTAURANT_SCHEMA)
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isAddMapLoading, setIsAddMapLoading] = useState(false)
+  const [addMapError, setAddMapError] = useState<string | null>(null)
+  const addMapRef = useRef<HTMLDivElement>(null)
+  const [addMap, setAddMap] = useState<any>(null)
+  const [addMarker, setAddMarker] = useState<any>(null)
 
   // --- GEOLOCATION STATES
   const [isMapLoading, setIsMapLoading] = useState(false)
@@ -225,9 +229,9 @@ export default function RestaurantSettings() {
       !isAddRestaurantOpen &&
       !selectedRestaurant
     ) {
-      setSelectedRestaurant(filteredRestaurants[0])
-      setRestaurantForm({ ...filteredRestaurants[0] })
-      setIsAddRestaurantOpen(true)
+      const firstRestaurant = filteredRestaurants[0]
+      setSelectedRestaurant(firstRestaurant)
+      setRestaurantForm({ ...firstRestaurant })
     }
   }, [filteredRestaurants])
 
@@ -243,16 +247,6 @@ export default function RestaurantSettings() {
     setIsRestaurantLoading(false)
   }
 
-  const openAddEditDialog = (restaurant?: any) => {
-    setSelectedRestaurant(restaurant || null)
-    setRestaurantForm(restaurant ? { ...restaurant } : RESTAURANT_SCHEMA)
-    setIsAddRestaurantOpen(true)
-    // Reset geo states
-    setMap(null)
-    setMarker(null)
-    setMapError(null)
-  }
-
   const handleAddOrUpdateRestaurant = async () => {
     try {
       const url = selectedRestaurant
@@ -263,38 +257,225 @@ export default function RestaurantSettings() {
         ...restaurantForm,
         owner_id: ownerId,
       }
-
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(restaurantData),
       })
-
-      if (response.ok) {
-        alert(`Restaurant ${selectedRestaurant ? "updated" : "added"} successfully!`)
-        fetchRestaurants()
-        setIsAddRestaurantOpen(false)
-        setSelectedRestaurant(null)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to save restaurant")
       }
+      alert(`Restaurant ${selectedRestaurant ? "updated" : "added"} successfully!`)
+      fetchRestaurants()
+      setIsAddRestaurantOpen(false)
+      setSelectedRestaurant(null)
     } catch (error) {
       console.error("Error saving restaurant:", error)
+      alert("Error saving restaurant. Please try again.")
     }
   }
 
-  const handleDeleteRestaurant = async (id: string) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this restaurant?")
-    if (!confirmDelete) return
-
-    try {
-      const response = await fetch(`http://localhost:3001/api/restaurants/${id}`, {
-        method: "DELETE",
+  // --- Add New Restaurant Logic ---
+  const handleAddRestaurantInput = (field: string, value: any) => {
+    setAddRestaurantForm((prev: any) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
+  const handleAddLocationInput = (field: string, value: any) => {
+    setAddRestaurantForm((prev: any) => ({
+      ...prev,
+      location: {
+        ...prev.location,
+        [field]: value,
+      },
+    }))
+  }
+  const updateAddRestaurantLocation = (lat: number, lng: number) => {
+    setAddRestaurantForm((prev: any) => ({
+      ...prev,
+      location: {
+        ...prev.location,
+        coordinates: [lng, lat], // [lng, lat] for GeoJSON
+      },
+    }))
+  }
+  // --- GEOLOCATION LOGIC FOR ADD DIALOG ---
+  useEffect(() => {
+    if (!isAddDialogOpen) return
+    setIsAddMapLoading(true)
+    // Load Leaflet CSS
+    if (!document.getElementById("leaflet-css")) {
+      const link = document.createElement("link")
+      link.id = "leaflet-css"
+      link.rel = "stylesheet"
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      link.integrity = "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      link.crossOrigin = ""
+      document.head.appendChild(link)
+    }
+    // Load Geocoder CSS
+    if (!document.getElementById("leaflet-geocoder-css")) {
+      const link = document.createElement("link")
+      link.id = "leaflet-geocoder-css"
+      link.rel = "stylesheet"
+      link.href = "https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"
+      document.head.appendChild(link)
+    }
+    // Load Leaflet JS
+    const loadLeaflet = () =>
+      new Promise<void>((resolve, reject) => {
+        if (window.L) return resolve()
+        const script = document.createElement("script")
+        script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        script.integrity = "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        script.crossOrigin = ""
+        script.onload = () => resolve()
+        script.onerror = () => reject()
+        document.head.appendChild(script)
       })
-      if (response.ok) {
-        alert("Restaurant deleted successfully!")
-        fetchRestaurants()
+    // Load Geocoder JS
+    const loadGeocoder = () =>
+      new Promise<void>((resolve, reject) => {
+        if (window.L && window.L.Control && window.L.Control.Geocoder) return resolve()
+        const script = document.createElement("script")
+        script.src = "https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"
+        script.onload = () => resolve()
+        script.onerror = () => reject()
+        document.head.appendChild(script)
+      })
+    Promise.all([loadLeaflet(), loadGeocoder()])
+      .then(() => {
+        initializeAddMap()
+        setIsAddMapLoading(false)
+      })
+      .catch(() => {
+        setAddMapError("Failed to load map or geocoder. Please check your internet connection and try again.")
+        setIsAddMapLoading(false)
+      })
+    // eslint-disable-next-line
+  }, [isAddDialogOpen])
+
+  const initializeAddMap = () => {
+    if (!addMapRef.current || !window.L || !window.L.Control || !window.L.Control.Geocoder) return
+    try {
+      const defaultLocation = [20.5937, 78.9629] // India center
+      const coords = addRestaurantForm.location?.coordinates
+      const hasCoords = coords && coords[0] !== 0 && coords[1] !== 0
+      const startLocation = hasCoords ? [coords[1], coords[0]] : defaultLocation
+      // Remove any previous map instance
+      if (addMapRef.current && addMapRef.current.innerHTML) {
+        addMapRef.current.innerHTML = ""
       }
+      const mapInstance = window.L.map(addMapRef.current).setView(startLocation, 5)
+      window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
+      }).addTo(mapInstance)
+      // Add geocoder search box
+      const geocoder = window.L.Control.geocoder({
+        defaultMarkGeocode: false,
+        placeholder: "Search for city or address...",
+      })
+        .on('markgeocode', function(e: any) {
+          const bbox = e.geocode.bbox
+          const center = e.geocode.center
+          mapInstance.fitBounds(bbox)
+          // Remove old marker if exists
+          if (addMarker) {
+            mapInstance.removeLayer(addMarker)
+          }
+          // Place marker at result
+          const newMarker = window.L.marker(center, { draggable: true }).addTo(mapInstance)
+          setAddMarker(newMarker)
+          updateAddRestaurantLocation(center.lat, center.lng)
+          // Set tag/address
+          setAddRestaurantForm((prev: any) => ({
+            ...prev,
+            location: {
+              ...prev.location,
+              tag: e.geocode.name,
+            },
+          }))
+          // Drag marker to update location
+          newMarker.on("dragend", (event: any) => {
+            const position = event.target.getLatLng()
+            updateAddRestaurantLocation(position.lat, position.lng)
+          })
+        })
+        .addTo(mapInstance)
+      // If editing, place marker
+      if (hasCoords) {
+        const markerInstance = window.L.marker([coords[1], coords[0]], {
+          draggable: true,
+        }).addTo(mapInstance)
+        markerInstance.on("dragend", (event: any) => {
+          const position = event.target.getLatLng()
+          updateAddRestaurantLocation(position.lat, position.lng)
+        })
+        setAddMarker(markerInstance)
+      }
+      setAddMap(mapInstance)
+      setAddMapError(null)
+    } catch (error) {
+      setAddMapError("Failed to initialize map. Please try again later.")
+    }
+  }
+
+  const handleAddRestaurantSubmit = async (e: any) => {
+    e.preventDefault()
+    try {
+      const restaurantData = {
+        ...addRestaurantForm,
+        owner_id: ownerId,
+      }
+      const response = await fetch("http://localhost:3001/api/restaurants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(restaurantData),
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to add restaurant")
+      }
+      alert("Restaurant added successfully!")
+      setIsAddDialogOpen(false)
+      setAddRestaurantForm(RESTAURANT_SCHEMA)
+      fetchRestaurants()
+    } catch (error) {
+      console.error("Error adding restaurant:", error)
+      alert("Error adding restaurant. Please try again.")
+    }
+  }
+
+  const handleDeleteRestaurant = async () => {
+    if (!selectedRestaurant?._id) {
+      alert("No restaurant selected to delete.")
+      return
+    }
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this restaurant? This action cannot be undone."
+    )
+    if (!confirmDelete) return
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/restaurants/${selectedRestaurant._id}`,
+        {
+          method: "DELETE",
+        }
+      )
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to delete restaurant")
+      }
+      alert("Restaurant deleted successfully!")
+      fetchRestaurants()
+      setIsAddRestaurantOpen(false)
+      setSelectedRestaurant(null)
     } catch (error) {
       console.error("Error deleting restaurant:", error)
+      alert("Error deleting restaurant. Please try again.")
     }
   }
 
@@ -319,7 +500,6 @@ export default function RestaurantSettings() {
   useEffect(() => {
     if (!isAddRestaurantOpen) return
     setIsMapLoading(true)
-
     // Load Leaflet CSS
     if (!document.getElementById("leaflet-css")) {
       const link = document.createElement("link")
@@ -338,7 +518,6 @@ export default function RestaurantSettings() {
       link.href = "https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"
       document.head.appendChild(link)
     }
-
     // Load Leaflet JS
     const loadLeaflet = () =>
       new Promise<void>((resolve, reject) => {
@@ -351,7 +530,6 @@ export default function RestaurantSettings() {
         script.onerror = () => reject()
         document.head.appendChild(script)
       })
-
     // Load Geocoder JS
     const loadGeocoder = () =>
       new Promise<void>((resolve, reject) => {
@@ -362,7 +540,6 @@ export default function RestaurantSettings() {
         script.onerror = () => reject()
         document.head.appendChild(script)
       })
-
     Promise.all([loadLeaflet(), loadGeocoder()])
       .then(() => {
         initializeMap()
@@ -377,25 +554,20 @@ export default function RestaurantSettings() {
 
   const initializeMap = () => {
     if (!mapRef.current || !window.L || !window.L.Control || !window.L.Control.Geocoder) return
-
     try {
       const defaultLocation = [20.5937, 78.9629] // India center
       const coords = restaurantForm.location?.coordinates
       const hasCoords = coords && coords[0] !== 0 && coords[1] !== 0
       const startLocation = hasCoords ? [coords[1], coords[0]] : defaultLocation
-
       // Remove any previous map instance
       if (mapRef.current && mapRef.current.innerHTML) {
         mapRef.current.innerHTML = ""
       }
-
       const mapInstance = window.L.map(mapRef.current).setView(startLocation, 5)
-
       window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 19,
       }).addTo(mapInstance)
-
       // Add geocoder search box
       const geocoder = window.L.Control.geocoder({
         defaultMarkGeocode: false,
@@ -428,7 +600,6 @@ export default function RestaurantSettings() {
           })
         })
         .addTo(mapInstance)
-
       // If editing, place marker
       if (hasCoords) {
         const markerInstance = window.L.marker([coords[1], coords[0]], {
@@ -440,7 +611,6 @@ export default function RestaurantSettings() {
         })
         setMarker(markerInstance)
       }
-
       setMap(mapInstance)
       setMapError(null)
     } catch (error) {
@@ -458,10 +628,224 @@ export default function RestaurantSettings() {
       },
     }))
   }
+
   // --- END GEOLOCATION LOGIC ---
+
+  // --- UI LOGIC FOR ADD BUTTON ---
+  const canAddRestaurant = filteredRestaurants.length === 0
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      {/* Add New Restaurant Button */}
+      {canAddRestaurant && (
+        <div className="mb-4">
+          <Button onClick={() => {
+            setIsAddDialogOpen(true)
+            setAddRestaurantForm({ ...RESTAURANT_SCHEMA, owner_id: ownerId })
+          }}>
+            Add New Restaurant
+          </Button>
+        </div>
+      )}
+      {/* Add New Restaurant Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+  <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+    <DialogHeader>
+      <DialogTitle>Add New Restaurant</DialogTitle>
+      <DialogDescription>
+        Fill out the restaurant details below.
+      </DialogDescription>
+    </DialogHeader>
+    <form
+      onSubmit={handleAddRestaurantSubmit}
+      className="space-y-6"
+    >
+            <div className="space-y-2">
+              <Label htmlFor="add-restaurant-image">Restaurant Image</Label>
+              <div className="flex items-center gap-4">
+                <Input
+                  id="add-restaurant-image"
+                  value={addRestaurantForm.image}
+                  onChange={(e) => handleAddRestaurantInput("image", e.target.value)}
+                  placeholder="Enter image URL"
+                />
+                {addRestaurantForm.image && (
+                  <img
+                    src={addRestaurantForm.image}
+                    alt="Restaurant Preview"
+                    className="w-20 h-20 object-cover rounded-md"
+                  />
+                )}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="add-restaurant-name">Restaurant Name</Label>
+              <Input
+                id="add-restaurant-name"
+                value={addRestaurantForm.name}
+                onChange={(e) => handleAddRestaurantInput("name", e.target.value)}
+                required
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="add-restaurant-rating">Rating</Label>
+                <Input
+                  id="add-restaurant-rating"
+                  type="number"
+                  value={addRestaurantForm.rating}
+                  onChange={(e) => handleAddRestaurantInput("rating", parseFloat(e.target.value))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="add-restaurant-deliveryTime">Delivery Time</Label>
+                <Input
+                  id="add-restaurant-deliveryTime"
+                  value={addRestaurantForm.deliveryTime}
+                  onChange={(e) => handleAddRestaurantInput("deliveryTime", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="add-restaurant-deliveryFee">Delivery Fee</Label>
+                <Input
+                  id="add-restaurant-deliveryFee"
+                  value={addRestaurantForm.deliveryFee}
+                  onChange={(e) => handleAddRestaurantInput("deliveryFee", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="add-restaurant-minOrder">Minimum Order</Label>
+                <Input
+                  id="add-restaurant-minOrder"
+                  value={addRestaurantForm.minOrder}
+                  onChange={(e) => handleAddRestaurantInput("minOrder", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="add-restaurant-distance">Distance</Label>
+                <Input
+                  id="add-restaurant-distance"
+                  value={addRestaurantForm.distance}
+                  onChange={(e) => handleAddRestaurantInput("distance", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="add-restaurant-priceLevel">Price Level</Label>
+                <Input
+                  id="add-restaurant-priceLevel"
+                  type="number"
+                  value={addRestaurantForm.priceLevel}
+                  onChange={(e) => handleAddRestaurantInput("priceLevel", parseInt(e.target.value))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="add-restaurant-cuisines">Cuisines (comma separated)</Label>
+              <Input
+                id="add-restaurant-cuisines"
+                value={addRestaurantForm.cuisines.join(", ")}
+                onChange={(e) =>
+                  handleAddRestaurantInput(
+                    "cuisines",
+                    e.target.value.split(",").map((v: string) => v.trim())
+                  )
+                }
+              />
+            </div>
+            {/* --- GEOLOCATION FIELDS START --- */}
+            <div className="space-y-2">
+              <Label htmlFor="add-restaurant-location-tag">Location Tag (Address)</Label>
+              <Input
+                id="add-restaurant-location-tag"
+                value={addRestaurantForm.location.tag}
+                onChange={(e) => handleAddLocationInput("tag", e.target.value)}
+                placeholder="Search or pick on map"
+              />
+            </div>
+            <div className="relative">
+              {isAddMapLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-75 z-10 rounded-md">
+                  <div className="flex flex-col items-center">
+                    <span className="animate-spin h-8 w-8 border-4 border-red-500 rounded-full border-t-transparent"></span>
+                    <p className="mt-2 text-sm text-gray-600">Loading map...</p>
+                  </div>
+                </div>
+              )}
+              <div
+                ref={addMapRef}
+                className="w-full h-[300px] rounded-md border border-gray-200 bg-gray-50"
+              ></div>
+            </div>
+            {addMapError && (
+              <div className="text-red-500 text-sm">{addMapError}</div>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="add-restaurant-location-lng">Longitude</Label>
+                <Input
+                  id="add-restaurant-location-lng"
+                  type="number"
+                  value={addRestaurantForm.location.coordinates[0]}
+                  onChange={(e) =>
+                    handleAddLocationInput("coordinates", [
+                      parseFloat(e.target.value),
+                      addRestaurantForm.location.coordinates[1],
+                    ])
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="add-restaurant-location-lat">Latitude</Label>
+                <Input
+                  id="add-restaurant-location-lat"
+                  type="number"
+                  value={addRestaurantForm.location.coordinates[1]}
+                  onChange={(e) =>
+                    handleAddLocationInput("coordinates", [
+                      addRestaurantForm.location.coordinates[0],
+                      parseFloat(e.target.value),
+                    ])
+                  }
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="add-restaurant-open-time">Open Time</Label>
+              <Input
+                id="add-restaurant-open-time"
+                value={addRestaurantForm.open_time}
+                onChange={(e) => handleAddRestaurantInput("open_time", e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="add-restaurant-closed-time">Closed Time</Label>
+              <Input
+                id="add-restaurant-closed-time"
+                value={addRestaurantForm.closed_time}
+                onChange={(e) => handleAddRestaurantInput("closed_time", e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="add-restaurant-active">Active</Label>
+              <Switch
+                id="add-restaurant-active"
+                checked={addRestaurantForm.is_active}
+                onCheckedChange={(checked: any) => handleAddRestaurantInput("is_active", checked)}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                Add Restaurant
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      {/* END Add New Restaurant Dialog */}
+
       <Tabs defaultValue="profile" className="w-full">
         <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
           <TabsTrigger value="profile">Profile</TabsTrigger>
@@ -477,40 +861,208 @@ export default function RestaurantSettings() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <Button onClick={() => openAddEditDialog()}>Add New Restaurant</Button>
-              <Separator />
-              <div className="space-y-4">
-                {filteredRestaurants.map((restaurant) => (
-                  <div key={restaurant._id} className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-medium">{restaurant.name}</h3>
-                      <p className="text-sm text-muted-foreground">{restaurant.location?.tag}</p>
-                      <Badge>{restaurant.is_active ? "Active" : "Inactive"}</Badge>
+              {/* Display Edit Form for First Restaurant */}
+              {filteredRestaurants.length > 0 && (
+                <>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      handleAddOrUpdateRestaurant()
+                    }}
+                    className="space-y-6"
+                  >
+                    {/* Restaurant Image Preview and Input */}
+                    <div className="space-y-2">
+                      <Label htmlFor="restaurant-image">Restaurant Image</Label>
+                      <div className="flex items-center gap-4">
+                        <Input
+                          id="restaurant-image"
+                          value={restaurantForm.image}
+                          onChange={(e) => handleRestaurantInput("image", e.target.value)}
+                          placeholder="Enter image URL"
+                        />
+                        {restaurantForm.image && (
+                          <img
+                            src={restaurantForm.image}
+                            alt="Restaurant Preview"
+                            className="w-20 h-20 object-cover rounded-md"
+                          />
+                        )}
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => openAddEditDialog(restaurant)}
-                      >
-                        Edit
+                    <div className="space-y-2">
+                      <Label htmlFor="restaurant-name">Restaurant Name</Label>
+                      <Input
+                        id="restaurant-name"
+                        value={restaurantForm.name}
+                        onChange={(e) => handleRestaurantInput("name", e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="restaurant-rating">Rating</Label>
+                        <Input
+                          id="restaurant-rating"
+                          type="number"
+                          value={restaurantForm.rating}
+                          onChange={(e) => handleRestaurantInput("rating", parseFloat(e.target.value))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="restaurant-deliveryTime">Delivery Time</Label>
+                        <Input
+                          id="restaurant-deliveryTime"
+                          value={restaurantForm.deliveryTime}
+                          onChange={(e) => handleRestaurantInput("deliveryTime", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="restaurant-deliveryFee">Delivery Fee</Label>
+                        <Input
+                          id="restaurant-deliveryFee"
+                          value={restaurantForm.deliveryFee}
+                          onChange={(e) => handleRestaurantInput("deliveryFee", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="restaurant-minOrder">Minimum Order</Label>
+                        <Input
+                          id="restaurant-minOrder"
+                          value={restaurantForm.minOrder}
+                          onChange={(e) => handleRestaurantInput("minOrder", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="restaurant-distance">Distance</Label>
+                        <Input
+                          id="restaurant-distance"
+                          value={restaurantForm.distance}
+                          onChange={(e) => handleRestaurantInput("distance", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="restaurant-priceLevel">Price Level</Label>
+                        <Input
+                          id="restaurant-priceLevel"
+                          type="number"
+                          value={restaurantForm.priceLevel}
+                          onChange={(e) => handleRestaurantInput("priceLevel", parseInt(e.target.value))}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="restaurant-cuisines">Cuisines (comma separated)</Label>
+                      <Input
+                        id="restaurant-cuisines"
+                        value={restaurantForm.cuisines.join(", ")}
+                        onChange={(e) =>
+                          handleRestaurantInput(
+                            "cuisines",
+                            e.target.value.split(",").map((v: string) => v.trim())
+                          )
+                        }
+                      />
+                    </div>
+                    {/* --- GEOLOCATION FIELDS START --- */}
+                    <div className="space-y-2">
+                      <Label htmlFor="restaurant-location-tag">Location Tag (Address)</Label>
+                      <Input
+                        id="restaurant-location-tag"
+                        value={restaurantForm.location.tag}
+                        onChange={(e) => handleLocationInput("tag", e.target.value)}
+                        placeholder="Search or pick on map"
+                      />
+                    </div>
+                    <div className="relative">
+                      {isMapLoading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-75 z-10 rounded-md">
+                          <div className="flex flex-col items-center">
+                            <span className="animate-spin h-8 w-8 border-4 border-red-500 rounded-full border-t-transparent"></span>
+                            <p className="mt-2 text-sm text-gray-600">Loading map...</p>
+                          </div>
+                        </div>
+                      )}
+                      <div
+                        ref={mapRef}
+                        className="w-full h-[300px] rounded-md border border-gray-200 bg-gray-50"
+                      ></div>
+                    </div>
+                    {mapError && (
+                      <div className="text-red-500 text-sm">{mapError}</div>
+                    )}
+                    {/* --- GEOLOCATION FIELDS END --- */}
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="restaurant-location-lng">Longitude</Label>
+                        <Input
+                          id="restaurant-location-lng"
+                          type="number"
+                          value={restaurantForm.location.coordinates[0]}
+                          onChange={(e) =>
+                            handleLocationInput("coordinates", [
+                              parseFloat(e.target.value),
+                              restaurantForm.location.coordinates[1],
+                            ])
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="restaurant-location-lat">Latitude</Label>
+                        <Input
+                          id="restaurant-location-lat"
+                          type="number"
+                          value={restaurantForm.location.coordinates[1]}
+                          onChange={(e) =>
+                            handleLocationInput("coordinates", [
+                              restaurantForm.location.coordinates[0],
+                              parseFloat(e.target.value),
+                            ])
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="restaurant-open-time">Open Time</Label>
+                      <Input
+                        id="restaurant-open-time"
+                        value={restaurantForm.open_time}
+                        onChange={(e) => handleRestaurantInput("open_time", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="restaurant-closed-time">Closed Time</Label>
+                      <Input
+                        id="restaurant-closed-time"
+                        value={restaurantForm.closed_time}
+                        onChange={(e) => handleRestaurantInput("closed_time", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="restaurant-active">Active</Label>
+                      <Switch
+                        id="restaurant-active"
+                        checked={restaurantForm.is_active}
+                        onCheckedChange={(checked: any) => handleRestaurantInput("is_active", checked)}
+                      />
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <Button variant="destructive" onClick={handleDeleteRestaurant}>
+                        Delete Restaurant
                       </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={() => handleDeleteRestaurant(restaurant._id)}
-                      >
-                        Delete
+                      <Button type="submit">
+                        Update Restaurant
                       </Button>
                     </div>
-                  </div>
-                ))}
-                {filteredRestaurants.length === 0 && (
-                  <div className="text-muted-foreground">No restaurants found for this owner.</div>
-                )}
-              </div>
+                  </form>
+                </>
+              )}
+              {filteredRestaurants.length === 0 && (
+                <div className="text-muted-foreground">No restaurants found for this owner.</div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
-
         {/* Owner Profile Tab */}
         <TabsContent value="owner-profile" className="pt-4">
           <Card>
@@ -612,200 +1164,6 @@ export default function RestaurantSettings() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Add/Edit Restaurant Dialog */}
-      <Dialog open={isAddRestaurantOpen} onOpenChange={setIsAddRestaurantOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>{selectedRestaurant ? "Edit Restaurant" : "Add New Restaurant"}</DialogTitle>
-            <DialogDescription>
-              {selectedRestaurant ? "Update your restaurant details" : "Add a new restaurant"}
-            </DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="max-h-[70vh]">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                handleAddOrUpdateRestaurant()
-              }}
-              className="space-y-6"
-            >
-              <div className="space-y-2">
-                <Label htmlFor="restaurant-name">Restaurant Name</Label>
-                <Input
-                  id="restaurant-name"
-                  value={restaurantForm.name}
-                  onChange={(e) => handleRestaurantInput("name", e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="restaurant-image">Image URL</Label>
-                <Input
-                  id="restaurant-image"
-                  value={restaurantForm.image}
-                  onChange={(e) => handleRestaurantInput("image", e.target.value)}
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="restaurant-rating">Rating</Label>
-                  <Input
-                    id="restaurant-rating"
-                    type="number"
-                    value={restaurantForm.rating}
-                    onChange={(e) => handleRestaurantInput("rating", parseFloat(e.target.value))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="restaurant-deliveryTime">Delivery Time</Label>
-                  <Input
-                    id="restaurant-deliveryTime"
-                    value={restaurantForm.deliveryTime}
-                    onChange={(e) => handleRestaurantInput("deliveryTime", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="restaurant-deliveryFee">Delivery Fee</Label>
-                  <Input
-                    id="restaurant-deliveryFee"
-                    value={restaurantForm.deliveryFee}
-                    onChange={(e) => handleRestaurantInput("deliveryFee", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="restaurant-minOrder">Minimum Order</Label>
-                  <Input
-                    id="restaurant-minOrder"
-                    value={restaurantForm.minOrder}
-                    onChange={(e) => handleRestaurantInput("minOrder", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="restaurant-distance">Distance</Label>
-                  <Input
-                    id="restaurant-distance"
-                    value={restaurantForm.distance}
-                    onChange={(e) => handleRestaurantInput("distance", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="restaurant-priceLevel">Price Level</Label>
-                  <Input
-                    id="restaurant-priceLevel"
-                    type="number"
-                    value={restaurantForm.priceLevel}
-                    onChange={(e) => handleRestaurantInput("priceLevel", parseInt(e.target.value))}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="restaurant-cuisines">Cuisines (comma separated)</Label>
-                <Input
-                  id="restaurant-cuisines"
-                  value={restaurantForm.cuisines.join(", ")}
-                  onChange={(e) =>
-                    handleRestaurantInput(
-                      "cuisines",
-                      e.target.value.split(",").map((v: string) => v.trim())
-                    )
-                  }
-                />
-              </div>
-              {/* --- GEOLOCATION FIELDS START --- */}
-              <div className="space-y-2">
-                <Label htmlFor="restaurant-location-tag">Location Tag (Address)</Label>
-                <Input
-                  id="restaurant-location-tag"
-                  value={restaurantForm.location.tag}
-                  onChange={(e) => handleLocationInput("tag", e.target.value)}
-                  placeholder="Search or pick on map"
-                />
-              </div>
-              <div className="relative">
-                {isMapLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-75 z-10 rounded-md">
-                    <div className="flex flex-col items-center">
-                      <span className="animate-spin h-8 w-8 border-4 border-red-500 rounded-full border-t-transparent"></span>
-                      <p className="mt-2 text-sm text-gray-600">Loading map...</p>
-                    </div>
-                  </div>
-                )}
-                <div
-                  ref={mapRef}
-                  className="w-full h-[300px] rounded-md border border-gray-200 bg-gray-50"
-                ></div>
-              </div>
-              {mapError && (
-                <div className="text-red-500 text-sm">{mapError}</div>
-              )}
-              {/* --- GEOLOCATION FIELDS END --- */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="restaurant-location-lng">Longitude</Label>
-                  <Input
-                    id="restaurant-location-lng"
-                    type="number"
-                    value={restaurantForm.location.coordinates[0]}
-                    onChange={(e) =>
-                      handleLocationInput("coordinates", [
-                        parseFloat(e.target.value),
-                        restaurantForm.location.coordinates[1],
-                      ])
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="restaurant-location-lat">Latitude</Label>
-                  <Input
-                    id="restaurant-location-lat"
-                    type="number"
-                    value={restaurantForm.location.coordinates[1]}
-                    onChange={(e) =>
-                      handleLocationInput("coordinates", [
-                        restaurantForm.location.coordinates[0],
-                        parseFloat(e.target.value),
-                      ])
-                    }
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="restaurant-open-time">Open Time</Label>
-                <Input
-                  id="restaurant-open-time"
-                  value={restaurantForm.open_time}
-                  onChange={(e) => handleRestaurantInput("open_time", e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="restaurant-closed-time">Closed Time</Label>
-                <Input
-                  id="restaurant-closed-time"
-                  value={restaurantForm.closed_time}
-                  onChange={(e) => handleRestaurantInput("closed_time", e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="restaurant-active">Active</Label>
-                <Switch
-                  id="restaurant-active"
-                  checked={restaurantForm.is_active}
-                  onCheckedChange={(checked: any) => handleRestaurantInput("is_active", checked)}
-                />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" type="button" onClick={() => setIsAddRestaurantOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  {selectedRestaurant ? "Update Restaurant" : "Add Restaurant"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
