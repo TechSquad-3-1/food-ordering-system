@@ -210,6 +210,9 @@ export default function RestaurantSettings() {
   const [map, setMap] = useState<any>(null)
   const [marker, setMarker] = useState<any>(null)
 
+  // --- EDIT MODE STATE FOR RESTAURANT FORM ---
+  const [isRestaurantEditing, setIsRestaurantEditing] = useState(false)
+
   useEffect(() => {
     fetchRestaurants()
   }, [])
@@ -270,6 +273,7 @@ export default function RestaurantSettings() {
       fetchRestaurants()
       setIsAddRestaurantOpen(false)
       setSelectedRestaurant(null)
+      setIsRestaurantEditing(false)
     } catch (error) {
       console.error("Error saving restaurant:", error)
       alert("Error saving restaurant. Please try again.")
@@ -473,6 +477,7 @@ export default function RestaurantSettings() {
       fetchRestaurants()
       setIsAddRestaurantOpen(false)
       setSelectedRestaurant(null)
+      setIsRestaurantEditing(false)
     } catch (error) {
       console.error("Error deleting restaurant:", error)
       alert("Error deleting restaurant. Please try again.")
@@ -647,8 +652,8 @@ export default function RestaurantSettings() {
           </Button>
         </div>
       )}
-      {/* Add New Restaurant Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+       {/* Add New Restaurant Dialog */}
+       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
   <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
     <DialogHeader>
       <DialogTitle>Add New Restaurant</DialogTitle>
@@ -846,6 +851,8 @@ export default function RestaurantSettings() {
       </Dialog>
       {/* END Add New Restaurant Dialog */}
 
+
+
       <Tabs defaultValue="profile" className="w-full">
         <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
           <TabsTrigger value="profile">Profile</TabsTrigger>
@@ -880,6 +887,7 @@ export default function RestaurantSettings() {
                           value={restaurantForm.image}
                           onChange={(e) => handleRestaurantInput("image", e.target.value)}
                           placeholder="Enter image URL"
+                          disabled={!isRestaurantEditing}
                         />
                         {restaurantForm.image && (
                           <img
@@ -897,6 +905,7 @@ export default function RestaurantSettings() {
                         value={restaurantForm.name}
                         onChange={(e) => handleRestaurantInput("name", e.target.value)}
                         required
+                        disabled={!isRestaurantEditing}
                       />
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -907,6 +916,7 @@ export default function RestaurantSettings() {
                           type="number"
                           value={restaurantForm.rating}
                           onChange={(e) => handleRestaurantInput("rating", parseFloat(e.target.value))}
+                          disabled={!isRestaurantEditing}
                         />
                       </div>
                       <div className="space-y-2">
@@ -915,6 +925,7 @@ export default function RestaurantSettings() {
                           id="restaurant-deliveryTime"
                           value={restaurantForm.deliveryTime}
                           onChange={(e) => handleRestaurantInput("deliveryTime", e.target.value)}
+                          disabled={!isRestaurantEditing}
                         />
                       </div>
                       <div className="space-y-2">
@@ -923,6 +934,7 @@ export default function RestaurantSettings() {
                           id="restaurant-deliveryFee"
                           value={restaurantForm.deliveryFee}
                           onChange={(e) => handleRestaurantInput("deliveryFee", e.target.value)}
+                          disabled={!isRestaurantEditing}
                         />
                       </div>
                       <div className="space-y-2">
@@ -931,6 +943,7 @@ export default function RestaurantSettings() {
                           id="restaurant-minOrder"
                           value={restaurantForm.minOrder}
                           onChange={(e) => handleRestaurantInput("minOrder", e.target.value)}
+                          disabled={!isRestaurantEditing}
                         />
                       </div>
                       <div className="space-y-2">
@@ -939,6 +952,7 @@ export default function RestaurantSettings() {
                           id="restaurant-distance"
                           value={restaurantForm.distance}
                           onChange={(e) => handleRestaurantInput("distance", e.target.value)}
+                          disabled={!isRestaurantEditing}
                         />
                       </div>
                       <div className="space-y-2">
@@ -948,6 +962,7 @@ export default function RestaurantSettings() {
                           type="number"
                           value={restaurantForm.priceLevel}
                           onChange={(e) => handleRestaurantInput("priceLevel", parseInt(e.target.value))}
+                          disabled={!isRestaurantEditing}
                         />
                       </div>
                     </div>
@@ -962,6 +977,7 @@ export default function RestaurantSettings() {
                             e.target.value.split(",").map((v: string) => v.trim())
                           )
                         }
+                        disabled={!isRestaurantEditing}
                       />
                     </div>
                     {/* --- GEOLOCATION FIELDS START --- */}
@@ -972,6 +988,7 @@ export default function RestaurantSettings() {
                         value={restaurantForm.location.tag}
                         onChange={(e) => handleLocationInput("tag", e.target.value)}
                         placeholder="Search or pick on map"
+                        disabled={!isRestaurantEditing}
                       />
                     </div>
                     <div className="relative">
@@ -1005,6 +1022,7 @@ export default function RestaurantSettings() {
                               restaurantForm.location.coordinates[1],
                             ])
                           }
+                          disabled={!isRestaurantEditing}
                         />
                       </div>
                       <div className="space-y-2">
@@ -1019,6 +1037,7 @@ export default function RestaurantSettings() {
                               parseFloat(e.target.value),
                             ])
                           }
+                          disabled={!isRestaurantEditing}
                         />
                       </div>
                     </div>
@@ -1028,6 +1047,7 @@ export default function RestaurantSettings() {
                         id="restaurant-open-time"
                         value={restaurantForm.open_time}
                         onChange={(e) => handleRestaurantInput("open_time", e.target.value)}
+                        disabled={!isRestaurantEditing}
                       />
                     </div>
                     <div className="space-y-2">
@@ -1036,6 +1056,7 @@ export default function RestaurantSettings() {
                         id="restaurant-closed-time"
                         value={restaurantForm.closed_time}
                         onChange={(e) => handleRestaurantInput("closed_time", e.target.value)}
+                        disabled={!isRestaurantEditing}
                       />
                     </div>
                     <div className="space-y-2">
@@ -1044,15 +1065,38 @@ export default function RestaurantSettings() {
                         id="restaurant-active"
                         checked={restaurantForm.is_active}
                         onCheckedChange={(checked: any) => handleRestaurantInput("is_active", checked)}
+                        disabled={!isRestaurantEditing}
                       />
                     </div>
                     <div className="flex justify-between gap-4">
-                      <Button variant="destructive" onClick={handleDeleteRestaurant}>
+                      <Button
+                        variant="destructive"
+                        onClick={handleDeleteRestaurant}
+                        disabled={isRestaurantEditing}
+                      >
                         Delete Restaurant
                       </Button>
-                      <Button type="submit">
-                        Update Restaurant
-                      </Button>
+                      {isRestaurantEditing ? (
+                        <>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsRestaurantEditing(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button type="submit">
+                            Save Changes
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          type="button"
+                          onClick={() => setIsRestaurantEditing(true)}
+                        >
+                          Update Restaurant
+                        </Button>
+                      )}
                     </div>
                   </form>
                 </>
