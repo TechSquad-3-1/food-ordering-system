@@ -6,11 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle, Clock, Download } from "lucide-react"; // ✅ Add Download icon
-import jsPDF from "jspdf"; // ✅
-import "jspdf-autotable"; // 
-import autoTable from "jspdf-autotable"; // ✅ Correct way
-
+import { Loader2, CheckCircle, Clock, Download } from "lucide-react";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"; // ✅ new import
 
 interface OrderItem {
   menu_item_id: string;
@@ -153,12 +153,9 @@ export default function DeliveryDashboard() {
     return "Good Evening";
   };
 
-  // 🚀 New function: download PDF
   const downloadPdf = () => {
     const doc = new jsPDF();
-  
     doc.text("Completed Deliveries Report", 10, 10);
-  
     const tableData = deliveryHistory.map((d, index) => [
       index + 1,
       d.customerName,
@@ -168,15 +165,25 @@ export default function DeliveryDashboard() {
       new Date(d.deliveryTime).toLocaleString(),
       `LKR ${d.earnings.toFixed(2)}`
     ]);
-  
     autoTable(doc, {
       head: [["#", "Customer", "Address", "Restaurant", "Status", "Delivered At", "Earnings"]],
       body: tableData,
       startY: 20,
     });
-  
     doc.save("completed-deliveries.pdf");
   };
+
+  // 🚀 Prepare daily deliveries data for the chart
+  const dailyDeliveriesData = deliveryHistory.reduce((acc: Record<string, number>, delivery) => {
+    const date = new Date(delivery.deliveryTime).toLocaleDateString();
+    acc[date] = (acc[date] || 0) + 1;
+    return acc;
+  }, {});
+
+  const chartData = Object.entries(dailyDeliveriesData).map(([date, count]) => ({
+    date,
+    deliveries: count,
+  })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   return (
     <DashboardLayout navItems={navItems}>
@@ -202,6 +209,31 @@ export default function DeliveryDashboard() {
           <Card>
             <CardHeader><CardTitle>Total Deliveries</CardTitle></CardHeader>
             <CardContent className="text-xl font-semibold">{totalDeliveries}</CardContent>
+          </Card>
+        </div>
+
+        {/* 🚀 Daily Deliveries Chart */}
+        <div className="mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Daily Deliveries Overview</CardTitle>
+              <CardDescription>Deliveries completed per day</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="deliveries" stroke="#ef4444" fill="#fca5a5" />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-center text-gray-500">No deliveries to display.</p>
+              )}
+            </CardContent>
           </Card>
         </div>
 
@@ -279,3 +311,212 @@ export default function DeliveryDashboard() {
     </DashboardLayout>
   );
 }
+
+
+// "use client";
+
+// import { useEffect, useState } from "react";
+// import { DashboardLayout } from "@/components/layout/dashboard-layout";
+// import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+// import { Button } from "@/components/ui/button";
+// import { Badge } from "@/components/ui/badge";
+// import { Loader2, MapPin, Navigation, CheckCircle } from "lucide-react";
+// import dynamic from "next/dynamic";
+// import { toast } from "sonner";
+
+// const DeliveryMap = dynamic(() => import("@/components/DeliveryMap"), { ssr: false });
+
+// interface ActiveOrder {
+//   id: string;
+//   customer: {
+//     name: string;
+//     address: string;
+//     latitude: number;
+//     longitude: number;
+//   };
+//   driverLocation: {
+//     lat: number;
+//     lng: number;
+//   };
+//   restaurantCoordinates: {
+//     lat: number;
+//     lng: number;
+//   };
+//   items: { menu_item_id: string; quantity: number; price: number }[];
+//   restaurantName: string;
+//   restaurant_id: string;
+//   total: string;
+// }
+
+// export default function DeliveryDashboard() {
+//   const [activeOrder, setActiveOrder] = useState<ActiveOrder | null>(null);
+//   const [pickupCompleted, setPickupCompleted] = useState(false);
+//   const [deliveryHistory, setDeliveryHistory] = useState<any[]>([]);
+//   const [isLoading, setIsLoading] = useState(true);
+
+//   const driverId =
+//     typeof window !== "undefined" ? localStorage.getItem("deliveryManId") || "driver-123" : "driver-123";
+
+//   useEffect(() => {
+//     const storedOrder = localStorage.getItem("activeOrder");
+//     if (storedOrder) {
+//       setActiveOrder(JSON.parse(storedOrder));
+//     }
+//     fetchHistory();
+//   }, []);
+
+//   const fetchHistory = async () => {
+//     try {
+//       const res = await fetch(`http://localhost:3003/api/delivery/driver/${driverId}`);
+//       const data = await res.json();
+//       setDeliveryHistory(data);
+//     } catch (error) {
+//       console.error("Error fetching history", error);
+//     } finally {
+//       setIsLoading(false);
+//     }
+//   };
+
+//   const handlePickup = () => {
+//     setPickupCompleted(true);
+//     toast.success("Picked up the order! Now navigate to customer.");
+//   };
+
+//   const completeDelivery = async () => {
+//     if (!activeOrder) return;
+
+//     const payload = {
+//       orderId: activeOrder.id,
+//       customerName: activeOrder.customer.name,
+//       deliveryAddress: activeOrder.customer.address,
+//       restaurantName: activeOrder.restaurantName,
+//       restaurantId: activeOrder.restaurant_id,
+//       deliveryStatus: "delivered",
+//       pickupTime: new Date(),
+//       deliveryTime: new Date(),
+//       assignedTo: driverId,
+//       totalAmount: activeOrder.total,
+//       earnings: 300,
+//     };
+
+//     try {
+//       await fetch("http://localhost:3003/api/delivery", {
+//         method: "POST",
+//         headers: { "Content-Type": "application/json" },
+//         body: JSON.stringify(payload),
+//       });
+
+//       await fetch(`http://localhost:3008/api/orders/${activeOrder.id}/status`, {
+//         method: "PATCH",
+//         headers: { "Content-Type": "application/json" },
+//         body: JSON.stringify({ status: "delivered" }),
+//       });
+
+//       localStorage.removeItem("activeOrder");
+//       setActiveOrder(null);
+//       setPickupCompleted(false);
+//       fetchHistory();
+//       toast.success("Delivery completed successfully!");
+//     } catch (error) {
+//       console.error("Error completing delivery", error);
+//       toast.error("Failed to complete delivery!");
+//     }
+//   };
+
+//   const navItems = [
+//     { title: "Dashboard", href: "/dashboard", icon: "home" },
+//     { title: "Pending Deliveries", href: "/dashboard/delivery/pending-deliveries", icon: "truck" },
+//     { title: "Earnings", href: "/dashboard/delivery/earnings", icon: "dollar-sign" },
+//     { title: "Profile", href: "/dashboard/delivery", icon: "user" },
+//   ];
+
+//   return (
+//     <DashboardLayout navItems={navItems}>
+//       <div className="p-6">
+
+//         <Tabs defaultValue="active">
+//           <TabsList>
+//             <TabsTrigger value="active">Active Delivery</TabsTrigger>
+//             <TabsTrigger value="history">Delivery History</TabsTrigger>
+//           </TabsList>
+
+//           {/* Active Delivery Tab */}
+//           <TabsContent value="active">
+//             {isLoading ? (
+//               <div className="flex justify-center"><Loader2 className="animate-spin" /></div>
+//             ) : activeOrder ? (
+//               <Card>
+//                 <CardHeader>
+//                   <CardTitle>Active Delivery</CardTitle>
+//                 </CardHeader>
+//                 <CardContent className="space-y-6">
+
+//                   {/* Delivery Info */}
+//                   <div>
+//                     <p><strong>Restaurant:</strong> {activeOrder.restaurantName}</p>
+//                     <p><strong>Customer:</strong> {activeOrder.customer.name}</p>
+//                     <p><strong>Address:</strong> {activeOrder.customer.address}</p>
+//                   </div>
+
+//                   {/* Map */}
+//                   {activeOrder.driverLocation && activeOrder.restaurantCoordinates && activeOrder.customer ? (
+//                     <DeliveryMap
+//                       pickup={activeOrder.restaurantCoordinates}
+//                       dropoff={{
+//                         lat: activeOrder.customer.latitude,
+//                         lng: activeOrder.customer.longitude,
+//                       }}
+//                       driver={activeOrder.driverLocation}
+//                       showPickupRoute={!pickupCompleted}
+//                       showDropoffRoute={pickupCompleted}
+//                     />
+//                   ) : (
+//                     <div>Loading map...</div>
+//                   )}
+
+//                   {/* Buttons */}
+//                   {!pickupCompleted ? (
+//                     <Button className="w-full bg-blue-600" onClick={handlePickup}>
+//                       <Navigation className="mr-2" /> Navigate to Restaurant
+//                     </Button>
+//                   ) : (
+//                     <Button className="w-full bg-green-600" onClick={completeDelivery}>
+//                       <CheckCircle className="mr-2" /> Complete Delivery
+//                     </Button>
+//                   )}
+//                 </CardContent>
+//               </Card>
+//             ) : (
+//               <Card>
+//                 <CardHeader><CardTitle>No Active Order</CardTitle></CardHeader>
+//               </Card>
+//             )}
+//           </TabsContent>
+
+//           {/* Delivery History */}
+//           <TabsContent value="history">
+//             <h2 className="text-xl font-bold mb-4">Completed Deliveries</h2>
+//             {deliveryHistory.length === 0 ? (
+//               <p>No deliveries yet.</p>
+//             ) : (
+//               deliveryHistory.map((d, index) => (
+//                 <Card key={index} className="mb-4">
+//                   <CardHeader>
+//                     <CardTitle>{d.customerName}</CardTitle>
+//                   </CardHeader>
+//                   <CardContent>
+//                     <p><MapPin className="inline w-4 h-4 mr-1" /> {d.deliveryAddress}</p>
+//                     <Badge variant="outline" className="mt-2">{d.deliveryStatus}</Badge>
+//                     <p className="mt-2 text-sm">Earned: LKR {d.earnings.toFixed(2)}</p>
+//                   </CardContent>
+//                 </Card>
+//               ))
+//             )}
+//           </TabsContent>
+
+//         </Tabs>
+//       </div>
+//     </DashboardLayout>
+//   );
+// }
