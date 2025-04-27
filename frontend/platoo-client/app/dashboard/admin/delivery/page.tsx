@@ -8,12 +8,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Search, MapPin, Truck, User, Phone, Mail, Calendar as CalendarIcon, Edit, RefreshCw, Bike, Car } from 'lucide-react'
+import { Search, MapPin, Truck, User, Phone, Mail, Calendar as CalendarIcon, Edit, Bike, Car } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
@@ -292,7 +291,6 @@ export default function AdminDeliveryDashboard() {
     return true
   })
 
-  // *** CHANGE IS HERE: Use deliveryTime instead of createdAt for date filter ***
   const filteredDeliveries = activeDeliveries.filter((delivery) => {
     if (deliveriesFilter !== "all" && delivery.deliveryStatus !== deliveriesFilter) {
       return false
@@ -305,7 +303,7 @@ export default function AdminDeliveryDashboard() {
       return (
         delivery.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         delivery.orderId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        delivery.id?.toLowerCase().includes(searchQuery.toLowerCase())
+        delivery.id?.toLowerCase().includes(searchQuery)
       )
     }
     return true
@@ -313,12 +311,12 @@ export default function AdminDeliveryDashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="container mx-auto px-4 flex flex-col gap-6 w-full">
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-10 w-32" />
         </div>
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 w-full">
           {Array(2)
             .fill(0)
             .map((_, i) => (
@@ -331,16 +329,16 @@ export default function AdminDeliveryDashboard() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
+    <div className="container mx-auto px-4 flex flex-col gap-6 w-full">
+      <div className="flex flex-col gap-2 w-full">
         <h1 className="text-3xl font-bold tracking-tight">Delivery Management</h1>
         <p className="text-muted-foreground">
           Manage delivery personnel and track active deliveries.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+        <Card className="w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Delivery Personnel</CardTitle>
             <User className="h-4 w-4 text-muted-foreground" />
@@ -349,7 +347,7 @@ export default function AdminDeliveryDashboard() {
             <div className="text-2xl font-bold">{deliveryPersonnel.length}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Deliveries</CardTitle>
             <Truck className="h-4 w-4 text-muted-foreground" />
@@ -364,13 +362,13 @@ export default function AdminDeliveryDashboard() {
         </Card>
       </div>
 
-      <Tabs defaultValue="personnel" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="personnel">Delivery Personnel</TabsTrigger>
-          <TabsTrigger value="deliveries">Active Deliveries</TabsTrigger>
+      <Tabs defaultValue="personnel" className="space-y-4 w-full">
+        <TabsList className="w-full flex">
+          <TabsTrigger value="personnel" className="flex-1">Delivery Personnel</TabsTrigger>
+          <TabsTrigger value="deliveries" className="flex-1">Active Deliveries</TabsTrigger>
         </TabsList>
-        <TabsContent value="personnel" className="space-y-4">
-          <div className="flex items-center gap-2">
+        <TabsContent value="personnel" className="space-y-4 w-full">
+          <div className="flex flex-wrap gap-2 items-center w-full">
             <DatePicker
               selected={personnelDate}
               onSelect={setPersonnelDate}
@@ -379,81 +377,78 @@ export default function AdminDeliveryDashboard() {
             <Button variant="outline" onClick={() => setPersonnelDate(null)} disabled={!personnelDate}>
               Clear
             </Button>
-            <div className="relative">
+            <div className="relative flex-1 min-w-[200px] max-w-xs">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
                 placeholder="Search personnel..."
-                className="pl-8 w-[250px] md:w-[300px]"
+                className="pl-8 w-full"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-           
           </div>
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Vehicle No</TableHead>
-                    <TableHead>Address</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredDeliveryPersonnel.map((person) => (
-                    <TableRow key={person.id}>
-                      <TableCell className="font-medium">{person.id}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={person.avatar || "/placeholder.svg?height=32&width=32"} alt={person.name || "?"} />
-                            <AvatarFallback>{person?.name?.charAt(0)?.toUpperCase() || "?"}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">{person.name || "Unnamed"}</div>
-                            <div className="text-xs text-muted-foreground">{person.email || "No email"}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-1">
-                            <Phone className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-sm">{person.phone || "-"}</span>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {person.vehicleNumber || "-"}
-                      </TableCell>
-                      <TableCell>
-                        {person.address || "-"}
-                      </TableCell>
-                      <TableCell>
-                        {person.createdAt ? new Date(person.createdAt).toLocaleDateString() : "-"}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" onClick={() => setSelectedDeliveryPerson(person)}>
-                            View Details
-                          </Button>
-                        </div>
-                      </TableCell>
+          <Card className="w-full">
+            <CardContent className="p-0 w-full">
+              <div className="overflow-x-auto w-full">
+                <Table className="min-w-[800px] w-full">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead>Vehicle No</TableHead>
+                      <TableHead>Address</TableHead>
+                      <TableHead>Joined</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredDeliveryPersonnel.map((person) => (
+                      <TableRow key={person.id}>
+                        <TableCell className="font-medium">{person.id}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div>
+                              <div className="font-medium">{person.name || "Unnamed"}</div>
+                              <div className="text-xs text-muted-foreground">{person.email || "No email"}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1">
+                              <Phone className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-sm">{person.phone || "-"}</span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {person.vehicleNumber || "-"}
+                        </TableCell>
+                        <TableCell>
+                          {person.address || "-"}
+                        </TableCell>
+                        <TableCell>
+                          {person.createdAt ? new Date(person.createdAt).toLocaleDateString() : "-"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="sm" onClick={() => setSelectedDeliveryPerson(person)}>
+                              View Details
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
-        <TabsContent value="deliveries" className="space-y-4">
-          <div className="flex items-center gap-2">
+        <TabsContent value="deliveries" className="space-y-4 w-full">
+          <div className="flex flex-wrap gap-2 items-center w-full">
             <DatePicker
               selected={deliveriesDate}
               onSelect={setDeliveriesDate}
@@ -462,12 +457,12 @@ export default function AdminDeliveryDashboard() {
             <Button variant="outline" onClick={() => setDeliveriesDate(null)} disabled={!deliveriesDate}>
               Clear
             </Button>
-            <div className="relative">
+            <div className="relative flex-1 min-w-[200px] max-w-xs">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
                 placeholder="Search deliveries..."
-                className="pl-8 w-[250px] md:w-[300px]"
+                className="pl-8 w-full"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -486,68 +481,67 @@ export default function AdminDeliveryDashboard() {
               </SelectContent>
             </Select>
           </div>
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order ID</TableHead>
-                    <TableHead>Restaurant</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Delivery Person</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Pickup Time</TableHead>
-                    <TableHead>Delivery Time</TableHead>
-                    <TableHead>Created</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredDeliveries.map((delivery) => {
-                    const assignedPerson = deliveryPersonnel.find(p => p.id === delivery.assignedTo)
-                    return (
-                      <TableRow key={delivery.id}>
-                        <TableCell className="font-medium">{delivery.orderId}</TableCell>
-                        <TableCell>{delivery.restaurantName}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <div className="font-medium">{delivery.customerName}</div>
-                            <div className="text-xs text-muted-foreground flex items-center gap-1">
-                              <MapPin className="h-3 w-3" />
-                              <span className="truncate max-w-[150px]">{delivery.customerAddress}</span>
+          <Card className="w-full">
+            <CardContent className="p-0 w-full">
+              <div className="overflow-x-auto w-full">
+                <Table className="min-w-[900px] w-full">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order ID</TableHead>
+                      <TableHead>Restaurant</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Delivery Person</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Pickup Time</TableHead>
+                      <TableHead>Delivery Time</TableHead>
+                      <TableHead>Created</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredDeliveries.map((delivery) => {
+                      const assignedPerson = deliveryPersonnel.find(p => p.id === delivery.assignedTo)
+                      return (
+                        <TableRow key={delivery.id}>
+                          <TableCell className="font-medium">{delivery.orderId}</TableCell>
+                          <TableCell>{delivery.restaurantName}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <div className="font-medium">{delivery.customerName}</div>
+                              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                <span className="truncate max-w-[150px]">{delivery.customerAddress}</span>
+                              </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {assignedPerson ? (
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-6 w-6">
-                                <AvatarFallback>{assignedPerson?.name?.charAt(0)?.toUpperCase() || "?"}</AvatarFallback>
-                              </Avatar>
-                              <span>{assignedPerson.name || "Unnamed"}</span>
-                            </div>
-                          ) : (
-                            <Badge variant="outline">Unassigned</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={`${getStatusColor(delivery.deliveryStatus)} text-white`}>
-                            {delivery.deliveryStatus.charAt(0).toUpperCase() + delivery.deliveryStatus.slice(1)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {delivery.pickupTime ? new Date(delivery.pickupTime).toLocaleTimeString() : "-"}
-                        </TableCell>
-                        <TableCell>
-                          {delivery.deliveryTime ? new Date(delivery.deliveryTime).toLocaleTimeString() : "-"}
-                        </TableCell>
-                        <TableCell>
-                          {delivery.createdAt ? new Date(delivery.createdAt).toLocaleTimeString() : "-"}
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
+                          </TableCell>
+                          <TableCell>
+                            {assignedPerson ? (
+                              <div className="flex items-center gap-2">
+                                <span>{assignedPerson.name || "Unnamed"}</span>
+                              </div>
+                            ) : (
+                              <Badge variant="outline">Unassigned</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`${getStatusColor(delivery.deliveryStatus)} text-white`}>
+                              {delivery.deliveryStatus.charAt(0).toUpperCase() + delivery.deliveryStatus.slice(1)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {delivery.pickupTime ? new Date(delivery.pickupTime).toLocaleTimeString() : "-"}
+                          </TableCell>
+                          <TableCell>
+                            {delivery.deliveryTime ? new Date(delivery.deliveryTime).toLocaleTimeString() : "-"}
+                          </TableCell>
+                          <TableCell>
+                            {delivery.createdAt ? new Date(delivery.createdAt).toLocaleTimeString() : "-"}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -557,16 +551,11 @@ export default function AdminDeliveryDashboard() {
       {selectedDeliveryPerson && (
         <Dialog open={!!selectedDeliveryPerson} onOpenChange={() => { setSelectedDeliveryPerson(null); setIsEditing(false); }}>
           <DialogContent className="sm:max-w-[500px] rounded-xl shadow-xl border-0 p-0">
+            {/* Accessible but visually hidden DialogTitle */}
+            <DialogTitle className="sr-only">
+              {selectedDeliveryPerson.name || "Delivery Person Details"}
+            </DialogTitle>
             <div className="bg-gradient-to-r from-blue-600 to-blue-400 rounded-t-xl px-6 py-5 flex items-center gap-4">
-              <Avatar className="h-16 w-16 border-4 border-white shadow-lg">
-                <AvatarImage
-                  src={selectedDeliveryPerson.avatar || "/placeholder.svg?height=64&width=64"}
-                  alt={selectedDeliveryPerson.name || "?"}
-                />
-                <AvatarFallback>
-                  {selectedDeliveryPerson?.name?.charAt(0)?.toUpperCase() || "?"}
-                </AvatarFallback>
-              </Avatar>
               <div>
                 <h2 className="text-2xl font-bold text-white mb-1">
                   {selectedDeliveryPerson.name || "Unnamed"}
