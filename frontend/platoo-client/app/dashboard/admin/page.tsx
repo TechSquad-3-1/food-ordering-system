@@ -421,12 +421,6 @@ export default function AdminDashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{dashboardData.totalUsers.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">
-                  <span className="text-green-500 flex items-center">
-                    <ArrowUpRight className="mr-1 h-4 w-4" />
-                    +12% from last month
-                  </span>
-                </p>
               </CardContent>
             </Card>
             <Card>
@@ -436,12 +430,6 @@ export default function AdminDashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{dashboardData.totalRestaurants}</div>
-                <p className="text-xs text-muted-foreground">
-                  <span className="text-green-500 flex items-center">
-                    <ArrowUpRight className="mr-1 h-4 w-4" />
-                    +5% from last month
-                  </span>
-                </p>
               </CardContent>
             </Card>
             <Card>
@@ -451,12 +439,6 @@ export default function AdminDashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{dashboardData.totalOrders.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">
-                  <span className="text-green-500 flex items-center">
-                    <ArrowUpRight className="mr-1 h-4 w-4" />
-                    +18% from last month
-                  </span>
-                </p>
               </CardContent>
             </Card>
             <Card>
@@ -466,12 +448,6 @@ export default function AdminDashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">LKR{dashboardData.totalRevenue.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">
-                  <span className="text-green-500 flex items-center">
-                    <ArrowUpRight className="mr-1 h-4 w-4" />
-                    +8% from last month
-                  </span>
-                </p>
               </CardContent>
             </Card>
           </div>
