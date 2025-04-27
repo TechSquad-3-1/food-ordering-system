@@ -118,9 +118,7 @@ export default function UsersPage() {
         {fieldIcons[label] || null}
         <span className="ml-1">{label}:</span>
       </dt>
-      <dd
-        className={`flex-1 text-gray-900 ${mono ? "font-mono text-xs" : "font-medium"} break-all`}
-      >
+      <dd className={`flex-1 text-gray-900 ${mono ? "font-mono text-xs" : "font-medium"} break-all`}>
         {value}
       </dd>
     </div>
@@ -214,7 +212,6 @@ export default function UsersPage() {
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault()
-
     const passwordError = validatePassword(newUser.password)
     if (passwordError) {
       alert(passwordError)
@@ -250,7 +247,6 @@ export default function UsersPage() {
         alert(text || "Failed to register admin")
         return
       }
-
       if (!res.ok) {
         alert(result?.error || result?.message || "Failed to register admin")
         return
@@ -856,6 +852,54 @@ export default function UsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* View Details Dialog - NEW */}
+      <Dialog open={isViewDetailsOpen} onOpenChange={setIsViewDetailsOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>User Details</DialogTitle>
+            <DialogDescription>
+              Full information about the selected user.
+            </DialogDescription>
+          </DialogHeader>
+          {viewUser && (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-4 mb-2">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={viewUser.avatar} alt={viewUser.name} />
+                  <AvatarFallback>{viewUser.name?.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="font-semibold text-lg">{viewUser.name}</div>
+                  <div className="text-sm text-muted-foreground">{viewUser.email}</div>
+                  <Badge className={`${getRoleColor(viewUser.role)} text-white mt-1`}>
+                    {getRoleName(viewUser.role)}
+                  </Badge>
+                </div>
+              </div>
+              <dl className="divide-y divide-gray-100 border rounded-md bg-gray-50">
+                <DetailRow label="id" value={viewUser.id} mono />
+                {viewUser.phone && <DetailRow label="phone" value={viewUser.phone} />}
+                {viewUser.address && <DetailRow label="address" value={viewUser.address} />}
+                {viewUser.restaurantName && <DetailRow label="restaurantName" value={viewUser.restaurantName} />}
+                {viewUser.vehicleNumber && <DetailRow label="vehicleNumber" value={viewUser.vehicleNumber} />}
+                <DetailRow label="role" value={getRoleName(viewUser.role)} />
+                {typeof viewUser.orders !== "undefined" && (
+                  <DetailRow label="orders" value={viewUser.orders} />
+                )}
+              </dl>
+            </div>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsViewDetailsOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
+   
+
+
