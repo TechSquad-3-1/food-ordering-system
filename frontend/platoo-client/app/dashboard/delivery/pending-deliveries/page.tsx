@@ -626,3 +626,227 @@ export default function PendingDeliveriesPage() {
     </DashboardLayout>
   );
 }
+// 🚚 Updated PendingDeliveriesPage.tsx
+
+// "use client";
+
+// import { useEffect, useState } from "react";
+// import { useRouter } from "next/navigation";
+// import { DashboardLayout } from "@/components/layout/dashboard-layout";
+// import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+// import { Button } from "@/components/ui/button";
+// import { Loader2 } from "lucide-react";
+// import DeliveryMap from "@/components/DeliveryMap"; // Import the DeliveryMap
+
+// interface Order {
+//   id: string;
+//   customer: {
+//     name: string;
+//     address: string;
+//     latitude: number;
+//     longitude: number;
+//   };
+//   restaurantName: string;
+//   restaurant_latitude: number;
+//   restaurant_longitude: number;
+//   items: { menu_item_id: string; quantity: number; price: number }[];
+//   total: string;
+//   status: string;
+//   time: string;
+//   payment: string;
+//   delivery: string;
+//   restaurant_id: string;
+// }
+
+// export default function PendingDeliveriesPage() {
+//   const [orders, setOrders] = useState<Order[]>([]);
+//   const [loading, setLoading] = useState(true);
+//   const [error, setError] = useState<string | null>(null);
+//   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+//   const [menuItemMap, setMenuItemMap] = useState<Record<string, string>>({});
+//   const router = useRouter();
+
+//   const driverId = typeof window !== "undefined" ? localStorage.getItem("deliveryManId") || "driver-123" : "driver-123";
+
+//   const fetchMenuItems = async () => {
+//     const res = await fetch("http://localhost:3001/api/menu-items");
+//     const items = await res.json();
+//     const map: Record<string, string> = {};
+//     items.forEach((item: any) => (map[item._id] = item.name));
+//     return map;
+//   };
+
+//   const fetchOrders = async () => {
+//     setLoading(true);
+//     setError(null);
+//     try {
+//       const [ordersRes, menuMap] = await Promise.all([
+//         fetch("http://localhost:3008/api/orders"),
+//         fetchMenuItems(),
+//       ]);
+
+//       const data = await ordersRes.json();
+//       setMenuItemMap(menuMap);
+
+//       const readyOrders = data.filter((o: any) => o.status === "ready");
+
+//       const mapped = await Promise.all(
+//         readyOrders.map(async (o: any) => {
+//           const restRes = await fetch(`http://localhost:3001/api/restaurants/${o.restaurant_id}`);
+//           const rest = await restRes.json();
+
+//           return {
+//             id: o.order_id,
+//             customer: {
+//               name: o.email?.split("@")[0] || "Customer",
+//               address: o.delivery_address || "N/A",
+//               latitude: o.customer_latitude || 0,
+//               longitude: o.customer_longitude || 0,
+//             },
+//             restaurantName: rest.name || "Unknown Restaurant",
+//             restaurant_latitude: rest.latitude || 0,
+//             restaurant_longitude: rest.longitude || 0,
+//             items: o.items,
+//             total: o.total_amount.toFixed(2),
+//             status: o.status,
+//             time: new Date(o.createdAt).toLocaleString(),
+//             payment: "Online",
+//             delivery: "Delivery",
+//             restaurant_id: o.restaurant_id,
+//           };
+//         })
+//       );
+
+//       setOrders(mapped);
+//     } catch (err) {
+//       setError((err as Error).message);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   useEffect(() => {
+//     fetchOrders();
+//   }, []);
+
+//   const handleAcceptDelivery = (order: Order) => {
+//     const driverLocation = {
+//       lat: parseFloat(localStorage.getItem("driverLatitude") || "0"),
+//       lng: parseFloat(localStorage.getItem("driverLongitude") || "0"),
+//     };
+
+//     const enrichedOrder = {
+//       ...order,
+//       driverLocation,
+//       restaurantCoordinates: {
+//         lat: order.restaurant_latitude,
+//         lng: order.restaurant_longitude,
+//       },
+//       customerCoordinates: {
+//         lat: order.customer.latitude,
+//         lng: order.customer.longitude,
+//       },
+//     };
+
+//     localStorage.setItem("activeOrder", JSON.stringify(enrichedOrder));
+//     router.push("/dashboard");
+//   };
+
+//   const toggleRow = (id: string) => setExpandedRow((prev) => (prev === id ? null : id));
+
+//   const navItems = [
+//     { title: "Dashboard", href: "/dashboard", icon: "home" },
+//     { title: "Pending Deliveries", href: "/dashboard/delivery/pending-deliveries", icon: "truck" },
+//     { title: "Earnings", href: "/dashboard/delivery/earnings", icon: "dollar-sign" },
+//     { title: "Profile", href: "/dashboard/delivery", icon: "user" },
+//   ];
+
+//   return (
+//     <DashboardLayout navItems={navItems}>
+//       <div className="p-6">
+//         <div className="flex justify-between items-center mb-6">
+//           <h1 className="text-3xl font-bold">Pending Deliveries</h1>
+//           <Button variant="default" onClick={fetchOrders}>
+//             Refresh
+//           </Button>
+//         </div>
+
+//         {loading ? (
+//           <div className="flex justify-center"><Loader2 className="animate-spin" /></div>
+//         ) : error ? (
+//           <div className="text-red-500 text-center">{error}</div>
+//         ) : (
+//           <Card>
+//             <CardHeader><CardTitle>Ready Orders</CardTitle></CardHeader>
+//             <CardContent className="p-0">
+//               <Table>
+//                 <TableHeader>
+//                   <TableRow>
+//                     <TableHead>Order ID</TableHead>
+//                     <TableHead>Customer</TableHead>
+//                     <TableHead>Restaurant</TableHead>
+//                     <TableHead>Total</TableHead>
+//                     <TableHead>Time</TableHead>
+//                     <TableHead className="text-right">Action</TableHead>
+//                   </TableRow>
+//                 </TableHeader>
+//                 <TableBody>
+//                   {orders.map((order) => (
+//                     <>
+//                       <TableRow key={order.id}>
+//                         <TableCell>{order.id}</TableCell>
+//                         <TableCell>{order.customer.name}</TableCell>
+//                         <TableCell>{order.restaurantName}</TableCell>
+//                         <TableCell>LKR {order.total}</TableCell>
+//                         <TableCell>{order.time}</TableCell>
+//                         <TableCell className="text-right space-x-2">
+//                           <Button variant="outline" onClick={() => toggleRow(order.id)}>
+//                             {expandedRow === order.id ? "Hide Items" : "View Items"}
+//                           </Button>
+//                           <Button onClick={() => handleAcceptDelivery(order)}>Accept</Button>
+//                         </TableCell>
+//                       </TableRow>
+
+//                       {expandedRow === order.id && (
+//                         <TableRow key={`${order.id}-items`}>
+//                           <TableCell colSpan={6}>
+//                             <ul className="list-disc list-inside mb-4">
+//                               {order.items.map((item, idx) => (
+//                                 <li key={idx}>
+//                                   {item.quantity}x {menuItemMap[item.menu_item_id] || "Unknown Item"} – LKR {item.price.toFixed(2)}
+//                                 </li>
+//                               ))}
+//                             </ul>
+
+//                             {/* Map Component */}
+//                             <DeliveryMap
+//                               pickup={{
+//                                 lat: order.restaurant_latitude,
+//                                 lng: order.restaurant_longitude,
+//                               }}
+//                               dropoff={{
+//                                 lat: order.customer.latitude,
+//                                 lng: order.customer.longitude,
+//                               }}
+//                               driver={{
+//                                 lat: parseFloat(localStorage.getItem("driverLatitude") || "0"),
+//                                 lng: parseFloat(localStorage.getItem("driverLongitude") || "0"),
+//                               }}
+//                               showPickupRoute={true}
+//                               showDropoffRoute={true}
+//                             />
+//                           </TableCell>
+//                         </TableRow>
+//                       )}
+//                     </>
+//                   ))}
+//                 </TableBody>
+//               </Table>
+//             </CardContent>
+//           </Card>
+//         )}
+//       </div>
+//     </DashboardLayout>
+//   );
+// }
