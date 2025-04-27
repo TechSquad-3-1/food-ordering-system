@@ -222,6 +222,7 @@ export default function OrdersPage() {
 
   const handleSentDelivery = async (order: Order) => {
     try {
+      // 1. Update order status to 'ready' as before
       const res = await fetch(
         `http://localhost:3008/api/orders/${order.id}/status`,
         {
@@ -236,11 +237,55 @@ export default function OrdersPage() {
           o.id === order.id ? { ...o, status: "ready" } : o
         )
       );
+  
+      // 2. Fetch all users
+      const usersRes = await fetch("http://localhost:4000/api/auth/users");
+      if (!usersRes.ok) throw new Error("Failed to fetch users");
+      const users = await usersRes.json();
+  
+      // 3. Filter delivery persons (assuming role is 'delivery')
+      const deliveryPersons = users.filter(
+        (user: { role: string; }) => user.role && user.role.toLowerCase() === "delivery_man"
+      );
+  
+      // 4. Prepare the email details
+      const subject = `New Order Ready for Delivery: #${order.id}`;
+      const message = `
+        <h2>Order #${order.id} is ready for delivery</h2>
+        <p><strong>Customer:</strong> ${order.customer.name}</p>
+        <p><strong>Address:</strong> ${order.customer.address}</p>
+        <p><strong>Total:</strong> ${order.total}</p>
+        <p><strong>Items:</strong></p>
+        <ul>
+          ${order.items
+            .map(
+              (item) =>
+                `<li>${item.quantity} x ${item.name} - ${item.price}</li>`
+            )
+            .join("")}
+        </ul>
+      `;
+  
+      // 5. Send email to each delivery person
+      for (const person of deliveryPersons) {
+        await fetch("http://localhost:3000/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: person.email,
+            subject,
+            message,
+          }),
+        });
+      }
+  
+      alert("Order sent to all delivery persons!");
     } catch (err) {
       console.error(err);
-      alert("Could not send order to ready.");
+      alert("Could not send order to delivery persons.");
     }
   };
+  
 
   const handleMarkDelivered = async (order: Order) => {
     try {
