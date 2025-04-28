@@ -67,6 +67,7 @@ export default function OrdersPage() {
   // Use DayPicker's DateRange type for selectedRange
   const [selectedRange, setSelectedRange] = useState<DateRange | undefined>(undefined);
   const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  
 
   useEffect(() => {
     const ownerId = localStorage.getItem("restaurantOwnerId");
@@ -113,7 +114,7 @@ export default function OrdersPage() {
               address: order.delivery_address || "N/A",
             },
             items: order.items.map((item: any) => ({
-              name: item.menu_item_id || "Item",
+              name: item.name || item._id || "Item",
               quantity: item.quantity,
               price: item.price.toFixed(2),
             })),
