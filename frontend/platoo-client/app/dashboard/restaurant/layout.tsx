@@ -163,7 +163,7 @@ export default function RestaurantDashboardLayout({
       title: "Orders",
       href: "/dashboard/restaurant/orders",
       icon: <ShoppingBag className="h-5 w-5" />,
-      badge: { count: totalOrders, variant: "default" }, // <-- show total order count
+      
     },
     {
       title: "Menu",
@@ -233,7 +233,7 @@ export default function RestaurantDashboardLayout({
                         {item.icon}
                         <span>{item.title}</span>
                       </div>
-                      {item.badge && <Badge className="ml-auto bg-orange-500 text-white">{item.badge.count}</Badge>}
+                      
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
