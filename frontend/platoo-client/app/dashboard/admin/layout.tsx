@@ -29,6 +29,7 @@ import LocalShippingIcon from "@mui/icons-material/LocalShipping"
 import AssessmentIcon from "@mui/icons-material/Assessment"
 import LogoutIcon from "@mui/icons-material/Logout"
 import SearchIcon from "@mui/icons-material/Search"
+import AccountCircleIcon from "@mui/icons-material/AccountCircle"
 
 interface JwtPayload {
   id: string
@@ -222,9 +223,13 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
 
           <SidebarFooter className="border-t p-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">{userData?.name}</p>
-                <p className="text-xs text-muted-foreground">{userData?.email}</p>
+              <div className="flex items-center gap-3">
+                <AccountCircleIcon fontSize="large" className="text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">{userData?.name}</p>
+                  <p className="text-xs text-muted-foreground">{userData?.email}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{userData?.role}</p>
+                </div>
               </div>
               <Button variant="ghost" size="icon" onClick={handleSignOut}>
                 <LogoutIcon fontSize="small" />
@@ -244,9 +249,12 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
             </div>
 
             <div className="flex items-center gap-4">
-              <div>
-                <p className="text-sm font-medium">{userData?.name}</p>
-                <p className="text-xs text-muted-foreground">{userData?.email}</p>
+              <div className="flex items-center gap-3">
+                <AccountCircleIcon fontSize="large" className="text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">{userData?.name}</p>
+                  <p className="text-xs text-muted-foreground">{userData?.email}</p>
+                </div>
               </div>
             </div>
           </header>

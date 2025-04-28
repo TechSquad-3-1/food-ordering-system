@@ -395,7 +395,7 @@ export default function OrdersPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 p-6 md:p-10">
       <div className="mb-8">
         <h1 className="text-4xl font-extrabold text-gray-800 mb-1 tracking-tight">Order Management</h1>
-        <p className="text-gray-500 text-lg">Track and manage all orders across your platform</p>
+        <p className="text-gray-500 text-lg">Track and manage all orders </p>
       </div>
       {/* Filters */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
