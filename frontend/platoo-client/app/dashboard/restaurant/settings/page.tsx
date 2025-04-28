@@ -501,127 +501,135 @@ export default function RestaurantSettings() {
     }))
   }
 
-  // --- GEOLOCATION LOGIC WITH MAP SEARCH ---
-  useEffect(() => {
-    if (!isAddRestaurantOpen) return
-    setIsMapLoading(true)
-    // Load Leaflet CSS
-    if (!document.getElementById("leaflet-css")) {
-      const link = document.createElement("link")
-      link.id = "leaflet-css"
-      link.rel = "stylesheet"
-      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      link.integrity = "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      link.crossOrigin = ""
-      document.head.appendChild(link)
-    }
-    // Load Geocoder CSS
-    if (!document.getElementById("leaflet-geocoder-css")) {
-      const link = document.createElement("link")
-      link.id = "leaflet-geocoder-css"
-      link.rel = "stylesheet"
-      link.href = "https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"
-      document.head.appendChild(link)
-    }
-    // Load Leaflet JS
-    const loadLeaflet = () =>
-      new Promise<void>((resolve, reject) => {
-        if (window.L) return resolve()
-        const script = document.createElement("script")
-        script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        script.integrity = "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-        script.crossOrigin = ""
-        script.onload = () => resolve()
-        script.onerror = () => reject()
-        document.head.appendChild(script)
-      })
-    // Load Geocoder JS
-    const loadGeocoder = () =>
-      new Promise<void>((resolve, reject) => {
-        if (window.L && window.L.Control && window.L.Control.Geocoder) return resolve()
-        const script = document.createElement("script")
-        script.src = "https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"
-        script.onload = () => resolve()
-        script.onerror = () => reject()
-        document.head.appendChild(script)
-      })
-    Promise.all([loadLeaflet(), loadGeocoder()])
-      .then(() => {
-        initializeMap()
-        setIsMapLoading(false)
-      })
-      .catch(() => {
-        setMapError("Failed to load map or geocoder. Please check your internet connection and try again.")
-        setIsMapLoading(false)
-      })
-    // eslint-disable-next-line
-  }, [isAddRestaurantOpen])
+// --- GEOLOCATION LOGIC WITH MAP SEARCH ---
+useEffect(() => {
+  // Only load map if there is a selected restaurant (i.e., profile edit/view tab is active)
+  if (!selectedRestaurant) return
+  setIsMapLoading(true)
+  // Load Leaflet CSS
+  if (!document.getElementById("leaflet-css")) {
+    const link = document.createElement("link")
+    link.id = "leaflet-css"
+    link.rel = "stylesheet"
+    link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    link.integrity = "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    link.crossOrigin = ""
+    document.head.appendChild(link)
+  }
+  // Load Geocoder CSS
+  if (!document.getElementById("leaflet-geocoder-css")) {
+    const link = document.createElement("link")
+    link.id = "leaflet-geocoder-css"
+    link.rel = "stylesheet"
+    link.href = "https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"
+    document.head.appendChild(link)
+  }
+  // Load Leaflet JS
+  const loadLeaflet = () =>
+    new Promise<void>((resolve, reject) => {
+      if (window.L) return resolve()
+      const script = document.createElement("script")
+      script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      script.integrity = "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      script.crossOrigin = ""
+      script.onload = () => resolve()
+      script.onerror = () => reject()
+      document.head.appendChild(script)
+    })
+  // Load Geocoder JS
+  const loadGeocoder = () =>
+    new Promise<void>((resolve, reject) => {
+      if (window.L && window.L.Control && window.L.Control.Geocoder) return resolve()
+      const script = document.createElement("script")
+      script.src = "https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"
+      script.onload = () => resolve()
+      script.onerror = () => reject()
+      document.head.appendChild(script)
+    })
+  Promise.all([loadLeaflet(), loadGeocoder()])
+    .then(() => {
+      initializeMap()
+      setIsMapLoading(false)
+    })
+    .catch(() => {
+      setMapError("Failed to load map or geocoder. Please check your internet connection and try again.")
+      setIsMapLoading(false)
+    })
+  // eslint-disable-next-line
+}, [selectedRestaurant, isRestaurantEditing])
 
-  const initializeMap = () => {
-    if (!mapRef.current || !window.L || !window.L.Control || !window.L.Control.Geocoder) return
-    try {
-      const defaultLocation = [20.5937, 78.9629] // India center
-      const coords = restaurantForm.location?.coordinates
-      const hasCoords = coords && coords[0] !== 0 && coords[1] !== 0
-      const startLocation = hasCoords ? [coords[1], coords[0]] : defaultLocation
-      // Remove any previous map instance
-      if (mapRef.current && mapRef.current.innerHTML) {
-        mapRef.current.innerHTML = ""
-      }
-      const mapInstance = window.L.map(mapRef.current).setView(startLocation, 5)
-      window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19,
-      }).addTo(mapInstance)
-      // Add geocoder search box
-      const geocoder = window.L.Control.geocoder({
-        defaultMarkGeocode: false,
-        placeholder: "Search for city or address...",
-      })
-        .on('markgeocode', function(e: any) {
-          const bbox = e.geocode.bbox
-          const center = e.geocode.center
-          mapInstance.fitBounds(bbox)
-          // Remove old marker if exists
-          if (marker) {
-            mapInstance.removeLayer(marker)
-          }
-          // Place marker at result
-          const newMarker = window.L.marker(center, { draggable: true }).addTo(mapInstance)
-          setMarker(newMarker)
-          updateRestaurantLocation(center.lat, center.lng)
-          // Set tag/address
-          setRestaurantForm((prev: any) => ({
-            ...prev,
-            location: {
-              ...prev.location,
-              tag: e.geocode.name,
-            },
-          }))
-          // Drag marker to update location
-          newMarker.on("dragend", (event: any) => {
-            const position = event.target.getLatLng()
-            updateRestaurantLocation(position.lat, position.lng)
-          })
-        })
-        .addTo(mapInstance)
-      // If editing, place marker
-      if (hasCoords) {
-        const markerInstance = window.L.marker([coords[1], coords[0]], {
-          draggable: true,
-        }).addTo(mapInstance)
-        markerInstance.on("dragend", (event: any) => {
+
+const initializeMap = () => {
+  if (!mapRef.current || !window.L || !window.L.Control || !window.L.Control.Geocoder) return
+  try {
+    // --- FIX: Remove previous map instance if exists ---
+    if (map) {
+      map.remove()
+      setMap(null)
+    }
+    // Remove any previous map instance from DOM (for safety)
+    if (mapRef.current && mapRef.current.innerHTML) {
+      mapRef.current.innerHTML = ""
+    }
+    const defaultLocation = [20.5937, 78.9629] // India center
+    const coords = restaurantForm.location?.coordinates
+    const hasCoords = coords && coords[0] !== 0 && coords[1] !== 0
+    const startLocation = hasCoords ? [coords[1], coords[0]] : defaultLocation
+    const mapInstance = window.L.map(mapRef.current).setView(startLocation, 5)
+    window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    }).addTo(mapInstance)
+    // Add geocoder search box
+    const geocoder = window.L.Control.geocoder({
+      defaultMarkGeocode: false,
+      placeholder: "Search for city or address...",
+    })
+      .on('markgeocode', function(e: any) {
+        const bbox = e.geocode.bbox
+        const center = e.geocode.center
+        mapInstance.fitBounds(bbox)
+        // Remove old marker if exists
+        if (marker) {
+          mapInstance.removeLayer(marker)
+        }
+        // Place marker at result
+        const newMarker = window.L.marker(center, { draggable: true }).addTo(mapInstance)
+        setMarker(newMarker)
+        updateRestaurantLocation(center.lat, center.lng)
+        // Set tag/address
+        setRestaurantForm((prev: any) => ({
+          ...prev,
+          location: {
+            ...prev.location,
+            tag: e.geocode.name,
+          },
+        }))
+        // Drag marker to update location
+        newMarker.on("dragend", (event: any) => {
           const position = event.target.getLatLng()
           updateRestaurantLocation(position.lat, position.lng)
         })
-        setMarker(markerInstance)
-      }
-      setMap(mapInstance)
-      setMapError(null)
-    } catch (error) {
-      setMapError("Failed to initialize map. Please try again later.")
+      })
+      .addTo(mapInstance)
+    // If editing, place marker
+    if (hasCoords) {
+      const markerInstance = window.L.marker([coords[1], coords[0]], {
+        draggable: true,
+      }).addTo(mapInstance)
+      markerInstance.on("dragend", (event: any) => {
+        const position = event.target.getLatLng()
+        updateRestaurantLocation(position.lat, position.lng)
+      })
+      setMarker(markerInstance)
     }
+    setMap(mapInstance)
+    setMapError(null)
+  } catch (error) {
+    setMapError("Failed to initialize map. Please try again later.")
   }
+}
+
 
   // Update restaurantForm.location and tag
   const updateRestaurantLocation = (lat: number, lng: number) => {
