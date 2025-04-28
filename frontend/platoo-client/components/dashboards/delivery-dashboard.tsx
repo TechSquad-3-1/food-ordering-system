@@ -42,6 +42,20 @@ export default function DeliveryDashboard() {
 
   const driverId = typeof window !== "undefined" ? localStorage.getItem("deliveryManId") || "driver-123" : "driver-123";
 
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        localStorage.setItem("driverLatitude", position.coords.latitude.toString());
+        localStorage.setItem("driverLongitude", position.coords.longitude.toString());
+        console.log("✅ Driver location saved automatically");
+      }, (error) => {
+        console.error("❌ Error fetching driver location", error);
+      });
+    }
+  }, []);
+  
+
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -88,7 +102,7 @@ export default function DeliveryDashboard() {
         {
           method: "POST",
           headers: {
-            "Authorization": `5b3ce3597851110001cf6248dc268f1e36654c6b82014bc0e02c4fa0`!,
+            "Authorization": `5b3ce3597851110001cf6248dc268f1e36654c6b82014bc0e02c4fa0`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
