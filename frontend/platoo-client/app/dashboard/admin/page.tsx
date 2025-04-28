@@ -740,7 +740,7 @@ function OrderHistoryPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">Order History</h1>
-        <p className="text-muted-foreground">All orders placed for this restaurant.</p>
+        <p className="text-muted-foreground">All orders placed for restaurant.</p>
       </div>
 
       <Card>
@@ -764,13 +764,13 @@ function OrderHistoryPage() {
       <Card>
         <CardHeader>
           <CardTitle>Order History</CardTitle>
-          <CardDescription>List of all orders for this restaurant</CardDescription>
+          <CardDescription>List of all orders for restaurants</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div>Loading...</div>
           ) : orders.length === 0 ? (
-            <div>No orders found for this restaurant.</div>
+            <div>No orders found for this restaurant. </div>
           ) : (
             <Table>
               <TableHeader>
