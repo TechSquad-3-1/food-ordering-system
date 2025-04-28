@@ -88,7 +88,7 @@ export default function EarningsPage() {
               <CardHeader>
                 <CardTitle>Total Earnings</CardTitle>
               </CardHeader>
-              <CardContent className="text-2xl font-semibold text-green-600">${totalEarnings.toFixed(2)}</CardContent>
+              <CardContent className="text-2xl font-semibold text-green-600">LKR {totalEarnings.toFixed(2)}</CardContent>
             </Card>
 
             <Card className="md:col-span-2">

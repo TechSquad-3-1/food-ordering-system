@@ -257,30 +257,6 @@ export default function DeliveryDashboard() {
           </Card>
         </div>
 
-        <div className="mb-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Daily Deliveries Overview</CardTitle>
-              <CardDescription>Deliveries done per day</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {chartData.length ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="deliveries" stroke="#ef4444" />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-center text-gray-500">No data available.</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
         <Tabs defaultValue="active">
           <TabsList>
             <TabsTrigger value="active">Active Delivery</TabsTrigger>
@@ -351,6 +327,29 @@ export default function DeliveryDashboard() {
               ))}
             </div>
           </TabsContent>
+          <div className="mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Daily Deliveries Overview</CardTitle>
+              <CardDescription>Deliveries done per day</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {chartData.length ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="deliveries" stroke="#ef4444" />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-center text-gray-500">No data available.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
         </Tabs>
       </div>
     </DashboardLayout>
