@@ -114,7 +114,7 @@ export default function OrdersPage() {
               address: order.delivery_address || "N/A",
             },
             items: order.items.map((item: any) => ({
-              name: item.name || item._id || "Item",
+              name: item.name || item.menu_item_id || "Item",
               quantity: item.quantity,
               price: item.price.toFixed(2),
             })),
