@@ -34,7 +34,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { DateRange } from "react-day-picker"; // <-- Use library type
+import { DateRange } from "react-day-picker";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface Order {
   id: string;
@@ -64,10 +66,8 @@ export default function OrdersPage() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
-  // Use DayPicker's DateRange type for selectedRange
   const [selectedRange, setSelectedRange] = useState<DateRange | undefined>(undefined);
   const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
-  
 
   useEffect(() => {
     const ownerId = localStorage.getItem("restaurantOwnerId");
@@ -153,7 +153,6 @@ export default function OrdersPage() {
         order.total.toLowerCase().includes(query);
       if (!matchesQuery) return false;
     }
-    // Date range filter: use .from and .to
     if (selectedRange?.from && selectedRange?.to) {
       const orderDate = new Date(order.createdAt);
       const start = new Date(selectedRange.from);
@@ -223,7 +222,6 @@ export default function OrdersPage() {
 
   const handleSentDelivery = async (order: Order) => {
     try {
-      // 1. Update order status to 'ready'
       const statusRes = await fetch(
         `http://localhost:3008/api/orders/${order.id}/status`,
         {
@@ -233,21 +231,18 @@ export default function OrdersPage() {
         }
       );
       if (!statusRes.ok) throw new Error("Failed to update order status");
-  
-      // 2. Fetch all delivery persons
+
       const usersRes = await fetch("http://localhost:4000/api/auth/users");
       if (!usersRes.ok) throw new Error("Failed to fetch users");
       const users = await usersRes.json();
-  
-      // 3. Filter for delivery persons
+
       const deliveryPersons = users.filter(
         (user: { role: string; }) => user.role?.toLowerCase() === "delivery_man"
       );
       if (deliveryPersons.length === 0) {
         throw new Error("No delivery persons available");
       }
-  
-      // 4. Prepare orderDetails object as expected by backend
+
       const orderDetails = {
         id: order.id,
         customer: {
@@ -255,11 +250,8 @@ export default function OrdersPage() {
           address: order.customer.address,
         },
         total: parseFloat(order.total),
-        // Optionally, you can add items if backend supports it
-        // items: order.items
       };
-  
-      // 5. Send notification request
+
       const emailRes = await fetch(
         "http://localhost:4006/api/notifications/send-delivery-notification",
         {
@@ -268,29 +260,27 @@ export default function OrdersPage() {
           body: JSON.stringify({ orderDetails }),
         }
       );
-  
+
       const result = await emailRes.json();
-  
+
       if (!emailRes.ok) {
         throw new Error(result.message || "Email sending failed");
       }
-  
-      // 6. Update UI state
+
       setOrders((prev) =>
         prev.map((o) => (o.id === order.id ? { ...o, status: "ready" } : o))
       );
-  
+
       alert(result.success
         ? "Order sent to all delivery persons!"
         : "Partial success: " + result.message
       );
-  
+
     } catch (err) {
       console.error(err);
       alert(err instanceof Error ? err.message : "Failed to send notifications");
     }
   };
-  
 
   const handleMarkDelivered = async (order: Order) => {
     try {
@@ -321,6 +311,72 @@ export default function OrdersPage() {
     }
   };
 
+  // ----------- PDF EXPORT FUNCTION -----------
+  const handleDownloadPDF = () => {
+    // Group orders by status using filteredOrders
+    const statusGroups = {
+      pending: filteredOrders.filter(order => order.status === "pending"),
+      preparing: filteredOrders.filter(order => order.status === "preparing"),
+      ready: filteredOrders.filter(order => order.status === "ready"),
+      delivered: filteredOrders.filter(order => order.status === "delivered"),
+      cancelled: filteredOrders.filter(order => order.status === "cancelled"),
+    };
+  
+    // Define columns
+    const columns = [
+      { header: "Order ID", dataKey: "id" as const },
+      { header: "Customer", dataKey: "customer" as const },
+      { header: "Total", dataKey: "total" as const },
+      { header: "Time", dataKey: "time" as const },
+      { header: "Address", dataKey: "address" as const }
+    ];
+  
+    type Row = {
+      id: string;
+      customer: string;
+      total: string;
+      time: string;
+      address: string;
+    };
+  
+    const formatOrder = (order: Order): Row => ({
+      id: order.id,
+      customer: order.customer.name,
+      total: order.total,
+      time: order.time,
+      address: order.customer.address
+    });
+  
+    const doc = new jsPDF();
+    let startY = 15;
+  
+    // Create tables for each status group
+    Object.entries(statusGroups).forEach(([status, orders]) => {
+      if (orders.length > 0) {
+        // Add section header
+        doc.setFontSize(14);
+        doc.text(`${status.toUpperCase()} ORDERS (${orders.length})`, 14, startY);
+        startY += 8;
+  
+        // Generate table
+        autoTable(doc, {
+          startY,
+          head: [columns.map(col => col.header)],
+          body: orders.map(order => columns.map(col => formatOrder(order)[col.dataKey])),
+          styles: { fontSize: 10 },
+          margin: { horizontal: 14 }
+        });
+  
+        // Update position for next table
+        startY = (doc as any).lastAutoTable.finalY + 15;
+      }
+    });
+  
+    doc.save("orders-report.pdf");
+  };
+  
+  // ----------- END PDF EXPORT FUNCTION -----------
+
   if (loading) return <div className="p-6 text-center">Loading orders...</div>;
   if (error) return <div className="p-6 text-center text-red-600">Error: {error}</div>;
 
@@ -336,8 +392,8 @@ export default function OrdersPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">Export</Button>
-          <Button>New Order</Button>
+          <Button variant="outline" onClick={handleDownloadPDF}>Generate PDF</Button>
+          
         </div>
       </div>
 
@@ -355,7 +411,6 @@ export default function OrdersPage() {
             ))}
           </TabsList>
           <div className="flex gap-2">
-            {/* --- Date Range Picker --- */}
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -405,7 +460,6 @@ export default function OrdersPage() {
             </Button>
           </div>
         </div>
-
         <TabsContent value={selectedTab} className="space-y-4">
           <Card>
             <CardHeader className="p-4">
