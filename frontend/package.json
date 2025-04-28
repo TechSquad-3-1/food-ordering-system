@@ -5,6 +5,7 @@
     "@mui/icons-material": "^7.0.2",
     "@mui/material": "^7.0.2",
     "@radix-ui/react-popover": "^1.1.11",
+    "@react-pdf/renderer": "^4.3.0",
     "axios": "^1.8.4",
     "chart.js": "^4.4.9",
     "date-fns": "^4.1.0",
