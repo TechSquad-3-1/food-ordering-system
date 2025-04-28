@@ -425,7 +425,7 @@ export default function UsersPage() {
       case "delivery_man":
         return "Delivery Person"
       case "admin":
-        return "Administrator"
+        return "Admin"
       default:
         return role
     }
@@ -435,7 +435,6 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-        <p className="text-muted-foreground">Manage all users across your platform</p>
       </div>
 
       <Tabs value={roleFilter} onValueChange={setRoleFilter} className="space-y-4">
@@ -664,7 +663,7 @@ export default function UsersPage() {
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
-              Update user details and save changes.
+              Update user details.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleEditUserSubmit}>
@@ -859,7 +858,7 @@ export default function UsersPage() {
           <DialogHeader>
             <DialogTitle>User Details</DialogTitle>
             <DialogDescription>
-              Full information about the selected user.
+              Full information about the user.
             </DialogDescription>
           </DialogHeader>
           {viewUser && (

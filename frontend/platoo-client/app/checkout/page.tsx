@@ -616,7 +616,7 @@ export default function CheckoutPage() {
         cancelUrl: "http://localhost:8000/checkout",
       };
 
-      const response = await fetch("http://localhost:8080/product/v1/checkout", {
+      const response = await fetch("http://localhost:8081/product/v1/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(paymentData),

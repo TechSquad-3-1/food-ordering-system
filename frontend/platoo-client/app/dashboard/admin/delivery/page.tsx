@@ -12,13 +12,13 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Search, MapPin, Truck, User, Phone, Mail, Calendar as CalendarIcon, Edit, Bike, Car } from 'lucide-react'
+import { Search, MapPin, Truck, User, Phone, Mail, Calendar as CalendarIcon, Edit, Bike, Car, Star, PackageCheck, CheckCircle, Clock } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 
 interface DeliveryPerson {
-  address: string
+  // address: string // <-- REMOVED
   createdAt: any
   vehicleNumber: string
   id: string
@@ -35,6 +35,7 @@ interface DeliveryPerson {
     lastUpdated: string
   }
   avatar?: string
+  address?: string // Keep optional for details/edit forms
 }
 
 interface Delivery {
@@ -198,7 +199,7 @@ export default function AdminDeliveryDashboard() {
             name: item.name || "",
             email: item.email || "",
             phone: item.phone || "",
-            status: item.status || "inactive",
+            status: item.status || "active",
             rating: item.rating ?? 4.5,
             totalDeliveries: item.totalDeliveries ?? 0,
             vehicleType: item.vehicleNumber ? "bike" : "bike",
@@ -367,6 +368,8 @@ export default function AdminDeliveryDashboard() {
           <TabsTrigger value="personnel" className="flex-1">Delivery Personnel</TabsTrigger>
           <TabsTrigger value="deliveries" className="flex-1">Active Deliveries</TabsTrigger>
         </TabsList>
+
+        {/* =================== Delivery Personnel Table =================== */}
         <TabsContent value="personnel" className="space-y-4 w-full">
           <div className="flex flex-wrap gap-2 items-center w-full">
             <DatePicker
@@ -391,53 +394,70 @@ export default function AdminDeliveryDashboard() {
           <Card className="w-full">
             <CardContent className="p-0 w-full">
               <div className="overflow-x-auto w-full">
-                <Table className="min-w-[800px] w-full">
+                <Table className="min-w-[950px] w-full border-separate border-spacing-0">
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Vehicle No</TableHead>
-                      <TableHead>Address</TableHead>
-                      <TableHead>Joined</TableHead>
-                      <TableHead>Actions</TableHead>
+                    <TableRow className="bg-gray-50">
+                      <TableHead className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase border-b border-gray-200">ID</TableHead>
+                      <TableHead className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase border-b border-gray-200">Name</TableHead>
+                      <TableHead className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase border-b border-gray-200">Contact</TableHead>
+                      <TableHead className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase border-b border-gray-200">Vehicle</TableHead>
+                      {/* <TableHead className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase border-b border-gray-200">Address</TableHead> */}
+                      <TableHead className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase border-b border-gray-200">Joined</TableHead>
+                      <TableHead className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase border-b border-gray-200">Status</TableHead>
+                      <TableHead className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase border-b border-gray-200">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredDeliveryPersonnel.map((person) => (
-                      <TableRow key={person.id}>
-                        <TableCell className="font-medium">{person.id}</TableCell>
-                        <TableCell>
+                    {filteredDeliveryPersonnel.map((person, idx) => (
+                      <TableRow key={person.id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                        <TableCell className="px-4 py-3 font-mono text-xs text-gray-800 border-b border-gray-100">{person.id}</TableCell>
+                        <TableCell className="px-4 py-3 border-b border-gray-100">
                           <div className="flex items-center gap-2">
                             <div>
                               <div className="font-medium">{person.name || "Unnamed"}</div>
-                              <div className="text-xs text-muted-foreground">{person.email || "No email"}</div>
+                              <div className="text-xs text-gray-500">{person.email || "No email"}</div>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-4 py-3 border-b border-gray-100">
                           <div className="flex flex-col">
                             <div className="flex items-center gap-1">
-                              <Phone className="h-3 w-3 text-muted-foreground" />
+                              <Phone className="h-3 w-3 text-gray-400" />
                               <span className="text-sm">{person.phone || "-"}</span>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          {person.vehicleNumber || "-"}
+                        <TableCell className="px-4 py-3 border-b border-gray-100">
+                          <div className="flex items-center gap-2">
+                            {getVehicleIcon(person.vehicleType)}
+                            <span>{person.vehicleNumber || "-"}</span>
+                          </div>
                         </TableCell>
-                        <TableCell>
+                        {/* <TableCell className="px-4 py-3 border-b border-gray-100">
                           {person.address || "-"}
-                        </TableCell>
-                        <TableCell>
+                        </TableCell> */}
+                        <TableCell className="px-4 py-3 border-b border-gray-100">
                           {person.createdAt ? new Date(person.createdAt).toLocaleDateString() : "-"}
                         </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" onClick={() => setSelectedDeliveryPerson(person)}>
-                              View Details
-                            </Button>
-                          </div>
+                        <TableCell className="px-4 py-3 border-b border-gray-100">
+                          <Badge className={`${getStatusColor(person.status)} text-white text-xs px-2 py-0.5 rounded`}>
+                            {person.status === "active"
+                              ? "Active"
+                              : person.status === "inactive"
+                                ? "Inactive"
+                                : "On Delivery"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="px-4 py-3 border-b border-gray-100">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-2 px-3 py-1 rounded-md border-blue-500 hover:bg-blue-50 transition"
+                            onClick={() => setSelectedDeliveryPerson(person)}
+                          >
+                            <User className="h-4 w-4 text-blue-600" />
+                            <span className="font-semibold text-blue-700">View</span>
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -447,6 +467,8 @@ export default function AdminDeliveryDashboard() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* =================== Active Deliveries Table =================== */}
         <TabsContent value="deliveries" className="space-y-4 w-full">
           <div className="flex flex-wrap gap-2 items-center w-full">
             <DatePicker
@@ -484,36 +506,36 @@ export default function AdminDeliveryDashboard() {
           <Card className="w-full">
             <CardContent className="p-0 w-full">
               <div className="overflow-x-auto w-full">
-                <Table className="min-w-[900px] w-full">
+                <Table className="min-w-[1100px] w-full border-separate border-spacing-0">
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Order ID</TableHead>
-                      <TableHead>Restaurant</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Delivery Person</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Pickup Time</TableHead>
-                      <TableHead>Delivery Time</TableHead>
-                      <TableHead>Created</TableHead>
+                    <TableRow className="bg-gray-50">
+                      <TableHead className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase border-b border-gray-200">Order ID</TableHead>
+                      <TableHead className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase border-b border-gray-200">Restaurant</TableHead>
+                      <TableHead className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase border-b border-gray-200">Customer</TableHead>
+                      <TableHead className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase border-b border-gray-200">Delivery Person</TableHead>
+                      <TableHead className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase border-b border-gray-200">Status</TableHead>
+                      <TableHead className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase border-b border-gray-200">Pickup Time</TableHead>
+                      <TableHead className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase border-b border-gray-200">Delivery Time</TableHead>
+                      <TableHead className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase border-b border-gray-200">Created</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredDeliveries.map((delivery) => {
+                    {filteredDeliveries.map((delivery, idx) => {
                       const assignedPerson = deliveryPersonnel.find(p => p.id === delivery.assignedTo)
                       return (
-                        <TableRow key={delivery.id}>
-                          <TableCell className="font-medium">{delivery.orderId}</TableCell>
-                          <TableCell>{delivery.restaurantName}</TableCell>
-                          <TableCell>
+                        <TableRow key={delivery.id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                          <TableCell className="px-4 py-3 font-mono text-xs text-gray-800 border-b border-gray-100">{delivery.orderId}</TableCell>
+                          <TableCell className="px-4 py-3 border-b border-gray-100">{delivery.restaurantName}</TableCell>
+                          <TableCell className="px-4 py-3 border-b border-gray-100">
                             <div className="flex flex-col">
                               <div className="font-medium">{delivery.customerName}</div>
-                              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                              <div className="text-xs text-gray-500 flex items-center gap-1">
                                 <MapPin className="h-3 w-3" />
                                 <span className="truncate max-w-[150px]">{delivery.customerAddress}</span>
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="px-4 py-3 border-b border-gray-100">
                             {assignedPerson ? (
                               <div className="flex items-center gap-2">
                                 <span>{assignedPerson.name || "Unnamed"}</span>
@@ -522,18 +544,18 @@ export default function AdminDeliveryDashboard() {
                               <Badge variant="outline">Unassigned</Badge>
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="px-4 py-3 border-b border-gray-100">
                             <Badge className={`${getStatusColor(delivery.deliveryStatus)} text-white`}>
                               {delivery.deliveryStatus.charAt(0).toUpperCase() + delivery.deliveryStatus.slice(1)}
                             </Badge>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="px-4 py-3 border-b border-gray-100">
                             {delivery.pickupTime ? new Date(delivery.pickupTime).toLocaleTimeString() : "-"}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="px-4 py-3 border-b border-gray-100">
                             {delivery.deliveryTime ? new Date(delivery.deliveryTime).toLocaleTimeString() : "-"}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="px-4 py-3 border-b border-gray-100">
                             {delivery.createdAt ? new Date(delivery.createdAt).toLocaleTimeString() : "-"}
                           </TableCell>
                         </TableRow>
@@ -550,17 +572,21 @@ export default function AdminDeliveryDashboard() {
       {/* Delivery Person Details Dialog */}
       {selectedDeliveryPerson && (
         <Dialog open={!!selectedDeliveryPerson} onOpenChange={() => { setSelectedDeliveryPerson(null); setIsEditing(false); }}>
-          <DialogContent className="sm:max-w-[500px] rounded-xl shadow-xl border-0 p-0">
-            {/* Accessible but visually hidden DialogTitle */}
+          <DialogContent className="sm:max-w-[520px] rounded-xl shadow-xl border-0 p-0 overflow-hidden">
             <DialogTitle className="sr-only">
               {selectedDeliveryPerson.name || "Delivery Person Details"}
             </DialogTitle>
-            <div className="bg-gradient-to-r from-blue-600 to-blue-400 rounded-t-xl px-6 py-5 flex items-center gap-4">
-              <div>
+            <div className="bg-gradient-to-r from-blue-700 to-blue-400 rounded-t-xl px-8 py-6 flex items-center gap-6">
+              <div className="flex-shrink-0">
+                <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center border-4 border-blue-200 shadow">
+                  <User className="h-8 w-8 text-blue-500" />
+                </div>
+              </div>
+              <div className="flex-1">
                 <h2 className="text-2xl font-bold text-white mb-1">
                   {selectedDeliveryPerson.name || "Unnamed"}
                 </h2>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 mb-1">
                   <Badge className={`${getStatusColor(selectedDeliveryPerson.status)} text-white text-xs px-2 py-0.5 rounded`}>
                     {selectedDeliveryPerson.status === "active"
                       ? "Active"
@@ -568,68 +594,91 @@ export default function AdminDeliveryDashboard() {
                         ? "Inactive"
                         : "On Delivery"}
                   </Badge>
-                  <span className="text-xs text-blue-100">
+                  <span className="text-xs text-blue-100 font-mono">
                     ID: {selectedDeliveryPerson.id}
                   </span>
                 </div>
+                <div className="flex items-center gap-3 mt-1">
+                  <div className="flex items-center gap-1 text-blue-100 text-xs">
+                    <Star className="h-4 w-4 text-yellow-300" />
+                    <span className="font-semibold text-white">{selectedDeliveryPerson.rating.toFixed(1)}</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-blue-100 text-xs">
+                    <CheckCircle className="h-4 w-4 text-green-200" />
+                    <span className="font-semibold text-white capitalize">{selectedDeliveryPerson.vehicleType}</span>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="px-6 py-6 bg-white rounded-b-xl">
+            <div className="px-8 py-8 bg-white rounded-b-xl">
               {!isEditing ? (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <h4 className="font-semibold text-gray-700 mb-2">Contact</h4>
-                      <div className="space-y-2 text-sm text-gray-600">
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 text-blue-500" />
-                          <span>{selectedDeliveryPerson.email || "No email"}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4 text-blue-500" />
-                          <span>{selectedDeliveryPerson.phone || "-"}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-blue-500" />
-                          <span>{selectedDeliveryPerson.address || "-"}</span>
-                        </div>
+                  <div className="max-w-xl mx-auto">
+                    <h4 className="font-semibold text-gray-700 mb-4">Contact</h4>
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-3 text-sm text-gray-700 shadow-sm border border-gray-100 mb-8">
+                      <div className="flex items-center gap-3">
+                        <Mail className="h-4 w-4 text-blue-500" />
+                        <span className="font-medium">Email:</span>
+                        <span>{selectedDeliveryPerson.email || <span className="italic text-gray-400">No email</span>}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Phone className="h-4 w-4 text-blue-500" />
+                        <span className="font-medium">Phone:</span>
+                        <span>{selectedDeliveryPerson.phone || <span className="italic text-gray-400">Not provided</span>}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <MapPin className="h-4 w-4 text-blue-500" />
+                        <span className="font-medium">Address:</span>
+                        <span>{selectedDeliveryPerson.address || <span className="italic text-gray-400">Not provided</span>}</span>
                       </div>
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-700 mb-2">Delivery Info</h4>
-                      <div className="space-y-2 text-sm text-gray-600">
-                        <div className="flex items-center gap-2">
-                          <Truck className="h-4 w-4 text-blue-500" />
-                          <span>Vehicle No: {selectedDeliveryPerson.vehicleNumber || "-"}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <CalendarIcon className="h-4 w-4 text-blue-500" />
+                    <h4 className="font-semibold text-gray-700 mb-4">Delivery Info</h4>
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-3 text-sm text-gray-700 shadow-sm border border-gray-100">
+                      <div className="flex items-center gap-3">
+                        <Truck className="h-4 w-4 text-blue-500" />
+                        <span className="font-medium">Vehicle No:</span>
+                        <span>{selectedDeliveryPerson.vehicleNumber || <span className="italic text-gray-400">Not provided</span>}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <CalendarIcon className="h-4 w-4 text-blue-500" />
+                        <span className="font-medium">Joined:</span>
+                        <span>
+                          {selectedDeliveryPerson.createdAt
+                            ? new Date(selectedDeliveryPerson.createdAt).toLocaleDateString()
+                            : <span className="italic text-gray-400">Not available</span>}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {getVehicleIcon(selectedDeliveryPerson.vehicleType)}
+                        <span className="font-medium">Vehicle Type:</span>
+                        <span>{selectedDeliveryPerson.vehicleType}</span>
+                      </div>
+                      {selectedDeliveryPerson.location && (
+                        <div className="flex items-center gap-3">
+                          <MapPin className="h-4 w-4 text-blue-500" />
+                          <span className="font-medium">Location:</span>
                           <span>
-                            Joined: {selectedDeliveryPerson.createdAt
-                              ? new Date(selectedDeliveryPerson.createdAt).toLocaleDateString()
-                              : "-"}
+                            {selectedDeliveryPerson.location.lat}, {selectedDeliveryPerson.location.lng}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {getVehicleIcon(selectedDeliveryPerson.vehicleType)}
-                          <span>Vehicle Type: {selectedDeliveryPerson.vehicleType}</span>
+                      )}
+                      {selectedDeliveryPerson.location?.lastUpdated && (
+                        <div className="flex items-center gap-3">
+                          <Clock className="h-4 w-4 text-blue-500" />
+                          <span className="font-medium">Last Location Update:</span>
+                          <span>
+                            {format(new Date(selectedDeliveryPerson.location.lastUpdated), "PPPpp")}
+                          </span>
                         </div>
-                        {selectedDeliveryPerson.location && (
-                          <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4 text-blue-500" />
-                            <span>
-                              Location: {selectedDeliveryPerson.location.lat}, {selectedDeliveryPerson.location.lng}
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </div>
-                  <div className="mt-8 flex justify-end gap-2">
+                  <div className="mt-10 flex justify-end gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => openEdit(selectedDeliveryPerson)}
+                      className="flex items-center gap-2"
                     >
                       <Edit className="mr-2 h-4 w-4" /> Edit
                     </Button>

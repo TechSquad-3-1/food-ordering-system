@@ -10,6 +10,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import type { SelectSingleEventHandler } from "react-day-picker";
 
+// --- PDF dependencies ---
+import { jsPDF } from "jspdf";
+import { autoTable } from "jspdf-autotable";
+// ------------------------
+
 interface Order {
   _id: string;
   order_id?: string;
@@ -204,6 +209,74 @@ export default function OrdersPage() {
     }).format(amount);
   };
 
+  // --- PDF GENERATION FUNCTION ---
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF({
+      orientation: "landscape",
+      unit: "pt",
+      format: "A4",
+    });
+
+    const columns = [
+      { header: "Order ID", dataKey: "orderId" },
+      { header: "Customer", dataKey: "customer" },
+      { header: "Restaurant", dataKey: "restaurant" },
+      { header: "Items", dataKey: "items" },
+      { header: "Total", dataKey: "total" },
+      { header: "Status", dataKey: "status" },
+      { header: "Placed On", dataKey: "createdAt" },
+      { header: "Phone", dataKey: "phone" },
+      { header: "Email", dataKey: "email" },
+      { header: "Delivery Address", dataKey: "deliveryAddress" },
+    ];
+
+    const rows = filteredOrders.map((order) => ({
+      orderId: order.order_id || order._id,
+      customer: userMap[order.user_id] || order.user_id,
+      restaurant: restaurantMap[order.restaurant_id] || order.restaurant_id,
+      items: order.items
+        .map(
+          (item) =>
+            `${
+              menuItemMap[order.restaurant_id]?.[item.menu_item_id || item._id] ||
+              "Unknown Item"
+            } x${item.quantity} (${formatCurrency(item.price)})`
+        )
+        .join(", "),
+      total: formatCurrency(order.total_amount),
+      status: order.status.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase()),
+      createdAt: format(new Date(order.createdAt), "yyyy-MM-dd HH:mm"),
+      phone: order.phone,
+      email: order.email,
+      deliveryAddress: order.delivery_address,
+    }));
+
+    doc.setFontSize(18);
+    doc.text("All Orders Report", 40, 40);
+
+    autoTable(doc, {
+      startY: 60,
+      head: [columns.map((col) => col.header)],
+      body: rows.map((row) => columns.map((col) => row[col.dataKey as keyof typeof row])),
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+      alternateRowStyles: { fillColor: [240, 240, 255] },
+      margin: { left: 40, right: 40 },
+      tableWidth: "auto",
+      didDrawPage: (data: { settings: { margin: { left: number; }; }; }) => {
+        doc.setFontSize(10);
+        doc.text(
+          `Generated: ${format(new Date(), "yyyy-MM-dd HH:mm")}`,
+          data.settings.margin.left,
+          doc.internal.pageSize.getHeight() - 10
+        );
+      },
+    });
+
+    doc.save("orders_report.pdf");
+  };
+  // --- END PDF GENERATION FUNCTION ---
+
   // Modal component
   const OrderDetailsModal = ({
     order,
@@ -278,19 +351,17 @@ export default function OrdersPage() {
             {/* Items */}
             <div>
               <span className="block text-xs text-gray-400 mb-2">Items</span>
-              <ul className="divide-y divide-gray-100 rounded-lg border border-gray-100 bg-gray-50">
-                {order.items.map((item) => (
-                  <li key={item._id} className="flex justify-between items-center px-4 py-2">
-                    <span>
-                      {/* Always show menu item name, never the ID */}
-                      {menuItemMap[order.restaurant_id]?.[item.menu_item_id || item._id] || "Unknown Item"}
-                      <span className="text-xs text-gray-400 ml-2">x{item.quantity}</span>
-                    </span>
-                    <span className="font-mono">{formatCurrency(item.price)}</span>
-                  </li>
-                ))}
+              <ul>
+              {order.items.map((item) => (
+              <li key={item._id}>
+                 {menuItemMap[order.restaurant_id]?.[item.menu_item_id || item._id] || "Item"}
+                 <span className="text-xs text-gray-400 ml-2">(ID: {item.menu_item_id || item._id}) x{item.quantity}</span>
+                 <span className="font-mono ml-4 flex-shrink-0 ">{formatCurrency(item.price)}</span>
+              </li>
+               ))}
               </ul>
-            </div>
+          </div>
+
             {/* Summary */}
             <div className="flex flex-col gap-2 border-t pt-4 mt-2">
               <div className="flex justify-between">
@@ -324,7 +395,7 @@ export default function OrdersPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 p-6 md:p-10">
       <div className="mb-8">
         <h1 className="text-4xl font-extrabold text-gray-800 mb-1 tracking-tight">Order Management</h1>
-        <p className="text-gray-500 text-lg">Track and manage all orders across your platform</p>
+        <p className="text-gray-500 text-lg">Track and manage all orders </p>
       </div>
       {/* Filters */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
@@ -387,6 +458,14 @@ export default function OrdersPage() {
         </div>
       </div>
 
+      {/* Download PDF Button */}
+      <Button
+        onClick={handleDownloadPDF}
+        className="mb-6 px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold shadow transition"
+      >
+        Download PDF Report
+      </Button>
+
       {/* Filter Status Display */}
       {selectedDate && (
         <div className="mb-4 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg inline-flex items-center">
@@ -443,16 +522,21 @@ export default function OrdersPage() {
                     {restaurantMap[order.restaurant_id] ? ` / ${restaurantMap[order.restaurant_id]}` : ""}
                   </td>
                   <td className="px-4 py-3 text-xs">
-                    {order.items
-                      .map(
-                        (item) =>
-                          `${
-                            // Always show menu item name, never the ID
-                            menuItemMap[order.restaurant_id]?.[item.menu_item_id || item._id] || "Unknown Item"
-                          } x${item.quantity} (${formatCurrency(item.price)})`
-                      )
-                      .join(", ")}
-                  </td>
+  <ul>
+    {order.items.map((item) => (
+      <li key={item._id}>
+        {menuItemMap[order.restaurant_id]?.[item.menu_item_id || item._id] || "Item"}
+        <span className="text-xs text-gray-400 ml-2">
+          ({item.menu_item_id || item._id}) x{item.quantity}
+        </span>
+        {/* <span className="font-mono ml-2">{formatCurrency(item.price)}</span> */}
+      </li>
+    ))}
+  </ul>
+</td>
+
+
+
                   <td className="px-4 py-3 font-semibold text-blue-700">{formatCurrency(order.total_amount)}</td>
                   <td className="px-4 py-3">
                     <span

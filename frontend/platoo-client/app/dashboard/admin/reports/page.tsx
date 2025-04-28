@@ -304,7 +304,7 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">Analytics & Reports</h1>
-        <p className="text-muted-foreground">View detailed analytics and generate reports</p>
+        <p className="text-muted-foreground">View detailed analytics </p>
       </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
