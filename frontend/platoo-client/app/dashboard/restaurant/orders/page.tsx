@@ -40,11 +40,12 @@ import autoTable from "jspdf-autotable";
 
 interface Order {
   id: string;
+  user_id: string; // <-- Add this field for customer lookup
   customer: {
     name: string;
     address: string;
   };
-  items: { name: string; quantity: number; price: string }[];
+  items: { name: string; quantity: number; price: string; menu_item_id?: string }[];
   total: string;
   status: string;
   time: string;
@@ -68,6 +69,7 @@ export default function OrdersPage() {
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [selectedRange, setSelectedRange] = useState<DateRange | undefined>(undefined);
   const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const [customerNames, setCustomerNames] = useState<{ [key: string]: string }>({}); // uid -> name
 
   useEffect(() => {
     const ownerId = localStorage.getItem("restaurantOwnerId");
@@ -109,14 +111,16 @@ export default function OrdersPage() {
           .filter((order: any) => order.restaurant_id === restaurantId)
           .map((order: any) => ({
             id: order.order_id,
+            user_id: order.user_id, // <-- Ensure this field is present in your order data
             customer: {
-              name: order.email?.split("@")[0] || "Customer",
+              name: "", // will be filled after fetching customer name
               address: order.delivery_address || "N/A",
             },
             items: order.items.map((item: any) => ({
               name: item.name || item.menu_item_id || "Item",
               quantity: item.quantity,
               price: item.price.toFixed(2),
+              menu_item_id: item.menu_item_id,
             })),
             total: order.total_amount.toFixed(2),
             status: order.status,
@@ -136,6 +140,37 @@ export default function OrdersPage() {
     fetchOrders();
   }, [restaurantId]);
 
+  // Fetch customer names for each unique user_id in orders
+  useEffect(() => {
+    const fetchCustomerNames = async () => {
+      const token = localStorage.getItem("jwtToken");
+      if (!token || orders.length === 0) return;
+
+      const uniqueUserIds = Array.from(new Set(orders.map(order => order.user_id).filter(Boolean)));
+      const nameMap: { [key: string]: string } = {};
+
+      await Promise.all(
+        uniqueUserIds.map(async (uid) => {
+          try {
+            const res = await fetch(`http://localhost:4000/api/auth/user/${uid}`, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            });
+            if (!res.ok) throw new Error("Failed to fetch user");
+            const userData = await res.json();
+            nameMap[uid] = userData.name || "Customer";
+          } catch {
+            nameMap[uid] = "Customer";
+          }
+        })
+      );
+      setCustomerNames(nameMap);
+    };
+
+    fetchCustomerNames();
+  }, [orders]);
+
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
@@ -149,7 +184,7 @@ export default function OrdersPage() {
       const query = debouncedSearchQuery.toLowerCase();
       const matchesQuery =
         order.id.toLowerCase().includes(query) ||
-        order.customer.name.toLowerCase().includes(query) ||
+        (customerNames[order.user_id]?.toLowerCase() || "").includes(query) ||
         order.total.toLowerCase().includes(query);
       if (!matchesQuery) return false;
     }
@@ -231,7 +266,6 @@ export default function OrdersPage() {
         }
       );
       if (!statusRes.ok) throw new Error("Failed to update order status");
-
       const usersRes = await fetch("http://localhost:4000/api/auth/users");
       if (!usersRes.ok) throw new Error("Failed to fetch users");
       const users = await usersRes.json();
@@ -246,7 +280,7 @@ export default function OrdersPage() {
       const orderDetails = {
         id: order.id,
         customer: {
-          name: order.customer.name,
+          name: customerNames[order.user_id] || "Customer",
           address: order.customer.address,
         },
         total: parseFloat(order.total),
@@ -260,7 +294,6 @@ export default function OrdersPage() {
           body: JSON.stringify({ orderDetails }),
         }
       );
-
       const result = await emailRes.json();
 
       if (!emailRes.ok) {
@@ -313,7 +346,6 @@ export default function OrdersPage() {
 
   // ----------- PDF EXPORT FUNCTION -----------
   const handleDownloadPDF = () => {
-    // Group orders by status using filteredOrders
     const statusGroups = {
       pending: filteredOrders.filter(order => order.status === "pending"),
       preparing: filteredOrders.filter(order => order.status === "preparing"),
@@ -321,44 +353,45 @@ export default function OrdersPage() {
       delivered: filteredOrders.filter(order => order.status === "delivered"),
       cancelled: filteredOrders.filter(order => order.status === "cancelled"),
     };
-  
-    // Define columns
+
     const columns = [
       { header: "Order ID", dataKey: "id" as const },
       { header: "Customer", dataKey: "customer" as const },
+      { header: "Menu Items", dataKey: "menuitems" as const },
       { header: "Total", dataKey: "total" as const },
       { header: "Time", dataKey: "time" as const },
       { header: "Address", dataKey: "address" as const }
     ];
-  
+
     type Row = {
       id: string;
       customer: string;
+      menuitems: string;
       total: string;
       time: string;
       address: string;
     };
-  
+
     const formatOrder = (order: Order): Row => ({
       id: order.id,
-      customer: order.customer.name,
+      customer: customerNames[order.user_id] || "Customer",
+      menuitems: order.items
+        .map((item: any) => item.menu_item_id || item.name || "N/A")
+        .join(", "),
       total: order.total,
       time: order.time,
       address: order.customer.address
     });
-  
+
     const doc = new jsPDF();
     let startY = 15;
-  
-    // Create tables for each status group
+
     Object.entries(statusGroups).forEach(([status, orders]) => {
       if (orders.length > 0) {
-        // Add section header
         doc.setFontSize(14);
         doc.text(`${status.toUpperCase()} ORDERS (${orders.length})`, 14, startY);
         startY += 8;
-  
-        // Generate table
+
         autoTable(doc, {
           startY,
           head: [columns.map(col => col.header)],
@@ -366,15 +399,13 @@ export default function OrdersPage() {
           styles: { fontSize: 10 },
           margin: { horizontal: 14 }
         });
-  
-        // Update position for next table
+
         startY = (doc as any).lastAutoTable.finalY + 15;
       }
     });
-  
+
     doc.save("orders-report.pdf");
   };
-  
   // ----------- END PDF EXPORT FUNCTION -----------
 
   if (loading) return <div className="p-6 text-center">Loading orders...</div>;
@@ -393,7 +424,6 @@ export default function OrdersPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleDownloadPDF}>Generate PDF</Button>
-          
         </div>
       </div>
 
@@ -489,7 +519,9 @@ export default function OrdersPage() {
                   {filteredOrders.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell className="font-medium">{order.id}</TableCell>
-                      <TableCell>{order.customer.name}</TableCell>
+                      <TableCell>
+                        {customerNames[order.user_id] || "Loading..."}
+                      </TableCell>
                       <TableCell>{order.total}</TableCell>
                       <TableCell>{getStatusBadge(order.status)}</TableCell>
                       <TableCell>{order.time}</TableCell>
@@ -590,7 +622,7 @@ export default function OrdersPage() {
             <div className="space-y-4">
               <div>
                 <span className="font-medium">Customer: </span>
-                {selectedOrder.customer.name}
+                {customerNames[selectedOrder.user_id] || "Loading..."}
               </div>
               <div>
                 <span className="font-medium">Address: </span>
