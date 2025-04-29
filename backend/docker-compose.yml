@@ -1,0 +1,46 @@
+
+services:
+  cart-service:
+    image: cart-service-dev:latest
+    ports:
+      - "3005:3005"
+
+  menu-service:
+    image: menu-service-dev:latest
+    ports:
+      - "3001:3001"
+
+  order-service:
+    image: order-service-dev:latest
+    ports:
+      - "3008:3008"
+
+  user-service:
+    image: user-service-dev:latest
+    ports:
+      - "4000:4000"
+
+  stripe-payment:
+    image: stripe-payment:latest
+    ports:
+      - "8081:8081"
+
+  delivery-service:
+    image: delivery-service:latest
+    ports:
+      - "3003:3003"
+
+  admin-service:
+    image: admin-service:latest
+    ports:
+      - "4005:4005"
+
+  notification-service:
+    image: notification-service:latest
+    ports:
+      - "4006:4006"
+
+  search-service:
+    image: search-service:latest
+    ports:
+      - "3002:3002"
