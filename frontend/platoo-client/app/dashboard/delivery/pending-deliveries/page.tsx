@@ -55,6 +55,7 @@ export default function PendingDeliveriesPage() {
               address: o.delivery_address || "N/A",
               latitude: o.location?.lat,
               longitude: o.location?.lng,
+              
             },
             restaurant: {
               id: o.restaurant_id,
