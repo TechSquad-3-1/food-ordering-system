@@ -1,23 +1,20 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface OwnerInfo {
   name: string
@@ -41,11 +38,11 @@ const RESTAURANT_SCHEMA = {
   location: {
     type: "Point",
     coordinates: [0, 0],
-    tag: ""
+    tag: "",
   },
   open_time: "",
   closed_time: "",
-  owner_id: ""
+  owner_id: "",
 }
 
 // --- Leaflet types for TS
@@ -121,7 +118,7 @@ export default function RestaurantSettings() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ ...owner, password }),
       })
@@ -157,19 +154,16 @@ export default function RestaurantSettings() {
       return
     }
     const confirmDelete = window.confirm(
-      "Are you sure you want to permanently delete your account? This action cannot be undone."
+      "Are you sure you want to permanently delete your account? This action cannot be undone.",
     )
     if (!confirmDelete) return
     try {
-      const response = await fetch(
-        `http://localhost:4000/api/auth/delete/${ownerId}`,
-        {
-          method: "DELETE",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-          },
-        }
-      )
+      const response = await fetch(`http://localhost:4000/api/auth/delete/${ownerId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.message || "Failed to delete account")
@@ -219,19 +213,13 @@ export default function RestaurantSettings() {
 
   useEffect(() => {
     if (ownerId) {
-      setFilteredRestaurants(
-        restaurants.filter((r) => r.owner_id === ownerId)
-      )
+      setFilteredRestaurants(restaurants.filter((r) => r.owner_id === ownerId))
     }
   }, [restaurants, ownerId])
 
   // Automatically open edit dialog for first restaurant if not already open
   useEffect(() => {
-    if (
-      filteredRestaurants.length > 0 &&
-      !isAddRestaurantOpen &&
-      !selectedRestaurant
-    ) {
+    if (filteredRestaurants.length > 0 && !isAddRestaurantOpen && !selectedRestaurant) {
       const firstRestaurant = filteredRestaurants[0]
       setSelectedRestaurant(firstRestaurant)
       setRestaurantForm({ ...firstRestaurant })
@@ -382,7 +370,7 @@ export default function RestaurantSettings() {
         defaultMarkGeocode: false,
         placeholder: "Search for city or address...",
       })
-        .on('markgeocode', function(e: any) {
+        .on("markgeocode", (e: any) => {
           const bbox = e.geocode.bbox
           const center = e.geocode.center
           mapInstance.fitBounds(bbox)
@@ -459,16 +447,13 @@ export default function RestaurantSettings() {
       return
     }
     const confirmDelete = window.confirm(
-      "Are you sure you want to delete this restaurant? This action cannot be undone."
+      "Are you sure you want to delete this restaurant? This action cannot be undone.",
     )
     if (!confirmDelete) return
     try {
-      const response = await fetch(
-        `http://localhost:3001/api/restaurants/${selectedRestaurant._id}`,
-        {
-          method: "DELETE",
-        }
-      )
+      const response = await fetch(`http://localhost:3001/api/restaurants/${selectedRestaurant._id}`, {
+        method: "DELETE",
+      })
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.message || "Failed to delete restaurant")
@@ -501,135 +486,133 @@ export default function RestaurantSettings() {
     }))
   }
 
-// --- GEOLOCATION LOGIC WITH MAP SEARCH ---
-useEffect(() => {
-  // Only load map if there is a selected restaurant (i.e., profile edit/view tab is active)
-  if (!selectedRestaurant) return
-  setIsMapLoading(true)
-  // Load Leaflet CSS
-  if (!document.getElementById("leaflet-css")) {
-    const link = document.createElement("link")
-    link.id = "leaflet-css"
-    link.rel = "stylesheet"
-    link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    link.integrity = "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    link.crossOrigin = ""
-    document.head.appendChild(link)
-  }
-  // Load Geocoder CSS
-  if (!document.getElementById("leaflet-geocoder-css")) {
-    const link = document.createElement("link")
-    link.id = "leaflet-geocoder-css"
-    link.rel = "stylesheet"
-    link.href = "https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"
-    document.head.appendChild(link)
-  }
-  // Load Leaflet JS
-  const loadLeaflet = () =>
-    new Promise<void>((resolve, reject) => {
-      if (window.L) return resolve()
-      const script = document.createElement("script")
-      script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-      script.integrity = "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-      script.crossOrigin = ""
-      script.onload = () => resolve()
-      script.onerror = () => reject()
-      document.head.appendChild(script)
-    })
-  // Load Geocoder JS
-  const loadGeocoder = () =>
-    new Promise<void>((resolve, reject) => {
-      if (window.L && window.L.Control && window.L.Control.Geocoder) return resolve()
-      const script = document.createElement("script")
-      script.src = "https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"
-      script.onload = () => resolve()
-      script.onerror = () => reject()
-      document.head.appendChild(script)
-    })
-  Promise.all([loadLeaflet(), loadGeocoder()])
-    .then(() => {
-      initializeMap()
-      setIsMapLoading(false)
-    })
-    .catch(() => {
-      setMapError("Failed to load map or geocoder. Please check your internet connection and try again.")
-      setIsMapLoading(false)
-    })
-  // eslint-disable-next-line
-}, [selectedRestaurant, isRestaurantEditing])
-
-
-const initializeMap = () => {
-  if (!mapRef.current || !window.L || !window.L.Control || !window.L.Control.Geocoder) return
-  try {
-    // --- FIX: Remove previous map instance if exists ---
-    if (map) {
-      map.remove()
-      setMap(null)
+  // --- GEOLOCATION LOGIC WITH MAP SEARCH ---
+  useEffect(() => {
+    // Only load map if there is a selected restaurant (i.e., profile edit/view tab is active)
+    if (!selectedRestaurant) return
+    setIsMapLoading(true)
+    // Load Leaflet CSS
+    if (!document.getElementById("leaflet-css")) {
+      const link = document.createElement("link")
+      link.id = "leaflet-css"
+      link.rel = "stylesheet"
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      link.integrity = "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      link.crossOrigin = ""
+      document.head.appendChild(link)
     }
-    // Remove any previous map instance from DOM (for safety)
-    if (mapRef.current && mapRef.current.innerHTML) {
-      mapRef.current.innerHTML = ""
+    // Load Geocoder CSS
+    if (!document.getElementById("leaflet-geocoder-css")) {
+      const link = document.createElement("link")
+      link.id = "leaflet-geocoder-css"
+      link.rel = "stylesheet"
+      link.href = "https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"
+      document.head.appendChild(link)
     }
-    const defaultLocation = [20.5937, 78.9629] // India center
-    const coords = restaurantForm.location?.coordinates
-    const hasCoords = coords && coords[0] !== 0 && coords[1] !== 0
-    const startLocation = hasCoords ? [coords[1], coords[0]] : defaultLocation
-    const mapInstance = window.L.map(mapRef.current).setView(startLocation, 5)
-    window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 19,
-    }).addTo(mapInstance)
-    // Add geocoder search box
-    const geocoder = window.L.Control.geocoder({
-      defaultMarkGeocode: false,
-      placeholder: "Search for city or address...",
-    })
-      .on('markgeocode', function(e: any) {
-        const bbox = e.geocode.bbox
-        const center = e.geocode.center
-        mapInstance.fitBounds(bbox)
-        // Remove old marker if exists
-        if (marker) {
-          mapInstance.removeLayer(marker)
-        }
-        // Place marker at result
-        const newMarker = window.L.marker(center, { draggable: true }).addTo(mapInstance)
-        setMarker(newMarker)
-        updateRestaurantLocation(center.lat, center.lng)
-        // Set tag/address
-        setRestaurantForm((prev: any) => ({
-          ...prev,
-          location: {
-            ...prev.location,
-            tag: e.geocode.name,
-          },
-        }))
-        // Drag marker to update location
-        newMarker.on("dragend", (event: any) => {
+    // Load Leaflet JS
+    const loadLeaflet = () =>
+      new Promise<void>((resolve, reject) => {
+        if (window.L) return resolve()
+        const script = document.createElement("script")
+        script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        script.integrity = "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        script.crossOrigin = ""
+        script.onload = () => resolve()
+        script.onerror = () => reject()
+        document.head.appendChild(script)
+      })
+    // Load Geocoder JS
+    const loadGeocoder = () =>
+      new Promise<void>((resolve, reject) => {
+        if (window.L && window.L.Control && window.L.Control.Geocoder) return resolve()
+        const script = document.createElement("script")
+        script.src = "https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"
+        script.onload = () => resolve()
+        script.onerror = () => reject()
+        document.head.appendChild(script)
+      })
+    Promise.all([loadLeaflet(), loadGeocoder()])
+      .then(() => {
+        initializeMap()
+        setIsMapLoading(false)
+      })
+      .catch(() => {
+        setMapError("Failed to load map or geocoder. Please check your internet connection and try again.")
+        setIsMapLoading(false)
+      })
+    // eslint-disable-next-line
+  }, [selectedRestaurant, isRestaurantEditing])
+
+  const initializeMap = () => {
+    if (!mapRef.current || !window.L || !window.L.Control || !window.L.Control.Geocoder) return
+    try {
+      // --- FIX: Remove previous map instance if exists ---
+      if (map) {
+        map.remove()
+        setMap(null)
+      }
+      // Remove any previous map instance from DOM (for safety)
+      if (mapRef.current && mapRef.current.innerHTML) {
+        mapRef.current.innerHTML = ""
+      }
+      const defaultLocation = [20.5937, 78.9629] // India center
+      const coords = restaurantForm.location?.coordinates
+      const hasCoords = coords && coords[0] !== 0 && coords[1] !== 0
+      const startLocation = hasCoords ? [coords[1], coords[0]] : defaultLocation
+      const mapInstance = window.L.map(mapRef.current).setView(startLocation, 5)
+      window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
+      }).addTo(mapInstance)
+      // Add geocoder search box
+      const geocoder = window.L.Control.geocoder({
+        defaultMarkGeocode: false,
+        placeholder: "Search for city or address...",
+      })
+        .on("markgeocode", (e: any) => {
+          const bbox = e.geocode.bbox
+          const center = e.geocode.center
+          mapInstance.fitBounds(bbox)
+          // Remove old marker if exists
+          if (marker) {
+            mapInstance.removeLayer(marker)
+          }
+          // Place marker at result
+          const newMarker = window.L.marker(center, { draggable: true }).addTo(mapInstance)
+          setMarker(newMarker)
+          updateRestaurantLocation(center.lat, center.lng)
+          // Set tag/address
+          setRestaurantForm((prev: any) => ({
+            ...prev,
+            location: {
+              ...prev.location,
+              tag: e.geocode.name,
+            },
+          }))
+          // Drag marker to update location
+          newMarker.on("dragend", (event: any) => {
+            const position = event.target.getLatLng()
+            updateRestaurantLocation(position.lat, position.lng)
+          })
+        })
+        .addTo(mapInstance)
+      // If editing, place marker
+      if (hasCoords) {
+        const markerInstance = window.L.marker([coords[1], coords[0]], {
+          draggable: true,
+        }).addTo(mapInstance)
+        markerInstance.on("dragend", (event: any) => {
           const position = event.target.getLatLng()
           updateRestaurantLocation(position.lat, position.lng)
         })
-      })
-      .addTo(mapInstance)
-    // If editing, place marker
-    if (hasCoords) {
-      const markerInstance = window.L.marker([coords[1], coords[0]], {
-        draggable: true,
-      }).addTo(mapInstance)
-      markerInstance.on("dragend", (event: any) => {
-        const position = event.target.getLatLng()
-        updateRestaurantLocation(position.lat, position.lng)
-      })
-      setMarker(markerInstance)
+        setMarker(markerInstance)
+      }
+      setMap(mapInstance)
+      setMapError(null)
+    } catch (error) {
+      setMapError("Failed to initialize map. Please try again later.")
     }
-    setMap(mapInstance)
-    setMapError(null)
-  } catch (error) {
-    setMapError("Failed to initialize map. Please try again later.")
   }
-}
-
 
   // Update restaurantForm.location and tag
   const updateRestaurantLocation = (lat: number, lng: number) => {
@@ -648,34 +631,31 @@ const initializeMap = () => {
   const canAddRestaurant = filteredRestaurants.length === 0
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-6 p-6 w-full">
       {/* Add New Restaurant Button */}
       {canAddRestaurant && (
         <div className="mb-4">
-          <Button onClick={() => {
-            setIsAddDialogOpen(true)
-            setAddRestaurantForm({ ...RESTAURANT_SCHEMA, owner_id: ownerId })
-          }}>
+          <Button
+            onClick={() => {
+              setIsAddDialogOpen(true)
+              setAddRestaurantForm({ ...RESTAURANT_SCHEMA, owner_id: ownerId })
+            }}
+          >
             Add New Restaurant
           </Button>
         </div>
       )}
-       {/* Add New Restaurant Dialog */}
-       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-  <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-    <DialogHeader>
-      <DialogTitle>Add New Restaurant</DialogTitle>
-      <DialogDescription>
-        Fill out the restaurant details below.
-      </DialogDescription>
-    </DialogHeader>
-    <form
-      onSubmit={handleAddRestaurantSubmit}
-      className="space-y-6"
-    >
+      {/* Add New Restaurant Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="max-w-[95vw] w-full max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Restaurant</DialogTitle>
+            <DialogDescription>Fill out the restaurant details below.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddRestaurantSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="add-restaurant-image">Restaurant Image</Label>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col gap-4 w-full">
                 <Input
                   id="add-restaurant-image"
                   value={addRestaurantForm.image}
@@ -684,9 +664,9 @@ const initializeMap = () => {
                 />
                 {addRestaurantForm.image && (
                   <img
-                    src={addRestaurantForm.image}
+                    src={addRestaurantForm.image || "/placeholder.svg"}
                     alt="Restaurant Preview"
-                    className="w-20 h-20 object-cover rounded-md"
+                    className="w-full h-60 object-cover rounded-md mt-2"
                   />
                 )}
               </div>
@@ -707,7 +687,7 @@ const initializeMap = () => {
                   id="add-restaurant-rating"
                   type="number"
                   value={addRestaurantForm.rating}
-                  onChange={(e) => handleAddRestaurantInput("rating", parseFloat(e.target.value))}
+                  onChange={(e) => handleAddRestaurantInput("rating", Number.parseFloat(e.target.value))}
                 />
               </div>
               <div className="space-y-2">
@@ -748,7 +728,7 @@ const initializeMap = () => {
                   id="add-restaurant-priceLevel"
                   type="number"
                   value={addRestaurantForm.priceLevel}
-                  onChange={(e) => handleAddRestaurantInput("priceLevel", parseInt(e.target.value))}
+                  onChange={(e) => handleAddRestaurantInput("priceLevel", Number.parseInt(e.target.value))}
                 />
               </div>
             </div>
@@ -760,7 +740,7 @@ const initializeMap = () => {
                 onChange={(e) =>
                   handleAddRestaurantInput(
                     "cuisines",
-                    e.target.value.split(",").map((v: string) => v.trim())
+                    e.target.value.split(",").map((v: string) => v.trim()),
                   )
                 }
               />
@@ -784,14 +764,9 @@ const initializeMap = () => {
                   </div>
                 </div>
               )}
-              <div
-                ref={addMapRef}
-                className="w-full h-[300px] rounded-md border border-gray-200 bg-gray-50"
-              ></div>
+              <div ref={addMapRef} className="w-full h-[300px] rounded-md border border-gray-200 bg-gray-50"></div>
             </div>
-            {addMapError && (
-              <div className="text-red-500 text-sm">{addMapError}</div>
-            )}
+            {addMapError && <div className="text-red-500 text-sm">{addMapError}</div>}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="add-restaurant-location-lng">Longitude</Label>
@@ -801,7 +776,7 @@ const initializeMap = () => {
                   value={addRestaurantForm.location.coordinates[0]}
                   onChange={(e) =>
                     handleAddLocationInput("coordinates", [
-                      parseFloat(e.target.value),
+                      Number.parseFloat(e.target.value),
                       addRestaurantForm.location.coordinates[1],
                     ])
                   }
@@ -816,7 +791,7 @@ const initializeMap = () => {
                   onChange={(e) =>
                     handleAddLocationInput("coordinates", [
                       addRestaurantForm.location.coordinates[0],
-                      parseFloat(e.target.value),
+                      Number.parseFloat(e.target.value),
                     ])
                   }
                 />
@@ -850,16 +825,12 @@ const initializeMap = () => {
               <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit">
-                Add Restaurant
-              </Button>
+              <Button type="submit">Add Restaurant</Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
       {/* END Add New Restaurant Dialog */}
-
-
 
       <Tabs defaultValue="profile" className="w-full">
         <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
@@ -871,9 +842,7 @@ const initializeMap = () => {
           <Card>
             <CardHeader>
               <CardTitle>Restaurant Profile</CardTitle>
-              <CardDescription>
-                Update your restaurant information visible to customers
-              </CardDescription>
+              <CardDescription>Update your restaurant information visible to customers</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Display Edit Form for First Restaurant */}
@@ -889,7 +858,7 @@ const initializeMap = () => {
                     {/* Restaurant Image Preview and Input */}
                     <div className="space-y-2">
                       <Label htmlFor="restaurant-image">Restaurant Image</Label>
-                      <div className="flex items-center gap-4">
+                      <div className="flex flex-col gap-4 w-full">
                         <Input
                           id="restaurant-image"
                           value={restaurantForm.image}
@@ -899,9 +868,9 @@ const initializeMap = () => {
                         />
                         {restaurantForm.image && (
                           <img
-                            src={restaurantForm.image}
+                            src={restaurantForm.image || "/placeholder.svg"}
                             alt="Restaurant Preview"
-                            className="w-20 h-20 object-cover rounded-md"
+                            className="w-full h-60 object-cover rounded-md mt-2"
                           />
                         )}
                       </div>
@@ -923,7 +892,7 @@ const initializeMap = () => {
                           id="restaurant-rating"
                           type="number"
                           value={restaurantForm.rating}
-                          onChange={(e) => handleRestaurantInput("rating", parseFloat(e.target.value))}
+                          onChange={(e) => handleRestaurantInput("rating", Number.parseFloat(e.target.value))}
                           disabled={!isRestaurantEditing}
                         />
                       </div>
@@ -969,7 +938,7 @@ const initializeMap = () => {
                           id="restaurant-priceLevel"
                           type="number"
                           value={restaurantForm.priceLevel}
-                          onChange={(e) => handleRestaurantInput("priceLevel", parseInt(e.target.value))}
+                          onChange={(e) => handleRestaurantInput("priceLevel", Number.parseInt(e.target.value))}
                           disabled={!isRestaurantEditing}
                         />
                       </div>
@@ -982,7 +951,7 @@ const initializeMap = () => {
                         onChange={(e) =>
                           handleRestaurantInput(
                             "cuisines",
-                            e.target.value.split(",").map((v: string) => v.trim())
+                            e.target.value.split(",").map((v: string) => v.trim()),
                           )
                         }
                         disabled={!isRestaurantEditing}
@@ -1008,14 +977,9 @@ const initializeMap = () => {
                           </div>
                         </div>
                       )}
-                      <div
-                        ref={mapRef}
-                        className="w-full h-[300px] rounded-md border border-gray-200 bg-gray-50"
-                      ></div>
+                      <div ref={mapRef} className="w-full h-[300px] rounded-md border border-gray-200 bg-gray-50"></div>
                     </div>
-                    {mapError && (
-                      <div className="text-red-500 text-sm">{mapError}</div>
-                    )}
+                    {mapError && <div className="text-red-500 text-sm">{mapError}</div>}
                     {/* --- GEOLOCATION FIELDS END --- */}
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
@@ -1026,7 +990,7 @@ const initializeMap = () => {
                           value={restaurantForm.location.coordinates[0]}
                           onChange={(e) =>
                             handleLocationInput("coordinates", [
-                              parseFloat(e.target.value),
+                              Number.parseFloat(e.target.value),
                               restaurantForm.location.coordinates[1],
                             ])
                           }
@@ -1042,7 +1006,7 @@ const initializeMap = () => {
                           onChange={(e) =>
                             handleLocationInput("coordinates", [
                               restaurantForm.location.coordinates[0],
-                              parseFloat(e.target.value),
+                              Number.parseFloat(e.target.value),
                             ])
                           }
                           disabled={!isRestaurantEditing}
@@ -1077,31 +1041,18 @@ const initializeMap = () => {
                       />
                     </div>
                     <div className="flex justify-between gap-4">
-                      <Button
-                        variant="destructive"
-                        onClick={handleDeleteRestaurant}
-                        disabled={isRestaurantEditing}
-                      >
+                      <Button variant="destructive" onClick={handleDeleteRestaurant} disabled={isRestaurantEditing}>
                         Delete Restaurant
                       </Button>
                       {isRestaurantEditing ? (
                         <>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setIsRestaurantEditing(false)}
-                          >
+                          <Button type="button" variant="outline" onClick={() => setIsRestaurantEditing(false)}>
                             Cancel
                           </Button>
-                          <Button type="submit">
-                            Save Changes
-                          </Button>
+                          <Button type="submit">Save Changes</Button>
                         </>
                       ) : (
-                        <Button
-                          type="button"
-                          onClick={() => setIsRestaurantEditing(true)}
-                        >
+                        <Button type="button" onClick={() => setIsRestaurantEditing(true)}>
                           Update Restaurant
                         </Button>
                       )}
@@ -1195,21 +1146,14 @@ const initializeMap = () => {
                   <Button variant="outline" onClick={() => setIsEditing(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={handleSaveOwner}>
-                    Save Changes
-                  </Button>
+                  <Button onClick={handleSaveOwner}>Save Changes</Button>
                 </>
               ) : (
                 <>
-                  <Button
-                    variant="destructive"
-                    onClick={handleDeleteOwner}
-                  >
+                  <Button variant="destructive" onClick={handleDeleteOwner}>
                     Delete Account
                   </Button>
-                  <Button onClick={() => setIsEditing(true)}>
-                    Edit Profile
-                  </Button>
+                  <Button onClick={() => setIsEditing(true)}>Edit Profile</Button>
                 </>
               )}
             </CardFooter>
