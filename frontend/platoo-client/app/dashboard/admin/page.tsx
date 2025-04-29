@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { FiEye, FiEyeOff } from "react-icons/fi";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -25,6 +26,10 @@ import {
   Tooltip as ChartTooltip,
   Legend,
 } from "chart.js"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { toast } from "sonner"
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, ChartTooltip, Legend)
 
@@ -79,16 +84,6 @@ interface DashboardData {
   pendingRestaurants: Restaurant[]
 }
 
-const revenueData = [
-  { name: "Jan", revenue: 12400 },
-  { name: "Feb", revenue: 15600 },
-  { name: "Mar", revenue: 14200 },
-  { name: "Apr", revenue: 18900 },
-  { name: "May", revenue: 21500 },
-  { name: "Jun", revenue: 25800 },
-  { name: "Jul", revenue: 28300 },
-]
-
 export default function AdminDashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [dashboardData, setDashboardData] = useState<DashboardData>({
@@ -101,16 +96,39 @@ export default function AdminDashboardPage() {
     recentUsers: [],
     pendingRestaurants: [],
   })
+  const [revenueData, setRevenueData] = useState<{ name: string; revenue: number }[]>([])
+
+  // Admin profile state
+  const [isAdminProfileLoading, setIsAdminProfileLoading] = useState(true)
+  const [isEditing, setIsEditing] = useState(false)
+  const [owner, setOwner] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    restaurantName: "",
+  })
+
+  // Password change states
+  const [showPassword, setShowPassword] = useState(false)
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [passwordError, setPasswordError] = useState("")
+  const [password, setPassword] = useState("")
+
+  // Delete account states
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     const fetchTotalUsers = async () => {
       try {
-        const token = localStorage.getItem("token") // get JWT from storage
+        const token = localStorage.getItem("token")
         const res = await fetch("http://localhost:4000/api/auth/users", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`, // send JWT in Authorization header
+            Authorization: `Bearer ${token}`,
           },
         })
         if (!res.ok) throw new Error("Failed to fetch users")
@@ -161,16 +179,37 @@ export default function AdminDashboardPage() {
             }))
           : []
 
+        // Calculate total revenue (sum of total_amount for all orders)
+        const totalRevenue = ordersData.reduce((sum, order) => sum + (order.total_amount || 0), 0)
+
+        // Group revenue by month for the current year
+        const now = new Date()
+        const year = now.getFullYear()
+        const monthlyRevenue: { [month: string]: number } = {}
+        for (let i = 0; i < 12; i++) {
+          const monthName = new Date(year, i).toLocaleString("default", { month: "short" })
+          monthlyRevenue[monthName] = 0
+        }
+        ordersData.forEach((order) => {
+          const date = new Date(order.createdAt)
+          if (date.getFullYear() === year) {
+            const monthName = date.toLocaleString("default", { month: "short" })
+            monthlyRevenue[monthName] += order.total_amount || 0
+          }
+        })
+        const revenueDataArr = Object.entries(monthlyRevenue).map(([name, revenue]) => ({ name, revenue }))
+
         setDashboardData((prev) => ({
           ...prev,
           totalOrders: ordersData.length,
           totalRestaurants: Array.isArray(restaurantsData) ? restaurantsData.length : 0,
-          totalRevenue: 328945.75,
+          totalRevenue: totalRevenue,
           activeDeliveries: 87,
           recentOrders: ordersData,
           recentUsers: prev.recentUsers,
           pendingRestaurants: prev.pendingRestaurants,
         }))
+        setRevenueData(revenueDataArr)
       } catch (error) {
         console.error("Error fetching dashboard data:", error)
       } finally {
@@ -180,6 +219,167 @@ export default function AdminDashboardPage() {
     fetchDashboardData()
   }, [])
 
+  
+
+  // Simulate fetching admin profile (replace with real API as needed)
+  useEffect(() => {
+    const fetchAdminProfile = async () => {
+      setIsAdminProfileLoading(true);
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) throw new Error("No authentication token found");
+        const decodedToken = JSON.parse(atob(token.split('.')[1]));
+        const userId = decodedToken.id;
+        const response = await fetch(`http://localhost:4000/api/auth/user/${userId}`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const userData = await response.json();
+        if (userData.role !== 'admin') {
+          throw new Error("User is not an admin");
+        }
+        setOwner({
+          name: userData.name || "",
+          email: userData.email || "",
+          phone: userData.phone || "",
+          address: userData.address || "",
+          restaurantName: userData.restaurantName || ""
+        });
+      } catch (error) {
+        console.error("Error fetching admin profile:", error);
+      } finally {
+        setIsAdminProfileLoading(false);
+      }
+    };
+    fetchAdminProfile();
+  }, []);
+
+  
+  const handleSaveOwner = async () => {
+    // Password validation
+    if (newPassword || confirmPassword) {
+      if (newPassword.length < 6) {
+        setPasswordError("Password must be at least 6 characters.");
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setPasswordError("Passwords do not match.");
+        return;
+      }
+    }
+    setPasswordError("");
+  
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No authentication token found");
+      const decodedToken = JSON.parse(atob(token.split('.')[1]));
+      const userId = decodedToken.id;
+  
+      // Build payload for update
+      const payload: any = {
+        name: owner.name,
+        email: owner.email,
+        phone: owner.phone,
+        address: owner.address,
+        restaurantName: owner.restaurantName,
+      };
+      if (newPassword) {
+        payload.password = newPassword;
+      }
+  
+      const response = await fetch(`http://localhost:4000/api/auth/update/${userId}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+  
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Update failed");
+  
+      // Determine if email or password was changed
+      const emailChanged = data.email && data.email !== owner.email;
+      const passwordChanged = !!newPassword;
+  
+      setIsEditing(false);
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success("Profile updated successfully");
+  
+      if (emailChanged || passwordChanged) {
+        localStorage.removeItem("token");
+        toast.success(
+          emailChanged
+            ? "Email changed. Please log in again."
+            : "Password changed. Please log in again."
+        );
+        window.location.href = "/login";
+        return;
+      }
+  
+      // Update localStorage with new user data (if you store user info)
+      localStorage.setItem("user", JSON.stringify({
+        ...data,
+        id: userId
+      }));
+  
+      setOwner({
+        name: data.name ?? owner.name,
+        email: data.email ?? owner.email,
+        phone: data.phone ?? owner.phone,
+        address: data.address ?? owner.address,
+        restaurantName: data.restaurantName ?? owner.restaurantName
+      });
+    } catch (error) {
+      console.error("Update error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update profile");
+    }
+  };
+  
+  
+ // Delete admin account handler
+ const handleDeleteAccount = async () => {
+  setIsDeleting(true)
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) throw new Error("No authentication token found")
+    const decodedToken = JSON.parse(atob(token.split('.')[1]))
+    const userId = decodedToken.id
+    const response = await fetch(`http://localhost:4000/api/auth/delete/${userId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      }
+    })
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.message || "Failed to delete account")
+    }
+    localStorage.removeItem("token")
+    localStorage.removeItem("user")
+    toast.success("Account deleted successfully. Logging out...")
+    setTimeout(() => {
+      window.location.href = "/login"
+    }, 1500)
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "Failed to delete account")
+  } finally {
+    setIsDeleting(false)
+    setShowDeleteConfirm(false)
+  }
+}
+
+  
+  
+
+  // Status color helper
   const getStatusColor = (status: string) => {
     switch (status) {
       case "pending":
@@ -199,104 +399,237 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-        <p className="text-muted-foreground">Welcome to the Platoo admin dashboard. Here's what's happening today.</p>
-      </div>
+      <Tabs defaultValue="dashboard" className="w-full">
+        <TabsList>
+          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="admin-profile">Admin Profile</TabsTrigger>
+        </TabsList>
 
-      {/* Key Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.totalUsers.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-500 flex items-center">
-                <ArrowUpRight className="mr-1 h-4 w-4" />
-                +12% from last month
-              </span>
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Restaurants</CardTitle>
-            <Store className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.totalRestaurants}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-500 flex items-center">
-                <ArrowUpRight className="mr-1 h-4 w-4" />
-                +5% from last month
-              </span>
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.totalOrders.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-500 flex items-center">
-                <ArrowUpRight className="mr-1 h-4 w-4" />
-                +18% from last month
-              </span>
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${dashboardData.totalRevenue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-500 flex items-center">
-                <ArrowUpRight className="mr-1 h-4 w-4" />
-                +8% from last month
-              </span>
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+        {/* Dashboard Tab Content */}
+        <TabsContent value="dashboard">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+            <p className="text-muted-foreground">Welcome to the Platoo admin dashboard. Here's what's happening today.</p>
+          </div>
 
-      {/* Charts */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue Overview</CardTitle>
-            <CardDescription>Monthly revenue for the current year</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <RechartsTooltip formatter={(value) => [`$${value}`, "Revenue"]} />
-                  <Bar dataKey="revenue" fill="#ef4444" />
-                </BarChart>
-              </ResponsiveContainer>
+          {/* Key Metrics */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{dashboardData.totalUsers.toLocaleString()}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Restaurants</CardTitle>
+                <Store className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{dashboardData.totalRestaurants}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+                <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{dashboardData.totalOrders.toLocaleString()}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">LKR{dashboardData.totalRevenue.toLocaleString()}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Charts */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Revenue Overview</CardTitle>
+                <CardDescription>Monthly revenue for the current year</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={revenueData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <RechartsTooltip formatter={(value) => [`LKR${value}`, "Revenue"]} />
+                      <Bar dataKey="revenue" fill="#ef4444" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* New Order History Section */}
+          <OrderHistoryPage />
+        </TabsContent>
+
+        {/* Admin Profile Tab */}
+        <TabsContent value="admin-profile" className="pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Admin Profile</CardTitle>
+              <CardDescription>Manage admin information</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isAdminProfileLoading ? (
+                <div>Loading owner info...</div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="admin-name">Admin Name</Label>
+                    <Input
+                      id="admin-name"
+                      value={owner.name}
+                      onChange={e => setOwner({ ...owner, name: e.target.value })}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="owner-email">Admin Email</Label>
+                    <Input
+                      id="owner-email"
+                      value={owner.email}
+                      onChange={e => setOwner({ ...owner, email: e.target.value })}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="owner-phone">Admin Phone</Label>
+                    <Input
+                      id="owner-phone"
+                      value={owner.phone}
+                      onChange={e => setOwner({ ...owner, phone: e.target.value })}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="owner-address">Admin Address</Label>
+                    <Input
+                      id="owner-address"
+                      value={owner.address}
+                      onChange={e => setOwner({ ...owner, address: e.target.value })}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                  {isEditing && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="new-password">New Password</Label>
+                        <div style={{ position: "relative" }}>
+                          <Input
+                            id="new-password"
+                            type={showPassword ? "text" : "password"}
+                            value={newPassword}
+                            onChange={e => setNewPassword(e.target.value)}
+                            placeholder="Enter new password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(prev => !prev)}
+                            style={{
+                              position: "absolute",
+                              right: 10,
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              padding: 0,
+                              display: "flex",
+                              alignItems: "center"
+                            }}
+                            tabIndex={-1}
+                            aria-label={showPassword ? "Hide password" : "Show password"}
+                          >
+                            {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirm-password">Confirm New Password</Label>
+                        <Input
+                          id="confirm-password"
+                          type={showPassword ? "text" : "password"}
+                          value={confirmPassword}
+                          onChange={e => setConfirmPassword(e.target.value)}
+                          placeholder="Confirm new password"
+                        />
+                      </div>
+                      {passwordError && (
+                        <div className="text-red-500 text-sm">{passwordError}</div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </CardContent>
+            <CardFooter className="flex justify-end gap-4">
+              {isEditing ? (
+                <Button onClick={handleSaveOwner}>Save Changes</Button>
+              ) : (
+                <>
+                  <Button onClick={() => setIsEditing(true)}>Edit</Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={isDeleting}
+                  >
+                    Delete Account
+                  </Button>
+                </>
+              )}
+            </CardFooter>
+          </Card>
+          {/* Delete Confirmation Modal */}
+          {showDeleteConfirm && (
+            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+              <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full">
+                <h2 className="text-lg font-bold mb-2">Delete Account?</h2>
+                <p className="mb-4 text-sm text-gray-600">
+                  Are you sure you want to delete your admin account? This action cannot be undone.
+                </p>
+                <div className="flex justify-end gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={isDeleting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleDeleteAccount}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? "Deleting..." : "Yes, Delete"}
+                  </Button>
+                </div>
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* New Order History Section */}
-      <OrderHistoryPage />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
 
+// OrderHistoryPage and helpers remain unchanged from your original code
 function OrderHistoryPage() {
   const restaurantId = "68035d30a05864216cc9dd25"
   const [orders, setOrders] = useState<Order[]>([])
@@ -321,7 +654,7 @@ function OrderHistoryPage() {
 
         // Find first and last date
         dates.sort((a: { getTime: () => number }, b: { getTime: () => number }) => a.getTime() - b.getTime())
-        const startDate = new Date(dates[0].toISOString().slice(0, 10)) // midnight
+        const startDate = new Date(dates[0].toISOString().slice(0, 10))
         const endDate = new Date() // today
 
         // Build date range
@@ -396,7 +729,7 @@ function OrderHistoryPage() {
           maxRotation: 45,
           minRotation: 45,
           autoSkip: true,
-          maxTicksLimit: 15, // Adjust for readability
+          maxTicksLimit: 15,
         },
       },
       y: { beginAtZero: true, precision: 0 },
@@ -407,7 +740,7 @@ function OrderHistoryPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">Order History</h1>
-        <p className="text-muted-foreground">All orders placed for this restaurant.</p>
+        <p className="text-muted-foreground">All orders placed for restaurant.</p>
       </div>
 
       <Card>
@@ -431,13 +764,13 @@ function OrderHistoryPage() {
       <Card>
         <CardHeader>
           <CardTitle>Order History</CardTitle>
-          <CardDescription>List of all orders for this restaurant</CardDescription>
+          <CardDescription>List of all orders for restaurants</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div>Loading...</div>
           ) : orders.length === 0 ? (
-            <div>No orders found for this restaurant.</div>
+            <div>No orders found for this restaurant. </div>
           ) : (
             <Table>
               <TableHeader>
@@ -455,7 +788,7 @@ function OrderHistoryPage() {
                   <TableRow key={order._id}>
                     <TableCell>{order.order_id}</TableCell>
                     <TableCell>{order.email}</TableCell>
-                    <TableCell>${order.total_amount.toFixed(2)}</TableCell>
+                    <TableCell>LKR{order.total_amount.toFixed(2)}</TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(order.status)}>{order.status}</Badge>
                     </TableCell>

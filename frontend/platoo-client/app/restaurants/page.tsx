@@ -83,34 +83,46 @@ export default function RestaurantsPage() {
   }, [searchQuery, selectedCuisine, priceRange, maxDeliveryTime, restaurants])
 
   const applyFilters = () => {
-    let filtered = [...restaurants]
-
+    let filtered = [...restaurants];
+  
+    // Filter by search query
     if (searchQuery) {
-      const query = searchQuery.toLowerCase()
+      const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (restaurant) =>
           restaurant.name.toLowerCase().includes(query) ||
           restaurant.cuisines.some((cuisine) => cuisine.toLowerCase().includes(query)),
-      )
+      );
     }
-
+  
+    // Filter by selected cuisine
     if (selectedCuisine && selectedCuisine !== "all") {
       filtered = filtered.filter((restaurant) =>
-        restaurant.cuisines.some((cuisine) => cuisine.toLowerCase() === selectedCuisine.toLowerCase()),
-      )
+        restaurant.cuisines.some(
+          (cuisine) => cuisine.toLowerCase() === selectedCuisine.toLowerCase(),
+        ),
+      );
     }
-
+  
+    // Apply price range filter
     filtered = filtered.filter(
       (restaurant) => restaurant.priceLevel >= priceRange[0] && restaurant.priceLevel <= priceRange[1],
-    )
-
+    );
+  
+    // Apply delivery time filter
     filtered = filtered.filter((restaurant) => {
-      const maxTime = Number.parseInt(restaurant.deliveryTime.split("-")[1])
-      return maxTime <= maxDeliveryTime
-    })
-
-    setFilteredRestaurants(filtered)
-  }
+      const deliveryTimeRange = restaurant.deliveryTime.includes("-")
+        ? restaurant.deliveryTime.split("-").map((time) => parseInt(time.trim(), 10))
+        : [parseInt(restaurant.deliveryTime.replace("min", "").trim(), 10), parseInt(restaurant.deliveryTime.replace("min", "").trim(), 10)];
+      return deliveryTimeRange.length === 2 && deliveryTimeRange[1] <= maxDeliveryTime;
+    });
+    
+  
+    console.log("Filtered Restaurants:", filtered);  // Log filtered restaurants to debug
+  
+    setFilteredRestaurants(filtered);
+  };
+  
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -216,10 +228,10 @@ export default function RestaurantsPage() {
           <Tabs defaultValue="all">
             <TabsList className="mb-6">
               <TabsTrigger value="all">All Restaurants</TabsTrigger>
-              <TabsTrigger value="featured">Featured</TabsTrigger>
+              {/* <TabsTrigger value="featured">Featured</TabsTrigger>
               <TabsTrigger value="popular">Most Popular</TabsTrigger>
               <TabsTrigger value="new">New Arrivals</TabsTrigger>
-              <TabsTrigger value="offers">Special Offers</TabsTrigger>
+              <TabsTrigger value="offers">Special Offers</TabsTrigger> */}
             </TabsList>
 
             <TabsContent value="all" className="space-y-6">

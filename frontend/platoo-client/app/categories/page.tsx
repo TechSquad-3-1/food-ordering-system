@@ -106,32 +106,35 @@ export default function CategoriesPage() {
           ) : filteredCategories.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {filteredCategories.map((category) => (
-                <Link
-                  href={`/restaurants/${category.restaurant_id._id}`} // Navigate to restaurant based on restaurant_id
-                  key={category._id}
-                >
-                  <Card className="overflow-hidden h-48 relative group">
-                    <Image
-                      src={category.image_url || "/placeholder.svg"}
-                      alt={category.name}
-                      fill
-                      className="object-cover transition-transform group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent flex items-center p-6">
-                      <div className="text-white">
-                        <h2 className="text-2xl font-bold mb-2">{category.name}</h2>
-                        <p className="text-white/80 mb-4">{category.description}</p>
-                        <Button
-                          variant="outline"
-                          className="bg-white/20 hover:bg-white/30 text-white border-white/40 backdrop-blur-sm"
-                        >
-                          Explore <ChevronRight className="ml-2 h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                </Link>
-              ))}
+  category.restaurant_id ? ( // Check if restaurant_id exists
+    <Link
+      href={`/restaurants/${category.restaurant_id._id}`} // Navigate to restaurant based on restaurant_id
+      key={category._id}
+    >
+      <Card className="overflow-hidden h-48 relative group">
+        <Image
+          src={category.image_url || "/placeholder.svg"}
+          alt={category.name}
+          fill
+          className="object-cover transition-transform group-hover:scale-105"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent flex items-center p-6">
+          <div className="text-white">
+            <h2 className="text-2xl font-bold mb-2">{category.name}</h2>
+            <p className="text-white/80 mb-4">{category.description}</p>
+            <Button
+              variant="outline"
+              className="bg-white/20 hover:bg-white/30 text-white border-white/40 backdrop-blur-sm"
+            >
+              Explore <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </Link>
+  ) : null // If restaurant_id is null, don't render the link
+))}
+
             </div>
           ) : (
             <div className="text-center py-12">

@@ -27,7 +27,6 @@ import {
   LayoutDashboard,
   Users,
   ShoppingBag,
-  Bell,
   LogOut,
   Search,
   HelpCircle,
@@ -67,53 +66,86 @@ export default function RestaurantDashboardLayout({
     restaurantName: string
   } | null>(null)
   const [notifications, setNotifications] = useState(3)
-  const [pendingOrders, setPendingOrders] = useState(5)
+  const [totalOrders, setTotalOrders] = useState(0)
 
+  // Fetch user data
   useEffect(() => {
-    // Check if user is authenticated and is a restaurant owner/manager
-    const token = localStorage.getItem("token")
-
-    if (!token) {
-      // For demo purposes, create a mock token instead of redirecting
-      const mockUserData = {
-        id: "rest-123",
-        name: "Restaurant Manager",
-        email: "restaurant@example.com",
-        role: "restaurant",
-        restaurantName: "Burger Palace",
+    const fetchUserData = async (token: string) => {
+      try {
+        const decoded = jwtDecode<JwtPayload>(token)
+        const response = await fetch(
+          `http://localhost:4000/api/auth/restaurant-owner/${decoded.id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        )
+        if (!response.ok) {
+          throw new Error("Failed to fetch user data")
+        }
+        const userData = await response.json()
+        setUserData({
+          id: userData._id,
+          name: userData.name,
+          email: userData.email,
+          role: userData.role,
+          restaurantName: userData.restaurantName,
+        })
+      } catch (error) {
+        console.error("Error fetching user data:", error)
+        localStorage.removeItem("token")
+        router.push("/login")
+      } finally {
+        setIsLoading(false)
       }
-      setUserData(mockUserData)
-      setIsLoading(false)
+    }
+
+    const token = localStorage.getItem("token")
+    if (!token) {
+      router.push("/login")
       return
     }
 
-    try {
-      // Decode the JWT token to get user role
-      const decoded = jwtDecode<JwtPayload>(token)
+    fetchUserData(token)
+  }, [router])
 
-      // In a real app, you would check the role and redirect if needed
-      setUserData({
-        id: decoded.id || "rest-123",
-        name: decoded.name || "Restaurant Manager",
-        email: decoded.email || "restaurant@example.com",
-        role: decoded.role || "restaurant",
-        restaurantName: decoded.restaurantName || "Burger Palace",
-      })
-    } catch (error) {
-      console.error("Invalid token:", error)
-      // For demo purposes, create a mock token instead of redirecting
-      const mockUserData = {
-        id: "rest-123",
-        name: "Restaurant Manager",
-        email: "restaurant@example.com",
-        role: "restaurant",
-        restaurantName: "Burger Palace",
+  // Fetch ALL orders count for this restaurant
+  useEffect(() => {
+    const fetchOrdersCount = async () => {
+      if (!userData?.id) return
+
+      try {
+        const token = localStorage.getItem("token")
+        if (!token) {
+          router.push("/login")
+          return
+        }
+
+        const response = await fetch("http://localhost:3008/api/orders", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        })
+
+        if (!response.ok) throw new Error("Failed to fetch orders")
+
+        const orders = await response.json()
+        const restaurantOrders = orders.filter(
+          (order: any) =>
+            order.restaurant_id === userData.id // <-- use restaurant_id as per your backend
+        )
+
+        setTotalOrders(restaurantOrders.length)
+      } catch (error) {
+        console.error("Error fetching orders:", error)
       }
-      setUserData(mockUserData)
-    } finally {
-      setIsLoading(false)
     }
-  }, [])
+
+    fetchOrdersCount()
+  }, [userData?.id, router])
 
   const handleSignOut = () => {
     localStorage.removeItem("token")
@@ -131,42 +163,12 @@ export default function RestaurantDashboardLayout({
       title: "Orders",
       href: "/dashboard/restaurant/orders",
       icon: <ShoppingBag className="h-5 w-5" />,
-      badge: { count: pendingOrders, variant: "default" },
+      
     },
     {
       title: "Menu",
       href: "/dashboard/restaurant/menu",
       icon: <Utensils className="h-5 w-5" />,
-      badge: null,
-    },
-    {
-      title: "Reviews",
-      href: "/dashboard/restaurant/reviews",
-      icon: <Star className="h-5 w-5" />,
-      badge: null,
-    },
-    {
-      title: "Promotions",
-      href: "/dashboard/restaurant/promotions",
-      icon: <Tag className="h-5 w-5" />,
-      badge: null,
-    },
-    {
-      title: "Inventory",
-      href: "/dashboard/restaurant/inventory",
-      icon: <Package className="h-5 w-5" />,
-      badge: null,
-    },
-    {
-      title: "Finances",
-      href: "/dashboard/restaurant/finances",
-      icon: <DollarSign className="h-5 w-5" />,
-      badge: null,
-    },
-    {
-      title: "Employees",
-      href: "/dashboard/restaurant/employees",
-      icon: <Users className="h-5 w-5" />,
       badge: null,
     },
     {
@@ -216,7 +218,6 @@ export default function RestaurantDashboardLayout({
                 <Input placeholder="Search..." className="pl-9 bg-muted/50" />
               </div>
             </div>
-
             <SidebarMenu>
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
@@ -232,7 +233,7 @@ export default function RestaurantDashboardLayout({
                         {item.icon}
                         <span>{item.title}</span>
                       </div>
-                      {item.badge && <Badge className="ml-auto bg-orange-500 text-white">{item.badge.count}</Badge>}
+                      
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -240,35 +241,14 @@ export default function RestaurantDashboardLayout({
             </SidebarMenu>
 
             <SidebarSeparator className="my-4" />
-
-            <div className="px-4 py-2">
-              <h3 className="mb-2 text-xs font-medium text-muted-foreground">Support</h3>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard/restaurant/help">
-                      <HelpCircle className="h-5 w-5" />
-                      <span>Help Center</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard/restaurant/messages">
-                      <MessageSquare className="h-5 w-5" />
-                      <span>Messages</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </div>
+            
           </SidebarContent>
 
           <SidebarFooter className="border-t p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Avatar className="h-9 w-9">
-                  <AvatarImage src="/placeholder.svg?height=36&width=36" alt={userData?.name || "Restaurant"} />
+                  <AvatarImage src="https://previews.123rf.com/images/valentint/valentint1704/valentint170400744/75401541-restaurant-icon-restaurant-website-button-on-white-background.jpg" alt={userData?.name || "Restaurant"} />
                   <AvatarFallback>{userData?.restaurantName?.charAt(0) || "R"}</AvatarFallback>
                 </Avatar>
                 <div>
@@ -298,18 +278,10 @@ export default function RestaurantDashboardLayout({
             </div>
 
             <div className="flex items-center gap-4">
-              <Button variant="outline" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                {notifications > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-xs text-white">
-                    {notifications}
-                  </span>
-                )}
-              </Button>
-
+              
               <div className="hidden md:flex items-center gap-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="/placeholder.svg?height=32&width=32" alt={userData?.name || "Restaurant"} />
+                  <AvatarImage src="https://icons.veryicon.com/png/o/internet--web/prejudice/user-128.png" alt={userData?.name || "Restaurant"} />
                   <AvatarFallback>{userData?.name?.charAt(0) || "R"}</AvatarFallback>
                 </Avatar>
                 <div>
@@ -328,4 +300,3 @@ export default function RestaurantDashboardLayout({
     </SidebarProvider>
   )
 }
-

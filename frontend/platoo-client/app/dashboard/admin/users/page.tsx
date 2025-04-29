@@ -44,7 +44,7 @@ import {
   Truck,
   UserCircle,
   Shield,
-} from "lucide-react";
+} from "lucide-react"
 
 interface User {
   restaurantName: string
@@ -95,43 +95,48 @@ export default function UsersPage() {
     vehicleNumber: <Truck className="text-indigo-500 w-4 h-4 mr-1" />,
     createdAt: <KeyRound className="text-gray-500 w-4 h-4 mr-1" />,
     __v: <Shield className="text-gray-400 w-4 h-4 mr-1" />,
-  };
+  }
 
   const roleColors: Record<string, string> = {
     admin: "from-purple-100 to-purple-50 border-purple-400",
     user: "from-blue-100 to-blue-50 border-blue-400",
     restaurant_owner: "from-orange-100 to-orange-50 border-orange-400",
     delivery_man: "from-green-100 to-green-50 border-green-400",
-  };
+  }
 
   const DetailRow = ({
     label,
     value,
     mono = false,
   }: {
-    label: string;
-    value: React.ReactNode;
-    mono?: boolean;
+    label: string
+    value: React.ReactNode
+    mono?: boolean
   }) => (
     <div className="flex items-center py-2 px-2 rounded hover:bg-gray-50 transition-all">
       <dt className="w-40 flex items-center font-semibold text-gray-700 capitalize">
         {fieldIcons[label] || null}
         <span className="ml-1">{label}:</span>
       </dt>
-      <dd
-        className={`flex-1 text-gray-900 ${mono ? "font-mono text-xs" : "font-medium"} break-all`}
-      >
+      <dd className={`flex-1 text-gray-900 ${mono ? "font-mono text-xs" : "font-medium"} break-all`}>
         {value}
       </dd>
     </div>
-  );
+  )
+
+  function validatePassword(password: string): string | null {
+    const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_\-+={}[\]|\\:;"'<>,.?/~`]).{8,}$/
+    if (!password) return "Password is required"
+    if (!regex.test(password))
+      return "Password must be at least 8 characters and include uppercase, lowercase, number, and special character"
+    return null
+  }
 
   useEffect(() => {
     const fetchUsersAndOrders = async () => {
       setIsLoading(true)
       try {
         const token = localStorage.getItem("token")
-        // Fetch all users
         const usersRes = await fetch("http://localhost:4000/api/auth/users", {
           method: "GET",
           headers: {
@@ -146,7 +151,6 @@ export default function UsersPage() {
           id: user._id || user.id,
         }))
 
-        // Fetch all orders
         const ordersRes = await fetch("http://localhost:3008/api/orders", {
           method: "GET",
           headers: {
@@ -156,7 +160,6 @@ export default function UsersPage() {
         if (!ordersRes.ok) throw new Error("Failed to fetch orders")
         const ordersData = await ordersRes.json()
 
-        // Only update orders field for customers (role === "user")
         const usersWithOrders = mappedUsers.map((user: any) => {
           if (user.role === "user") {
             const orderCount = ordersData.filter(
@@ -164,7 +167,6 @@ export default function UsersPage() {
             ).length
             return { ...user, orders: orderCount }
           }
-          // Don't change others
           return user
         })
 
@@ -194,7 +196,7 @@ export default function UsersPage() {
         (user) =>
           user.name.toLowerCase().includes(query) ||
           user.email.toLowerCase().includes(query) ||
-          user.id.toLowerCase().includes(query),
+          user.id.toLowerCase().includes(query)
       )
     }
     if (roleFilter !== "all") {
@@ -209,11 +211,17 @@ export default function UsersPage() {
   }
 
   const handleAddUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newUser.password !== newUser.confirmPassword) {
-      alert("Passwords do not match");
-      return;
+    e.preventDefault()
+    const passwordError = validatePassword(newUser.password)
+    if (passwordError) {
+      alert(passwordError)
+      return
     }
+    if (newUser.password !== newUser.confirmPassword) {
+      alert("Passwords do not match")
+      return
+    }
+
     try {
       const res = await fetch("http://localhost:4000/api/auth/register", {
         method: "POST",
@@ -226,17 +234,45 @@ export default function UsersPage() {
           password: newUser.password,
           phone: newUser.phone,
           address: newUser.address,
-          role: "admin"
+          role: "admin",
         }),
-      });
-      const result = await res.json();
-      if (!res.ok) {
-        alert(result?.error || result?.message || "Failed to register admin");
-        return;
+      })
+
+      const contentType = res.headers.get("content-type")
+      let result: any = {}
+      if (contentType && contentType.includes("application/json")) {
+        result = await res.json()
+      } else {
+        const text = await res.text()
+        alert(text || "Failed to register admin")
+        return
       }
+      if (!res.ok) {
+        alert(result?.error || result?.message || "Failed to register admin")
+        return
+      }
+
+      // Send email
+      const emailRes = await fetch("http://localhost:4005/api/email/send-admin-invite", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: newUser.email,
+          name: newUser.name,
+          password: newUser.password,
+        }),
+      })
+
+      if (!emailRes.ok) {
+        alert("Admin created but email failed to send")
+      }
+
+      // Update state
       setUsers((prev) => [
         {
-          id: result.id || `USR-${Math.floor(1000 + Math.random() * 9000)}`,
+          id: result._id || `USR-${Math.floor(1000 + Math.random() * 9000)}`,
           name: newUser.name,
           email: newUser.email,
           role: "admin",
@@ -245,10 +281,12 @@ export default function UsersPage() {
           phone: newUser.phone,
           address: newUser.address,
           vehicleNumber: "",
-          restaurantName: ""
+          restaurantName: "",
         },
         ...prev,
-      ]);
+      ])
+
+      // Reset form
       setNewUser({
         name: "",
         email: "",
@@ -257,46 +295,45 @@ export default function UsersPage() {
         confirmPassword: "",
         phone: "",
         address: "",
-      });
-      setIsAddUserOpen(false);
-      alert("Admin registered successfully!");
+      })
+      setIsAddUserOpen(false)
+      alert("Admin registered successfully! Login email sent.")
     } catch (err: any) {
-      alert("Error registering admin: " + err.message);
+      alert("Error registering admin: " + err.message)
     }
-  };
+  }
 
   const handleDeleteUser = async () => {
-    if (!selectedUser || !selectedUser.id) {
-      alert("No user selected for deletion.");
-      return;
+    if (!selectedUser?.id) {
+      alert("No user selected for deletion.")
+      return
     }
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("token")
       const res = await fetch(`http://localhost:4000/api/auth/delete/${selectedUser.id}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-      });
-      let result: { error?: string; message?: string } = {};
-      try {
-        result = await res.json();
-      } catch (e) {}
-      if (!res.ok) {
-        alert(result?.error || result?.message || "Failed to delete user");
-        return;
-      }
-      setUsers((prev) => prev.filter((user) => user.id !== selectedUser.id));
-      setIsDeleteDialogOpen(false);
-      setSelectedUser(null);
-      alert("User deleted successfully!");
-    } catch (err: any) {
-      alert("Error deleting user: " + err.message);
-    }
-  };
+      })
 
-  // --- Edit User Logic ---
+      const result = await res.json()
+      if (!res.ok) {
+        alert(result?.error || result?.message || "Failed to delete user")
+        return
+      }
+
+      setUsers((prev) => prev.filter((user) => user.id !== selectedUser.id))
+      setIsDeleteDialogOpen(false)
+      setSelectedUser(null)
+      alert("User deleted successfully!")
+    } catch (err: any) {
+      alert("Error deleting user: " + err.message)
+    }
+  }
+
+  // Edit User Logic
   const openEditUser = (user: User) => {
     setEditUser(user)
     setIsEditUserOpen(true)
@@ -308,36 +345,32 @@ export default function UsersPage() {
   }
 
   const handleEditUserSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editUser) return;
+    e.preventDefault()
+    if (!editUser) return
 
-    // Build payload based on role
-    let payload: any = {
+    const payload: any = {
       name: editUser.name,
       email: editUser.email,
-    };
+    }
+
     if (editUser.role === "admin") {
-      payload.phone = editUser.phone;
-      payload.address = editUser.address;
+      payload.phone = editUser.phone
+      payload.address = editUser.address
     }
     if (editUser.role === "restaurant_owner") {
-      payload.phone = editUser.phone;
-      payload.address = editUser.address;
-      payload.restaurantName = editUser.restaurantName;
+      payload.phone = editUser.phone
+      payload.address = editUser.address
+      payload.restaurantName = editUser.restaurantName
     }
     if (editUser.role === "delivery_man") {
-      payload.phone = editUser.phone;
-      payload.address = editUser.address;
-      payload.vehicleNumber = editUser.vehicleNumber;
+      payload.phone = editUser.phone
+      payload.address = editUser.address
+      payload.vehicleNumber = editUser.vehicleNumber
     }
-    payload.role = editUser.role;
+    payload.role = editUser.role
 
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        alert("You are not authenticated. Please log in again.");
-        return;
-      }
+      const token = localStorage.getItem("token")
       const res = await fetch(`http://localhost:4000/api/auth/update/${editUser.id}`, {
         method: "PUT",
         headers: {
@@ -345,24 +378,24 @@ export default function UsersPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
-      });
-      const result = await res.json();
+      })
+      const result = await res.json()
       if (!res.ok) {
-        alert(result?.error || result?.message || "Failed to update user");
-        return;
+        alert(result?.error || result?.message || "Failed to update user")
+        return
       }
-      const updatedUser = { ...result, id: result._id || result.id };
+      const updatedUser = { ...result, id: result._id || result.id }
       setUsers((prev) =>
         prev.map((u) => (u.id === editUser.id ? { ...u, ...updatedUser } : u))
-      );
-      setIsEditUserOpen(false);
-      setEditUser(null);
+      )
+      setIsEditUserOpen(false)
+      setEditUser(null)
     } catch (err: any) {
-      alert("Error updating user: " + err.message);
+      alert("Error updating user: " + err.message)
     }
-  };
+  }
 
-  // --- View Details Logic ---
+  // View Details Logic
   const openViewDetails = (user: User) => {
     setViewUser(user)
     setIsViewDetailsOpen(true)
@@ -392,7 +425,7 @@ export default function UsersPage() {
       case "delivery_man":
         return "Delivery Person"
       case "admin":
-        return "Administrator"
+        return "Admin"
       default:
         return role
     }
@@ -402,14 +435,9 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-        <p className="text-muted-foreground">Manage all users across your platform</p>
       </div>
 
-      <Tabs
-        value={roleFilter}
-        onValueChange={setRoleFilter}
-        className="space-y-4"
-      >
+      <Tabs value={roleFilter} onValueChange={setRoleFilter} className="space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <TabsList>
             <TabsTrigger value="all">All Users</TabsTrigger>
@@ -430,7 +458,6 @@ export default function UsersPage() {
           <CardHeader className="pb-3">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="w-full sm:max-w-sm">
-                {/* Search users by name, email, or ID */}
                 <form onSubmit={handleSearch} className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -464,13 +491,13 @@ export default function UsersPage() {
                 <p>Loading users...</p>
               </div>
             ) : filteredUsers.length > 0 ? (
-              <Table>
+              <Table className="w-full table-fixed">
                 <TableHeader>
                   <TableRow>
                     <TableHead>User</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Orders</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="text-right w-32">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -489,10 +516,12 @@ export default function UsersPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={`${getRoleColor(user.role)} text-white`}>{getRoleName(user.role)}</Badge>
+                        <Badge className={`${getRoleColor(user.role)} text-white`}>
+                          {getRoleName(user.role)}
+                        </Badge>
                       </TableCell>
                       <TableCell>{user.orders}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right w-32">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon">
@@ -554,7 +583,7 @@ export default function UsersPage() {
           <DialogHeader>
             <DialogTitle>Add New Admin</DialogTitle>
             <DialogDescription>
-              Create a new admin account. The admin will receive an email with login instructions.
+              Create a new admin account. They'll receive login instructions via email.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAddUser}>
@@ -598,15 +627,6 @@ export default function UsersPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="role">Role</Label>
-                <Input
-                  id="role"
-                  value="admin"
-                  disabled
-                  className="bg-gray-100 cursor-not-allowed"
-                />
-              </div>
-              <div className="grid gap-2">
                 <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
@@ -643,12 +663,11 @@ export default function UsersPage() {
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
-              Update user details and save changes.
+              Update user details.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleEditUserSubmit}>
             <div className="grid gap-4 py-4">
-              {/* Always show name and email */}
               <div className="grid gap-2">
                 <Label htmlFor="edit-name">Full Name</Label>
                 <Input
@@ -671,7 +690,6 @@ export default function UsersPage() {
                 />
               </div>
 
-              {/* Admin: phone, address */}
               {editUser?.role === "admin" && (
                 <>
                   <div className="grid gap-2">
@@ -698,7 +716,6 @@ export default function UsersPage() {
                 </>
               )}
 
-              {/* Restaurant Owner: phone, address, restaurantName */}
               {editUser?.role === "restaurant_owner" && (
                 <>
                   <div className="grid gap-2">
@@ -735,7 +752,6 @@ export default function UsersPage() {
                 </>
               )}
 
-              {/* Delivery Man: phone, address, vehicleNumber */}
               {editUser?.role === "delivery_man" && (
                 <>
                   <div className="grid gap-2">
@@ -772,7 +788,6 @@ export default function UsersPage() {
                 </>
               )}
 
-              {/* Role (always editable) */}
               <div className="grid gap-2">
                 <Label htmlFor="edit-role">Role</Label>
                 <Select
@@ -800,104 +815,6 @@ export default function UsersPage() {
               <Button type="submit">Save Changes</Button>
             </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* View Details Dialog */}
-      <Dialog open={isViewDetailsOpen} onOpenChange={setIsViewDetailsOpen}>
-        <DialogContent className="sm:max-w-[450px]">
-          <DialogHeader>
-            <DialogTitle>
-              <span
-                className={`
-                  inline-block px-3 py-1 rounded-t-lg font-bold text-lg text-white
-                  ${viewUser?.role === "admin" ? "bg-gradient-to-r from-purple-500 to-indigo-500" : ""}
-                  ${viewUser?.role === "user" ? "bg-gradient-to-r from-blue-500 to-cyan-500" : ""}
-                  ${viewUser?.role === "restaurant_owner" ? "bg-gradient-to-r from-orange-500 to-yellow-400" : ""}
-                  ${viewUser?.role === "delivery_man" ? "bg-gradient-to-r from-green-500 to-teal-400" : ""}
-                `}
-              >
-                {viewUser ? viewUser.name : "User"} Details
-              </span>
-            </DialogTitle>
-            <DialogDescription>
-              All information about this user.
-            </DialogDescription>
-          </DialogHeader>
-          <div
-            className={`
-              py-4 rounded-xl border-2
-              bg-gradient-to-br
-              ${viewUser ? roleColors[viewUser.role] : "from-gray-50 to-white border-gray-200"}
-              shadow-lg
-            `}
-          >
-            {viewUser && (
-              <dl className="divide-y divide-gray-100">
-                {/* Admin format */}
-                {viewUser.role === "admin" && (
-                  <>
-                    <DetailRow label="_id" value={viewUser.id} mono />
-                    <DetailRow label="name" value={viewUser.name} />
-                    <DetailRow label="email" value={viewUser.email} />
-                    <DetailRow label="password" value="***************" mono />
-                    <DetailRow label="role" value={viewUser.role} />
-                    <DetailRow label="phone" value={viewUser.phone || "-"} />
-                    <DetailRow label="address" value={viewUser.address || "-"} />
-                  </>
-                )}
-
-                {/* Restaurant Owner format */}
-                {viewUser.role === "restaurant_owner" && (
-                  <>
-                    <DetailRow label="_id" value={viewUser.id} mono />
-                    <DetailRow label="name" value={viewUser.name} />
-                    <DetailRow label="email" value={viewUser.email} />
-                    <DetailRow label="password" value="***************" mono />
-                    <DetailRow label="role" value={viewUser.role} />
-                    <DetailRow label="phone" value={viewUser.phone || "-"} />
-                    <DetailRow label="address" value={viewUser.address || "-"} />
-                    <DetailRow label="restaurantName" value={viewUser.restaurantName || "-"} />
-                  </>
-                )}
-
-                {/* Delivery Personnel format */}
-                {viewUser.role === "delivery_man" && (
-                  <>
-                    <DetailRow label="_id" value={viewUser.id} mono />
-                    <DetailRow label="name" value={viewUser.name} />
-                    <DetailRow label="email" value={viewUser.email} />
-                    <DetailRow label="password" value="***************" mono />
-                    <DetailRow label="role" value={viewUser.role} />
-                    <DetailRow label="phone" value={viewUser.phone || "-"} />
-                    <DetailRow label="address" value={viewUser.address || "-"} />
-                    <DetailRow label="vehicleNumber" value={viewUser.vehicleNumber || "-"} mono />
-                  </>
-                )}
-
-                {/* Customer/User format */}
-                {viewUser.role === "user" && (
-                  <>
-                    <DetailRow label="_id" value={viewUser.id} mono />
-                    <DetailRow label="name" value={viewUser.name} />
-                    <DetailRow label="email" value={viewUser.email} />
-                    <DetailRow label="password" value="***************" mono />
-                    <DetailRow label="role" value={viewUser.role} />
-                  </>
-                )}
-              </dl>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              className="bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-700 border-gray-300"
-              onClick={() => setIsViewDetailsOpen(false)}
-            >
-              Close
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -934,6 +851,54 @@ export default function UsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* View Details Dialog - NEW */}
+      <Dialog open={isViewDetailsOpen} onOpenChange={setIsViewDetailsOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>User Details</DialogTitle>
+            <DialogDescription>
+              Full information about the user.
+            </DialogDescription>
+          </DialogHeader>
+          {viewUser && (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-4 mb-2">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={viewUser.avatar} alt={viewUser.name} />
+                  <AvatarFallback>{viewUser.name?.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="font-semibold text-lg">{viewUser.name}</div>
+                  <div className="text-sm text-muted-foreground">{viewUser.email}</div>
+                  <Badge className={`${getRoleColor(viewUser.role)} text-white mt-1`}>
+                    {getRoleName(viewUser.role)}
+                  </Badge>
+                </div>
+              </div>
+              <dl className="divide-y divide-gray-100 border rounded-md bg-gray-50">
+                <DetailRow label="id" value={viewUser.id} mono />
+                {viewUser.phone && <DetailRow label="phone" value={viewUser.phone} />}
+                {viewUser.address && <DetailRow label="address" value={viewUser.address} />}
+                {viewUser.restaurantName && <DetailRow label="restaurantName" value={viewUser.restaurantName} />}
+                {viewUser.vehicleNumber && <DetailRow label="vehicleNumber" value={viewUser.vehicleNumber} />}
+                <DetailRow label="role" value={getRoleName(viewUser.role)} />
+                {typeof viewUser.orders !== "undefined" && (
+                  <DetailRow label="orders" value={viewUser.orders} />
+                )}
+              </dl>
+            </div>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsViewDetailsOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
+   
+
+

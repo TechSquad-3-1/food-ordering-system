@@ -4,13 +4,47 @@ import { OrderService } from '../services/orderService';
 // Create order
 export const createOrder = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const { user_id, items, restaurant_id, delivery_fee, delivery_address, phone, email } = req.body;
+    const {
+      user_id,
+      items,
+      restaurant_id,
+      delivery_fee,
+      delivery_address,
+      phone,
+      email,
+      location, // Extract location from the request body
+    } = req.body;
 
-    if (!user_id || !Array.isArray(items) || items.length === 0 || !restaurant_id || delivery_fee === undefined || !delivery_address || !phone || !email) {
-      return res.status(400).json({ message: 'Invalid request body, user_id, items, restaurant_id, delivery_fee, delivery_address, phone, and email are required' });
+    if (
+      !user_id ||
+      !Array.isArray(items) ||
+      items.length === 0 ||
+      !restaurant_id ||
+      delivery_fee === undefined ||
+      !delivery_address ||
+      !phone ||
+      !email ||
+      !location || // Validate the presence of location
+      typeof location.lat !== 'number' ||
+      typeof location.lng !== 'number'
+    ) {
+      return res.status(400).json({
+        message:
+          'Invalid request body. Ensure user_id, items, restaurant_id, delivery_fee, delivery_address, phone, email, and location (with lat and lng) are provided.',
+      });
     }
 
-    const order = await OrderService.createOrder(user_id, items, restaurant_id, delivery_fee, delivery_address, phone, email);
+    const order = await OrderService.createOrder(
+      user_id,
+      items,
+      restaurant_id,
+      delivery_fee,
+      delivery_address,
+      phone,
+      email,
+      location // Pass the location to the service
+    );
+
     return res.status(201).json({ order });
   } catch (error: unknown) {
     if (error instanceof Error) {

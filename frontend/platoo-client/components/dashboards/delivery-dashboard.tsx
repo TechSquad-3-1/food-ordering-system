@@ -1,347 +1,355 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
-import { Loader2, MapPin, Phone, DollarSign, Clock, CheckCircle, TruckIcon, BarChart3, User, Calendar, MapIcon, Store } from "lucide-react";
+import { Loader2, CheckCircle, Clock, Download, MapPin, Truck } from "lucide-react";
+import dynamic from "next/dynamic";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
-interface DeliveryDashboardProps {
-  userId: string;
+const DeliveryMap = dynamic(() => import("@/components/DeliveryMap"), { ssr: false });
+
+interface OrderItem {
+  menu_item_id: string;
+  quantity: number;
+  price: number;
 }
 
-interface DeliveryProfile {
-  name: string;
-  email: string;
-  phone: string;
-  vehicleNumber: string;
-  rating: number;
-  totalDeliveries: number;
-  totalEarnings: number;
-}
-
-interface Delivery {
+interface Order {
   id: string;
-  orderId: string;
-  customer: {
-    name: string;
-    address: string;
-    phone: string;
-  };
-  restaurant: {
-    name: string;
-    address: string;
-  };
-  status: "assigned" | "picked_up" | "in_transit" | "delivered" | "cancelled";
-  items: { name: string; quantity: number }[];
-  total: number;
-  estimatedDeliveryTime: string;
-  distance: string;
-  earnings: number;
-  date: string;
+  customer: { name: string; address: string; latitude: number; longitude: number };
+  restaurant: { id: string; name: string; latitude: number; longitude: number };
+  items: OrderItem[];
+  total: string;
+  driverLocation: { lat: number; lng: number };
 }
 
-export default function DeliveryDashboard({ userId }: DeliveryDashboardProps) {
-  const [profile, setProfile] = useState<DeliveryProfile | null>(null);
-  const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+export default function DeliveryDashboard() {
+  const [activeOrder, setActiveOrder] = useState<Order | null>(null);
+  const [totalDeliveries, setTotalDeliveries] = useState(0);
+  const [todayDeliveries, setTodayDeliveries] = useState(0);
+  const [deliveryHistory, setDeliveryHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeDelivery, setActiveDelivery] = useState<Delivery | null>(null);
+  const [routeCoords, setRouteCoords] = useState<[number, number][]>([]);
+  const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [phase, setPhase] = useState<"idle" | "going_to_restaurant" | "going_to_customer">("idle");
+
+  const driverId = typeof window !== "undefined" ? localStorage.getItem("deliveryManId") || "driver-123" : "driver-123";
+
 
   useEffect(() => {
-    const storedActiveOrder = localStorage.getItem("activeOrder");
-    if (storedActiveOrder) {
-      const parsedOrder = JSON.parse(storedActiveOrder);
-      const convertedOrder = {
-        id: parsedOrder.id,
-        orderId: parsedOrder.id,
-        customer: {
-          name: parsedOrder.customer.name,
-          address: parsedOrder.customer.address,
-          phone: "",
-        },
-        restaurant: {
-          name: "Restaurant Name",
-          address: "Restaurant Address",
-        },
-        status: "in_transit" as const,
-        items: parsedOrder.items.map((item: any) => ({
-          name: item.name,
-          quantity: item.quantity,
-        })),
-        total: parseFloat(parsedOrder.total),
-        estimatedDeliveryTime: "15 minutes",
-        distance: "2 miles",
-        earnings: 6.5,
-        date: new Date().toISOString(),
-      };
-      setActiveDelivery(convertedOrder);
-    }
-
-    setTimeout(() => {
-      setProfile({
-        name: "Alex Rodriguez",
-        email: "alex.r@example.com",
-        phone: "+1 (555) 987-6543",
-        vehicleNumber: "XYZ-789",
-        rating: 4.8,
-        totalDeliveries: 156,
-        totalEarnings: 1875.5,
+    if (typeof window !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        localStorage.setItem("driverLatitude", position.coords.latitude.toString());
+        localStorage.setItem("driverLongitude", position.coords.longitude.toString());
+        console.log("✅ Driver location saved automatically");
+      }, (error) => {
+        console.error("❌ Error fetching driver location", error);
       });
+    }
+  }, []);
+  
 
-      setDeliveries([]); // No other deliveries needed for now
-      setIsLoading(false);
-    }, 1000);
-  }, [userId]);
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-  const getStatusColor = (status: Delivery["status"]) => {
-    switch (status) {
-      case "assigned":
-        return "bg-yellow-500";
-      case "picked_up":
-        return "bg-blue-500";
-      case "in_transit":
-        return "bg-purple-500";
-      case "delivered":
-        return "bg-green-500";
-      case "cancelled":
-        return "bg-red-500";
-      default:
-        return "bg-gray-500";
+  useEffect(() => {
+    fetchActiveOrderWithDetails();
+    fetchHistory();
+  }, []);
+
+  const fetchActiveOrderWithDetails = async () => {
+    const stored = localStorage.getItem("activeOrder");
+    if (!stored) return;
+    const parsedOrder = JSON.parse(stored);
+    setActiveOrder(parsedOrder);
+    if (parsedOrder.driverLocation) {
+      setDriverLocation(parsedOrder.driverLocation);
     }
   };
 
-  const getStatusText = (status: Delivery["status"]) => {
-    switch (status) {
-      case "assigned":
-        return "Assigned";
-      case "picked_up":
-        return "Picked Up";
-      case "in_transit":
-        return "In Transit";
-      case "delivered":
-        return "Delivered";
-      case "cancelled":
-        return "Cancelled";
-      default:
-        return "Unknown";
+  const fetchHistory = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`http://localhost:3003/api/delivery/driver/${driverId}`);
+      const data = await res.json();
+      const delivered = data.filter((d: any) => d.deliveryStatus === "delivered");
+      const today = new Date().toISOString().split("T")[0];
+      const todayDone = delivered.filter((d: any) => d.deliveryTime.split("T")[0] === today);
+
+      setTotalDeliveries(delivered.length);
+      setTodayDeliveries(todayDone.length);
+      setDeliveryHistory(delivered);
+    } catch (err) {
+      console.error("Error fetching delivery history", err);
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const fetchRoute = async (start: { lat: number; lng: number }, end: { lat: number; lng: number }) => {
+    try {
+      const res = await fetch(
+        `https://api.openrouteservice.org/v2/directions/driving-car/geojson`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `5b3ce3597851110001cf6248dc268f1e36654c6b82014bc0e02c4fa0`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            coordinates: [
+              [start.lng, start.lat],
+              [end.lng, end.lat],
+            ],
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch route");
+      }
+
+      const data = await res.json();
+      if (data && data.features && data.features.length > 0) {
+        const coords = data.features[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]]);
+        setRouteCoords(coords);
+      } else {
+        console.error("❌ No route found:", data);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching route:", error);
+    }
+  };
+
+  const handleAccept = async () => {
+    if (!driverLocation || !activeOrder) {
+      console.error("❌ Driver location or active order missing");
+      return;
+    }
+    setPhase("going_to_restaurant");
+    await fetchRoute(driverLocation, {
+      lat: activeOrder.restaurant.latitude,
+      lng: activeOrder.restaurant.longitude,
+    });
+  };
+
+  const handlePickup = async () => {
+    if (!activeOrder) return;
+    setPhase("going_to_customer");
+    await fetchRoute(
+      { lat: activeOrder.restaurant.latitude, lng: activeOrder.restaurant.longitude },
+      { lat: activeOrder.customer.latitude, lng: activeOrder.customer.longitude }
+    );
+  };
+
+  const completeDelivery = async () => {
+    if (!activeOrder) return;
+    try {
+      await fetch("http://localhost:3003/api/delivery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: activeOrder.id,
+          customerName: activeOrder.customer.name,
+          deliveryAddress: activeOrder.customer.address,
+          restaurantName: activeOrder.restaurant.name,
+          restaurantId: activeOrder.restaurant.id,
+          deliveryStatus: "delivered",
+          pickupTime: new Date(),
+          deliveryTime: new Date(),
+          assignedTo: driverId,
+          totalAmount: activeOrder.total,
+          earnings: 300,
+        }),
+      });
+
+      await fetch(`http://localhost:3008/api/orders/${activeOrder.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "delivered" }),
+      });
+
+      localStorage.removeItem("activeOrder");
+      setActiveOrder(null);
+      setRouteCoords([]);
+      setPhase("idle");
+      fetchHistory();
+    } catch (error) {
+      console.error("❌ Error completing delivery:", error);
+    }
+  };
+
+  const downloadPdf = () => {
+    const doc = new jsPDF();
+    doc.text("Completed Deliveries", 10, 10);
+    const tableData = deliveryHistory.map((d, i) => [
+      i + 1,
+      d.customerName,
+      d.deliveryAddress,
+      d.restaurantName,
+      d.deliveryStatus,
+      new Date(d.deliveryTime).toLocaleString(),
+      `LKR ${d.earnings.toFixed(2)}`,
+    ]);
+    autoTable(doc, {
+      head: [["#", "Customer", "Address", "Restaurant", "Status", "Delivered At", "Earnings"]],
+      body: tableData,
+      startY: 20,
+    });
+    doc.save("deliveries.pdf");
+  };
+
+  const getGreeting = () => {
+    const hour = currentTime.getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 18) return "Good Afternoon";
+    return "Good Evening";
   };
 
   const navItems = [
     { title: "Dashboard", href: "/dashboard", icon: "home" },
-    { title: "Deliveries", href: "/dashboard/deliveries", icon: "truck" },
-    { title: "Pending_Deliveries", href: "/dashboard/delivery/pending-deliveries", icon: "truck" },
-    { title: "Earnings", href: "/dashboard/earnings", icon: "dollar-sign" },
-    { title: "Profile", href: "/dashboard/delivery/profile", icon: "user" },
-    { title: "Settings", href: "/dashboard/settings", icon: "settings" },
+    { title: "Pending Deliveries", href: "/dashboard/delivery/pending-deliveries", icon: "truck" },
+    { title: "Earnings", href: "/dashboard/delivery/earnings", icon: "dollar-sign" },
+    { title: "Profile", href: "/dashboard/delivery", icon: "user" },
   ];
 
-  if (isLoading) {
-    return (
-      <DashboardLayout navItems={navItems}>
-        <div className="flex h-full items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
-          <span className="ml-2 text-lg">Loading your dashboard...</span>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  const dailyDeliveriesData = deliveryHistory.reduce((acc: Record<string, number>, delivery) => {
+    const date = new Date(delivery.deliveryTime).toLocaleDateString();
+    acc[date] = (acc[date] || 0) + 1;
+    return acc;
+  }, {});
+
+  const chartData = Object.entries(dailyDeliveriesData).map(([date, deliveries]) => ({
+    date,
+    deliveries,
+  }));
 
   return (
     <DashboardLayout navItems={navItems}>
-      <div className="flex flex-col gap-6 p-4 md:p-8">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight">Welcome, {profile?.name}</h1>
-          <p className="text-muted-foreground">Manage your deliveries and track your earnings.</p>
+      <div className="p-6">
+        <div className="flex justify-end mb-4">
+          <div className="flex flex-col items-end">
+            <div className="flex items-center text-3xl font-bold">
+              <Clock className="h-7 w-7 mr-2" />
+              {currentTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true })}
+            </div>
+            <span className="text-sm text-gray-500">{getGreeting()}</span>
+          </div>
         </div>
 
-        {/* Earning Cards (keep same) */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Today's Earnings</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">$0.00</div>
-              <p className="text-xs text-muted-foreground">From 0 deliveries today</p>
-            </CardContent>
+            <CardHeader><CardTitle>Today's Earnings</CardTitle></CardHeader>
+            <CardContent className="text-xl font-semibold">LKR {(todayDeliveries * 300).toFixed(2)}</CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Deliveries</CardTitle>
-              <TruckIcon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{profile?.totalDeliveries}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Rating</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{profile?.rating}/5.0</div>
-              <Progress value={profile?.rating ? (profile.rating / 5) * 100 : 0} className="mt-2" />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">${profile?.totalEarnings.toFixed(2)}</div>
-            </CardContent>
+            <CardHeader><CardTitle>Total Deliveries</CardTitle></CardHeader>
+            <CardContent className="text-xl font-semibold">{totalDeliveries}</CardContent>
           </Card>
         </div>
 
-        {/* Tabs */}
-        <Tabs defaultValue="active" className="space-y-4">
+        <Tabs defaultValue="active">
           <TabsList>
             <TabsTrigger value="active">Active Delivery</TabsTrigger>
-            <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
-            <TabsTrigger value="profile">Profile</TabsTrigger>
+            <TabsTrigger value="history">Delivery History</TabsTrigger>
           </TabsList>
 
-          {/* THIS IS THE UPDATED ACTIVE DELIVERY TAB */}
-          <TabsContent value="active" className="space-y-4">
-            {activeDelivery ? (
+          <TabsContent value="active">
+            {activeOrder ? (
               <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Current Delivery</CardTitle>
-                    <Badge className={`${getStatusColor(activeDelivery.status)} text-white`}>
-                      {getStatusText(activeDelivery.status)}
-                    </Badge>
-                  </div>
-                  <CardDescription>
-                    Order #{activeDelivery.orderId} • {new Date(activeDelivery.date).toLocaleString()}
-                  </CardDescription>
-                </CardHeader>
-
-                <CardContent className="space-y-6">
-                  {/* Restaurant/Customer */}
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <h3 className="font-semibold">Restaurant</h3>
-                      <div className="flex items-start space-x-2">
-                        <Store className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <div>{activeDelivery.restaurant.name}</div>
-                          <div className="text-sm text-muted-foreground">{activeDelivery.restaurant.address}</div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <h3 className="font-semibold">Customer</h3>
-                      <div className="flex items-start space-x-2">
-                        <User className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <div>{activeDelivery.customer.name}</div>
-                          <div className="text-sm text-muted-foreground">{activeDelivery.customer.address}</div>
-                        </div>
-                      </div>
-                    </div>
+                <CardHeader><CardTitle>Active Delivery</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <div><strong>Restaurant:</strong> {activeOrder.restaurant.name}</div>
+                    <div><strong>Customer:</strong> {activeOrder.customer.name}</div>
+                    <div><strong>Address:</strong> {activeOrder.customer.address}</div>
                   </div>
 
-                  {/* Order Details */}
-                  <div className="space-y-2">
-                    <h3 className="font-semibold">Order Details</h3>
-                    <div className="rounded-md border p-4">
-                      {activeDelivery.items.map((item, index) => (
-                        <div key={index} className="flex justify-between">
-                          <span>{item.quantity}x {item.name}</span>
-                        </div>
-                      ))}
-                      <div className="mt-4 flex justify-between border-t pt-2">
-                        <span className="font-medium">Total</span>
-                        <span className="font-bold">${activeDelivery.total.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  </div>
+                  {driverLocation && <DeliveryMap driver={driverLocation} route={routeCoords} />}
 
-                  {/* Time/Distance/Earnings */}
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="flex flex-col items-center rounded-md border p-3">
-                      <Clock className="mb-1 h-5 w-5 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Estimated Time</span>
-                      <span className="font-medium">{activeDelivery.estimatedDeliveryTime}</span>
-                    </div>
-                    <div className="flex flex-col items-center rounded-md border p-3">
-                      <MapPin className="mb-1 h-5 w-5 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Distance</span>
-                      <span className="font-medium">{activeDelivery.distance}</span>
-                    </div>
-                    <div className="flex flex-col items-center rounded-md border p-3">
-                      <DollarSign className="mb-1 h-5 w-5 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Earnings</span>
-                      <span className="font-medium">${activeDelivery.earnings.toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  {/* Buttons */}
-                  <div className="flex justify-between space-x-2">
-                    <Button variant="outline" className="flex-1">
-                      <Phone className="mr-2 h-4 w-4" /> Call Customer
-                    </Button>
-                    <Button variant="outline" className="flex-1">
-                      <MapIcon className="mr-2 h-4 w-4" /> Navigation
-                    </Button>
-                    <Button
-                      className="flex-1 bg-green-600 hover:bg-green-700"
-                      onClick={async () => {
-                        try {
-                          const res = await fetch(`http://localhost:3008/api/orders/${activeDelivery.id}/status`, {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ status: "delivered" }),
-                          });
-
-                          if (res.ok) {
-                            alert("Delivery Completed!");
-                            localStorage.removeItem("activeOrder");
-                            setActiveDelivery(null);
-                          } else {
-                            alert("Failed to complete delivery.");
-                          }
-                        } catch (error) {
-                          console.error(error);
-                        }
-                      }}
-                    >
-                      <CheckCircle className="mr-2 h-4 w-4" /> Complete Delivery
-                    </Button>
+                  <div className="flex flex-col gap-2 mt-4">
+                    {phase === "idle" && (
+                      <Button className="w-full bg-blue-500 text-white" onClick={handleAccept}>
+                        <Truck className="mr-2" /> Accept Order
+                      </Button>
+                    )}
+                    {phase === "going_to_restaurant" && (
+                      <Button className="w-full bg-green-600 text-white" onClick={handlePickup}>
+                        <MapPin className="mr-2" /> Picked Up
+                      </Button>
+                    )}
+                    {phase === "going_to_customer" && (
+                      <Button className="w-full bg-purple-600 text-white" onClick={completeDelivery}>
+                        <CheckCircle className="mr-2" /> Complete Delivery
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
             ) : (
               <Card>
-                <CardHeader>
-                  <CardTitle>No Active Deliveries</CardTitle>
-                  <CardDescription>
-                    You don't have any active deliveries at the moment.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col items-center justify-center py-8">
-                    <TruckIcon className="mb-4 h-16 w-16 text-muted-foreground" />
-                    <p className="text-center text-muted-foreground">
-                      Check back soon for new delivery assignments or view your upcoming deliveries.
-                    </p>
-                  </div>
-                </CardContent>
+                <CardHeader><CardTitle>No Active Delivery</CardTitle></CardHeader>
               </Card>
             )}
           </TabsContent>
 
-          {/* Upcoming, History, Profile tabs stay same */}
+          <TabsContent value="history">
+            <Button onClick={fetchHistory} className="mb-4 bg-orange-500 hover:bg-orange-600 text-white">
+              Refresh
+            </Button>
+            <Button onClick={downloadPdf} className="mb-4 ml-2 bg-green-700 hover:bg-green-800 text-white">
+              <Download className="mr-2" /> Download PDF
+            </Button>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {deliveryHistory.map((d, idx) => (
+                <Card key={idx}>
+                  <CardHeader>
+                    <CardTitle>{d.customerName}</CardTitle>
+                    <CardDescription>{new Date(d.deliveryTime).toLocaleDateString()}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div><strong>Address:</strong> {d.deliveryAddress}</div>
+                    <div><strong>Restaurant:</strong> {d.restaurantName}</div>
+                    <div><strong>Status:</strong> {d.deliveryStatus}</div>
+                    <div><strong>Earnings:</strong> LKR {d.earnings.toFixed(2)}</div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+          <div className="mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Daily Deliveries Overview</CardTitle>
+              <CardDescription>Deliveries done per day</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {chartData.length ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="deliveries" stroke="#ef4444" />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-center text-gray-500">No data available.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
         </Tabs>
       </div>
     </DashboardLayout>

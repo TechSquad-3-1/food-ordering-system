@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import Header from "@/components/Header"
 import Footer from "@/components/Footer"
 import { Star, Clock, MapPin, Heart, Minus, Plus, ShoppingCart, X } from "lucide-react"
+import { useCart } from "@/hooks/useCart"; // Import the useCart hook
 
 interface MenuItem {
   _id: string
@@ -56,6 +57,8 @@ interface CartItem {
 export default function RestaurantPage() {
   const { id } = useParams()
   const router = useRouter()
+  const { cartItems } = useCart()
+  const cartCount = cartItems.length;
 
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
   const [menu, setMenu] = useState<MenuCategory[]>([]) // Initialize with an empty array
@@ -220,7 +223,7 @@ const orderNow = (item: MenuItem) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header cartCount={getCartItemCount()} />
+      <Header cartCount={cartCount} />
 
       <main className="pb-20">
         <div className="relative h-64 md:h-80 bg-gray-200">
