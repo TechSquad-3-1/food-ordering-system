@@ -233,7 +233,7 @@ export default function DeliveryPersonProfile() {
             <Card className="shadow-md">
               <CardHeader>
                 <CardTitle className="flex gap-2 items-center">
-                  <MapPin className="h-5 w-5 text-red-500" /> Delivery Addresses
+                  <MapPin className="h-5 w-5 text-red-500" /> Delivery Person Location
                 </CardTitle>
                 {formData.address && (
                   <CardDescription>Your current address: {formData.address}</CardDescription>
